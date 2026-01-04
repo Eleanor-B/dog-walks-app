@@ -277,21 +277,36 @@ button.btn-location:before {
 }
 
 /* =========================
-   Add control (plus in circle)
+   Add control (plus / minus in circle)
    ========================= */
 
    button.btn-add-circle {
-    margin-top: 0;
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     border-radius: 999px;
-    border: 1px solid #d1d5db;
+    border: 1px solid #ddd;
     background: #fff;
-    color: #111;
+  
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+justify-content: center;
+padding-top: 2px;
+
+  
+    color: #111;
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 0.7;
+  
     cursor: pointer;
+    user-select: none;
+
+  
+  }
+  
+  
+  button.btn-add-circle.is-open {
+    border-color: #bbb;
   }
   
   button.btn-add-circle:hover {
@@ -299,9 +314,4 @@ button.btn-location:before {
     background: #f7f7f7;
   }
   
-  button.btn-add-circle:before {
-    content: "+";
-    font-size: 18px;
-    line-height: 1;
-  }
   

@@ -245,6 +245,8 @@ export default function Home() {
       return a.km - b.km;
     });
     const [showAddSpace, setShowAddSpace] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto" }}>
@@ -262,8 +264,8 @@ export default function Home() {
       lineHeight: 1.5,
     }}
   >
-    Browse nearby places that work well for dog walks, with facilities listed for each space.
-    You can look further afield, or add your own spot and name it.
+    Browse nearby places for dog walks, with facilities listed for each space.
+    You can look further afield, or add your own spot and name it. Enjoy your walk.
   </p>
 
   <div style={{ height: 20 }} />
@@ -369,7 +371,7 @@ export default function Home() {
       <h2 style={{ margin: 0 }}>Nearby spaces</h2>
 
       <button type="button" className="btn-location" onClick={getMyLocation}>
-        Use location
+        Use my location
       </button>
     </div>
 
@@ -435,12 +437,14 @@ export default function Home() {
   <section id="map" style={{ marginTop: 24 }}>
     <div style={{ maxWidth: 900, margin: "0 auto" }}>
       <h2>Map preview</h2>
-
+      <p style={{ marginTop: 8, fontSize: 13, color: "#555" }}>
+        This is a preview to help orient you. Tap a space above to view details in your maps app.
+      </p>
       <img
         src={`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${filteredSpaces
           .slice(0, 10)
           .map((s) => `pin-s+111(${s.lng},${s.lat})`)
-          .join(",")}/auto/600x360?padding=40&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`}
+          .join(",")}/auto/600x220?padding=40&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`}
         alt="Map showing nearby green spaces"
         style={{
           width: "100%",
@@ -450,9 +454,7 @@ export default function Home() {
         }}
       />
 
-      <p style={{ marginTop: 8, fontSize: 13, color: "#555" }}>
-        This is a preview to help orient you. Tap a space above to view details in your maps app.
-      </p>
+      
     </div>
   </section>
 ) : null}
@@ -461,27 +463,39 @@ export default function Home() {
 
 <section style={{ marginTop: 24 }}>
   <div style={{ maxWidth: 900, margin: "0 auto" }}>
-  <div
-  style={{
-    marginTop: 32,
-    width: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  }}
->
-  <h2 style={{ margin: 0 }}>Add a new space</h2>
+    <div id="add-space-anchor" />
 
-  <button
-    type="button"
-    className="btn-add-circle"
-    onClick={() => setShowAddSpace((v) => !v)}
-    aria-label={showAddSpace ? "Close add a new space" : "Add a new space"}
-    title={showAddSpace ? "Close" : "Add a new space"}
-  />
-</div>
+    <div
+      style={{
+        marginTop: 32,
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+      }}
+    >
+      <h2 style={{ margin: 0, textAlign: "left" }}>Add a new space</h2>
 
+      <button
+        type="button"
+        className={`btn-add-circle ${showAddSpace ? "is-open" : ""}`}
+        onClick={() => {
+          setShowAddSpace((v) => !v);
+          setTimeout(() => {
+            const el = document.getElementById("add-space-anchor");
+            if (el) {
+              const y = el.getBoundingClientRect().top + window.scrollY - 100;
+              window.scrollTo({ top: y, behavior: "smooth" });
+            }
+          }, 0);
+        }}
+        aria-label={showAddSpace ? "Close add a new space" : "Add a new space"}
+        title={showAddSpace ? "Close" : "Add a new space"}
+      >
+        {showAddSpace ? "−" : "+"}
+      </button>
+    </div>
 
     <p style={{ marginTop: 6, maxWidth: 520, color: "#555", fontSize: 14 }}>
       Add your favourite dog walking space to your list.
@@ -506,23 +520,6 @@ export default function Home() {
             rows={2}
           />
         </label>
-
-        <button
-          type="button"
-          onClick={() => {
-            if (!myLocation) {
-              alert("Use your location first");
-              return;
-            }
-            setNewSpace({
-              ...newSpace,
-              locationText: "Using my current location",
-            });
-          }}
-          className="mt-2 text-sm text-neutral-600 underline underline-offset-2 hover:text-neutral-800"
-        >
-          Use my current location instead
-        </button>
 
         <label>
           Give your space a name
@@ -577,9 +574,7 @@ export default function Home() {
               <input
                 type="checkbox"
                 checked={newSpace.toilets}
-                onChange={(e) =>
-                  setNewSpace({ ...newSpace, toilets: e.target.checked })
-                }
+                onChange={(e) => setNewSpace({ ...newSpace, toilets: e.target.checked })}
               />
               <span>Toilets</span>
             </label>
@@ -597,9 +592,7 @@ export default function Home() {
               <input
                 type="checkbox"
                 checked={newSpace.parking}
-                onChange={(e) =>
-                  setNewSpace({ ...newSpace, parking: e.target.checked })
-                }
+                onChange={(e) => setNewSpace({ ...newSpace, parking: e.target.checked })}
               />
               <span>Parking</span>
             </label>
@@ -607,64 +600,140 @@ export default function Home() {
         </div>
 
         <button
-          type="button"
-          onClick={async () => {
-            if (!newSpace.name.trim()) {
-              alert("Please add a name.");
-              return;
-            }
+  type="button"
+  style={{
+    alignSelf: "flex-start",
+    width: "fit-content",
+    display: "inline-flex",
+    padding: "10px 14px",
+  }}
+  onClick={async () => {
+    if (!newSpace.name.trim()) {
+      alert("Please add a name.");
+      return;
+    }
 
-            const locationText = (newSpace as any).locationText;
-            if (!locationText || !locationText.trim()) {
-              alert("Please add a location.");
-              return;
-            }
+    const locationText = (newSpace as any).locationText;
+    if (!locationText || !locationText.trim()) {
+      alert("Please add a location.");
+      return;
+    }
 
-            let extracted = extractLatLngFromText(locationText);
+    let extracted = extractLatLngFromText(locationText);
 
-            if (!extracted) {
-              const lookedUp = await lookupPlaceName(locationText);
-              if (lookedUp) extracted = lookedUp;
-            }
+    if (!extracted) {
+      const lookedUp = await lookupPlaceName(locationText);
+      if (lookedUp) extracted = lookedUp;
+    }
 
-            if (!extracted) {
-              alert("Couldn’t find that place. Try a clearer name like “Greenwich Park”.");
-              return;
-            }
+    if (!extracted) {
+      alert("Couldn’t find that place. Try a clearer name like “Greenwich Park”.");
+      return;
+    }
 
-            setSpaces([
-              ...spaces,
-              {
-                name: newSpace.name.trim(),
-                lat: roundCoord(extracted.lat),
-                lng: roundCoord(extracted.lng),
-                fenced: newSpace.fenced,
-                bins: newSpace.bins,
-                toilets: newSpace.toilets,
-                coffee: newSpace.coffee,
-                parking: newSpace.parking,
-              },
-            ]);
+    setSpaces([
+      ...spaces,
+      {
+        name: newSpace.name.trim(),
+        lat: roundCoord(extracted.lat),
+        lng: roundCoord(extracted.lng),
+        fenced: newSpace.fenced,
+        bins: newSpace.bins,
+        toilets: newSpace.toilets,
+        coffee: newSpace.coffee,
+        parking: newSpace.parking,
+      },
+    ]);
 
-            setNewSpace({
-              ...newSpace,
-              name: "",
-              locationText: "",
-              fenced: false,
-              bins: false,
-              toilets: false,
-              coffee: false,
-              parking: false,
-            });
-          }}
-        >
-          Add space
-        </button>
+    setNewSpace({
+      ...newSpace,
+      name: "",
+      locationText: "",
+      fenced: false,
+      bins: false,
+      toilets: false,
+      coffee: false,
+      parking: false,
+    });
+    setShowSuccessModal(true);
+setShowAddSpace(false);
+
+  }}
+>
+  Add space
+</button>
+
+
       </div>
     )}
   </div>
 </section>
 
+
+{showSuccessModal && (
+  <div
+    role="dialog"
+    aria-modal="true"
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.35)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 20,
+      zIndex: 9999,
+    }}
+    onClick={() => setShowSuccessModal(false)}
+  >
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 14,
+        padding: "14px 16px",
+        maxWidth: 360,
+        width: "100%",
+        border: "1px solid #e6e6e6",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div
+          aria-hidden="true"
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 999,
+            background: "#111",
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 14,
+            lineHeight: 1,
+          }}
+        >
+          ✓
+        </div>
+
+        <div style={{ fontWeight: 600 }}>
+          Your space has been added.
+        </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+        <button
+          type="button"
+          onClick={() => setShowSuccessModal(false)}
+          style={{ padding: "8px 12px" }}
+        >
+          OK
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
     </main>
   );
