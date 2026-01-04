@@ -3,7 +3,9 @@
 
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
+
 
 
 // Fix marker icons (otherwise you often get missing markers)
@@ -43,14 +45,15 @@ function MapMover({
       const found = spaces.find((s) => s.name === selectedSpaceName);
       if (!found) return;
   
-      map.setView([found.lat, found.lng], 15);
+      map.flyTo([found.lat, found.lng], 16, { duration: 0.6 });
+
     }, [selectedSpaceName, spaces, map]);
   
     return null;
   }
   
 
-export default function MapView({
+  export default function MapView({
     spaces,
     myLocation,
     selectedSpaceName,
@@ -59,39 +62,44 @@ export default function MapView({
     myLocation: { lat: number; lng: number } | null;
     selectedSpaceName: string | null;
   }) {
+    const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
   
-  const center = myLocation ?? { lat: 51.5072, lng: -0.1276 }; // London fallback
+    const center = myLocation ?? { lat: 51.5072, lng: -0.1276 };
+  
+    return (
+      <div style={{ height: 360, marginTop: 12, border: "1px solid #ddd" }}>
+        <MapContainer
+        key="dog-walk-map"
+          center={[center.lat, center.lng]}
+          zoom={12}
+          style={{ height: "100%", width: "100%" }}
+          scrollWheelZoom={false}
+          whenCreated={(m) => setMapInstance(m as any)}
+        >
+          <TileLayer
+  attribution='&copy; OpenStreetMap contributors'
+  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+/>
 
-  return (
-    <div style={{ height: 360, marginTop: 12, border: "1px solid #ddd" }}>
-      <MapContainer
-        center={[center.lat, center.lng]}
-        zoom={12}
-        style={{ height: "100%", width: "100%" }}
-        scrollWheelZoom={false}
-      >
-        <TileLayer
-          attribution='&copy; OpenStreetMap contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <MapMover spaces={spaces} selectedSpaceName={selectedSpaceName} />
-
-
-        {myLocation && (
-          <Marker position={[myLocation.lat, myLocation.lng]}>
-            <Popup>Your location</Popup>
-          </Marker>
-        )}
-
-        {spaces.map((s) => (
-          <Marker key={s.name} position={[s.lat, s.lng]}>
-            <Popup>
-              <strong>{s.name}</strong>
-              {typeof s.km === "number" ? ` — ${s.km.toFixed(1)} km` : ""}
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
-    </div>
-  );
-}
+  
+          <MapMover spaces={spaces} selectedSpaceName={selectedSpaceName} />
+  
+          {myLocation && (
+            <Marker position={[myLocation.lat, myLocation.lng]}>
+              <Popup>Your location</Popup>
+            </Marker>
+          )}
+  
+          {spaces.map((s) => (
+            <Marker key={s.name} position={[s.lat, s.lng]}>
+              <Popup>
+                <strong>{s.name}</strong>
+                {typeof s.km === "number" ? ` — ${s.km.toFixed(1)} km` : ""}
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
+    );
+  }
+  

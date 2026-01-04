@@ -2,7 +2,44 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-const MapView = dynamic(() => import("../components/MapView"), { ssr: false });
+// ---- Place name lookup (no tracking, no accounts) ----
+async function lookupPlaceName(place: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const query = `${place} park london`;
+
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        query
+      )}&limit=1`,
+      {
+        headers: {
+          Accept: "application/json",
+        },
+      }
+    );
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return null;
+
+    const lat = Number(data[0].lat);
+    const lng = Number(data[0].lon);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+    return { lat, lng };
+  } catch {
+    return null;
+  }
+}
+
+
+
+
+
+
+
 
 
 const SPACES = [
@@ -55,6 +92,35 @@ function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number) {
   const c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
   return R * c;
 }
+
+function roundCoord(n: number, decimals = 3) {
+
+  return Number(n.toFixed(decimals));
+}
+function extractLatLngFromText(input: string): { lat: number; lng: number } | null {
+  const text = input.trim();
+
+  // Google Maps often contains "@lat,lng"
+  const atMatch = text.match(/@(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)/);
+  if (atMatch) {
+    return { lat: Number(atMatch[1]), lng: Number(atMatch[3]) };
+  }
+
+  // Sometimes links contain "q=lat,lng"
+  const qMatch = text.match(/[?&]q=(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)/);
+  if (qMatch) {
+    return { lat: Number(qMatch[1]), lng: Number(qMatch[3]) };
+  }
+
+  // OpenStreetMap often contains "#map=zoom/lat/lng"
+  const osmMatch = text.match(/#map=\d+\/(-?\d+(\.\d+)?)\/(-?\d+(\.\d+)?)/);
+  if (osmMatch) {
+    return { lat: Number(osmMatch[1]), lng: Number(osmMatch[3]) };
+  }
+
+  return null;
+}
+
 const buttonStyle = {
   padding: "8px 12px",
   background: "#111",
@@ -64,6 +130,46 @@ const buttonStyle = {
   cursor: "pointer",
 };
 export default function Home() {
+  /*
+  =========================================
+  GUARDRAILS — READ BEFORE CHANGING ANYTHING
+  =========================================
+
+  This page intentionally follows these rules:
+
+  1) LIST FIRST, MAP SECOND
+     - The list must work even if the map fails.
+     - The map should never block rendering the list.
+     - This is why the MapView is:
+       - client-only
+       - conditionally rendered
+       - visually secondary
+
+  2) LOCATION SAFETY
+     - Never store or display precise user location.
+     - User-added spaces must have rounded coordinates.
+     - Users should never see lat/lng values.
+     - Place names come first, coordinates are internal only.
+
+  3) NO ACCOUNTS, NO TRACKING, NO SOCIAL
+     - No logins
+     - No analytics assumptions
+     - No comments/reviews that need moderation
+     - No “safe at night” or risky claims
+
+  4) ADDING A SPACE IS OPTIONAL
+     - Browsing is the primary task.
+     - “Add a new space” is hidden by default on purpose.
+     - Do not move Add flow above browsing.
+
+  5) UX TONE
+     - Calm, minimal, non-gamified.
+     - Avoid loud buttons or pressure language.
+     - Prefer text links for secondary actions.
+
+  If you want to change any of the above,
+  pause and reconsider the product direction first.
+  */
 
   
   const [filters, setFilters] = useState({
@@ -80,6 +186,7 @@ export default function Home() {
   const [selectedSpaceName, setSelectedSpaceName] = useState<string | null>(null);
   const [spaces, setSpaces] = useState(SPACES);
   const [newSpace, setNewSpace] = useState({
+    locationText: "",
     name: "",
     lat: "",
     lng: "",
@@ -90,8 +197,9 @@ export default function Home() {
     parking: false,
   });
   
-
-
+  
+  const [visibleCount, setVisibleCount] = useState(3);
+  const [showMore, setShowMore] = useState(false);
 
   function getMyLocation() {
     setLocationError(null);
@@ -136,19 +244,34 @@ export default function Home() {
       if (a.km === null || b.km === null) return 0;
       return a.km - b.km;
     });
+    const [showAddSpace, setShowAddSpace] = useState(false);
 
   return (
-    <main style={{ padding: 24, fontFamily: "system-ui" }}>
-      <h1>Find a safe dog walk near you</h1>
+    <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto" }}>
+
+
+<div style={{ maxWidth: 900, margin: "0 auto" }}>
+  <div style={{ height: 32 }} />
+  <h1>Better dog walks. Closer than you think.</h1>
+
+  <p
+    style={{
+      maxWidth: 520,
+      marginBottom: 20,
+      color: "#555",
+      lineHeight: 1.5,
+    }}
+  >
+    Browse nearby places that work well for dog walks, with facilities listed for each space.
+    You can look further afield, or add your own spot and name it.
+  </p>
+
+  <div style={{ height: 20 }} />
+</div>
+
 
       <div style={{ marginTop: 12 }}>
-      <button
-  onClick={getMyLocation}
-  style={buttonStyle}
-  disabled={isGettingLocation}
->
-  {isGettingLocation ? "Getting your location…" : "Use my location"}
-</button>
+    
 
 
 
@@ -156,196 +279,106 @@ export default function Home() {
         {locationError && <p style={{ marginTop: 8 }}>{locationError}</p>}
       </div>
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Filters</h2>
+      <section style={{ marginTop: 16 }}>
+  <div style={{ maxWidth: 900, margin: "0 auto" }}>
+    <div className="filter-row">
+      <h2 className="text-base font-semibold" style={{ margin: 0 }}>
+        Filters
+      </h2>
 
-        {[
-          ["fenced", "Fenced area"],
-          ["bins", "Dog bins available"],
-          ["toilets", "Public toilets nearby"],
-          ["coffee", "Coffee nearby"],
-          ["parking", "Car park"],
-        ].map(([key, label]) => (
-          <label key={key} style={{ display: "block" }}>
-            <input
-              type="checkbox"
-              checked={filters[key as keyof typeof filters]}
-              onChange={(e) =>
-                setFilters({
-                  ...filters,
-                  [key]: e.target.checked,
-                })
-              }
-            />{" "}
-            {label}
-          </label>
-        ))}
-      </section>
-    
-      <section style={{ marginTop: 24 }}>
-  <h2>Add a space</h2>
-
-  <div style={{ display: "grid", gap: 10, maxWidth: 520 }}>
-    <label>
-      Name
-      <input
-        value={newSpace.name}
-        onChange={(e) => setNewSpace({ ...newSpace, name: e.target.value })}
-        style={{
-          display: "block",
-          width: "100%",
-          padding: 8,
-          marginTop: 4,
-          border: "1px solid #ccc",
-          borderRadius: 6,
-          background: "white",
-        }}
-        
-        placeholder="e.g. Peckham Rye Park – meadow"
-      />
-    </label>
-
-    <label>
-      Latitude (number)
-      <input
-        value={newSpace.lat}
-        onChange={(e) => setNewSpace({ ...newSpace, lat: e.target.value })}
-        style={{
-          display: "block",
-          width: "100%",
-          padding: 8,
-          marginTop: 4,
-          border: "1px solid #ccc",
-          borderRadius: 6,
-          background: "white",
-        }}
-        
-        placeholder="e.g. 51.4823"
-      />
-    </label>
-
-    <label>
-      Longitude (number)
-      <input
-        value={newSpace.lng}
-        onChange={(e) => setNewSpace({ ...newSpace, lng: e.target.value })}
-        style={{
-          display: "block",
-          width: "100%",
-          padding: 8,
-          marginTop: 4,
-          border: "1px solid #ccc",
-          borderRadius: 6,
-          background: "white",
-        }}
-        
-        placeholder="e.g. -0.0601"
-      />
-    </label>
-
-    <div style={{ display: "grid", gap: 6 }}>
-      <label>
-        <input
-          type="checkbox"
-          checked={newSpace.fenced}
-          onChange={(e) => setNewSpace({ ...newSpace, fenced: e.target.checked })}
-        />{" "}
-        Fenced
-      </label>
-
-      <label>
-        <input
-          type="checkbox"
-          checked={newSpace.bins}
-          onChange={(e) => setNewSpace({ ...newSpace, bins: e.target.checked })}
-        />{" "}
-        Dog bins
-      </label>
-
-      <label>
-        <input
-          type="checkbox"
-          checked={newSpace.toilets}
-          onChange={(e) => setNewSpace({ ...newSpace, toilets: e.target.checked })}
-        />{" "}
-        Toilets
-      </label>
-
-      <label>
-        <input
-          type="checkbox"
-          checked={newSpace.coffee}
-          onChange={(e) => setNewSpace({ ...newSpace, coffee: e.target.checked })}
-        />{" "}
-        Coffee
-      </label>
-
-      <label>
-        <input
-          type="checkbox"
-          checked={newSpace.parking}
-          onChange={(e) => setNewSpace({ ...newSpace, parking: e.target.checked })}
-        />{" "}
-        Parking
-      </label>
+      {(filters.fenced ||
+        filters.bins ||
+        filters.toilets ||
+        filters.coffee ||
+        filters.parking) && (
+        <button
+          type="button"
+          className="btn-text"
+          onClick={() =>
+            setFilters({
+              fenced: false,
+              bins: false,
+              toilets: false,
+              coffee: false,
+              parking: false,
+            })
+          }
+        >
+          Clear filters
+        </button>
+      )}
     </div>
 
-    <button
-      onClick={() => {
-        const latNum = Number(newSpace.lat);
-        const lngNum = Number(newSpace.lng);
+    <div className="filter-chips" aria-label="Filter spaces by facilities">
+      <button
+        type="button"
+        className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
+        onClick={() => setFilters({ ...filters, fenced: !filters.fenced })}
+      >
+        Fenced
+      </button>
 
-        if (!newSpace.name.trim()) {
-          alert("Please add a name.");
-          return;
-        }
-        if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
-          alert("Please add valid latitude and longitude numbers.");
-          return;
-        }
+      <button
+        type="button"
+        className={`filter-chip ${filters.bins ? "is-on" : ""}`}
+        onClick={() => setFilters({ ...filters, bins: !filters.bins })}
+      >
+        Dog bins
+      </button>
 
-        setSpaces([
-          ...spaces,
-          {
-            name: newSpace.name.trim(),
-            lat: latNum,
-            lng: lngNum,
-            fenced: newSpace.fenced,
-            bins: newSpace.bins,
-            toilets: newSpace.toilets,
-            coffee: newSpace.coffee,
-            parking: newSpace.parking,
-          },
-        ]);
+      <button
+        type="button"
+        className={`filter-chip ${filters.toilets ? "is-on" : ""}`}
+        onClick={() => setFilters({ ...filters, toilets: !filters.toilets })}
+      >
+        Toilets
+      </button>
 
-        setNewSpace({
-          name: "",
-          lat: "",
-          lng: "",
-          fenced: false,
-          bins: false,
-          toilets: false,
-          coffee: false,
-          parking: false,
-        });
-      }}
-      style={buttonStyle}
+      <button
+        type="button"
+        className={`filter-chip ${filters.coffee ? "is-on" : ""}`}
+        onClick={() => setFilters({ ...filters, coffee: !filters.coffee })}
+      >
+        Coffee
+      </button>
 
-    >
-      Add space
-    </button>
+      <button
+        type="button"
+        className={`filter-chip ${filters.parking ? "is-on" : ""}`}
+        onClick={() => setFilters({ ...filters, parking: !filters.parking })}
+      >
+        Parking
+      </button>
+    </div>
   </div>
 </section>
 
-      <section style={{ marginTop: 32 }}>
-        <h2>Nearby spaces</h2>
 
-        {filteredSpaces.length === 0 ? (
-          <p>No spaces match your filters.</p>
-        ) : (
-          <ul>
-            {filteredSpaces.map((space) => (
-            <li
+          
+<section style={{ marginTop: 32 }}>
+  <div style={{ maxWidth: 900, margin: "0 auto" }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        marginBottom: 12,
+      }}
+    >
+      <h2 style={{ margin: 0 }}>Nearby spaces</h2>
+
+      <button type="button" className="btn-location" onClick={getMyLocation}>
+        Use location
+      </button>
+    </div>
+
+    {filteredSpaces.length === 0 ? (
+      <p>No spaces match your filters.</p>
+    ) : (
+      <ul>
+        {filteredSpaces.map((space) => (
+          <li
             key={space.name}
             style={{
               marginBottom: 12,
@@ -355,42 +388,283 @@ export default function Home() {
               background: selectedSpaceName === space.name ? "#f3f4f6" : "white",
             }}
           >
-          
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+              <div>
                 <strong>{space.name}</strong>
                 {typeof (space as any).km === "number" && (
-                  <span> — {(space as any).km.toFixed(1)} km</span>
+                  <span style={{ marginLeft: 6, color: "#555" }}>
+                    · {(space as any).km.toFixed(1)} km away
+                  </span>
                 )}
-                <br />
-                {space.fenced && "Fenced · "}
-                {space.bins && "Dog bins · "}
-                {space.toilets && "Toilets · "}
-                {space.coffee && "Coffee · "}
-                {space.parking && "Parking"}
-                <div style={{ marginTop: 6 }}>
-  <button
-onClick={() => {
-  setSelectedSpaceName(space.name);
-  document.getElementById("map")?.scrollIntoView({ behavior: "smooth" });
-}}
-    style={buttonStyle}
-  >
-    View on map
-  </button>
-</div>
-              </li>
-            ))}
-          </ul>
-        )}
-    </section>
 
-    <section id="map" style={{ marginTop: 24 }}>
-  <h2>Map</h2>
-  <MapView
-    spaces={filteredSpaces as any}
-    myLocation={myLocation}
-    selectedSpaceName={selectedSpaceName}
-  />
+                <div style={{ marginTop: 4, fontSize: 13, color: "#555" }}>
+                  {(() => {
+                    const facilities = [
+                      space.fenced ? "Fenced" : null,
+                      space.bins ? "Dog bins" : null,
+                      space.toilets ? "Toilets" : null,
+                      space.coffee ? "Coffee" : null,
+                      space.parking ? "Parking" : null,
+                    ].filter(Boolean);
+
+                    return facilities.length > 0 ? facilities.join(" · ") : "Facilities not listed";
+                  })()}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setSelectedSpaceName(space.name);
+                  document.getElementById("map")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                View on map
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
 </section>
+
+
+{filteredSpaces.length > 0 ? (
+  <section id="map" style={{ marginTop: 24 }}>
+    <div style={{ maxWidth: 900, margin: "0 auto" }}>
+      <h2>Map preview</h2>
+
+      <img
+        src={`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${filteredSpaces
+          .slice(0, 10)
+          .map((s) => `pin-s+111(${s.lng},${s.lat})`)
+          .join(",")}/auto/600x360?padding=40&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`}
+        alt="Map showing nearby green spaces"
+        style={{
+          width: "100%",
+          borderRadius: 8,
+          border: "1px solid #ddd",
+          marginTop: 8,
+        }}
+      />
+
+      <p style={{ marginTop: 8, fontSize: 13, color: "#555" }}>
+        This is a preview to help orient you. Tap a space above to view details in your maps app.
+      </p>
+    </div>
+  </section>
+) : null}
+
+
+
+<section style={{ marginTop: 24 }}>
+  <div style={{ maxWidth: 900, margin: "0 auto" }}>
+  <div
+  style={{
+    marginTop: 32,
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  }}
+>
+  <h2 style={{ margin: 0 }}>Add a new space</h2>
+
+  <button
+    type="button"
+    className="btn-add-circle"
+    onClick={() => setShowAddSpace((v) => !v)}
+    aria-label={showAddSpace ? "Close add a new space" : "Add a new space"}
+    title={showAddSpace ? "Close" : "Add a new space"}
+  />
+</div>
+
+
+    <p style={{ marginTop: 6, maxWidth: 520, color: "#555", fontSize: 14 }}>
+      Add your favourite dog walking space to your list.
+    </p>
+
+    {showAddSpace && (
+      <div style={{ display: "grid", gap: 10, maxWidth: 520, marginTop: 12 }}>
+        <label>
+          Add the location
+          <span style={{ fontSize: 13, color: "#555" }}>
+            Just type the name — we’ll find the right spot on the map for you.
+          </span>
+          <textarea
+            value={(newSpace as any).locationText ?? ""}
+            onChange={(e) =>
+              setNewSpace({
+                ...newSpace,
+                locationText: e.target.value,
+              })
+            }
+            placeholder="e.g. Greenwich Park, Hampstead Heath"
+            rows={2}
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (!myLocation) {
+              alert("Use your location first");
+              return;
+            }
+            setNewSpace({
+              ...newSpace,
+              locationText: "Using my current location",
+            });
+          }}
+          className="mt-2 text-sm text-neutral-600 underline underline-offset-2 hover:text-neutral-800"
+        >
+          Use my current location instead
+        </button>
+
+        <label>
+          Give your space a name
+          <input
+            value={newSpace.name}
+            onChange={(e) =>
+              setNewSpace({
+                ...newSpace,
+                name: e.target.value,
+              })
+            }
+            placeholder="e.g. Peckham Rye Park – meadow"
+            type="text"
+          />
+        </label>
+
+        <div style={{ marginTop: 16, width: "100%" }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Facilities</div>
+
+          <div style={{ fontSize: 13, color: "#555", marginBottom: 12, maxWidth: 520 }}>
+            Select the facilities that are available in this new space.
+          </div>
+
+          <div
+            className="facilities-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+              gap: 12,
+              width: "100%",
+            }}
+          >
+            <label className="facility-option">
+              <input
+                type="checkbox"
+                checked={newSpace.fenced}
+                onChange={(e) => setNewSpace({ ...newSpace, fenced: e.target.checked })}
+              />
+              <span>Fenced</span>
+            </label>
+
+            <label className="facility-option">
+              <input
+                type="checkbox"
+                checked={newSpace.bins}
+                onChange={(e) => setNewSpace({ ...newSpace, bins: e.target.checked })}
+              />
+              <span>Dog bins</span>
+            </label>
+
+            <label className="facility-option">
+              <input
+                type="checkbox"
+                checked={newSpace.toilets}
+                onChange={(e) =>
+                  setNewSpace({ ...newSpace, toilets: e.target.checked })
+                }
+              />
+              <span>Toilets</span>
+            </label>
+
+            <label className="facility-option">
+              <input
+                type="checkbox"
+                checked={newSpace.coffee}
+                onChange={(e) => setNewSpace({ ...newSpace, coffee: e.target.checked })}
+              />
+              <span>Coffee</span>
+            </label>
+
+            <label className="facility-option">
+              <input
+                type="checkbox"
+                checked={newSpace.parking}
+                onChange={(e) =>
+                  setNewSpace({ ...newSpace, parking: e.target.checked })
+                }
+              />
+              <span>Parking</span>
+            </label>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={async () => {
+            if (!newSpace.name.trim()) {
+              alert("Please add a name.");
+              return;
+            }
+
+            const locationText = (newSpace as any).locationText;
+            if (!locationText || !locationText.trim()) {
+              alert("Please add a location.");
+              return;
+            }
+
+            let extracted = extractLatLngFromText(locationText);
+
+            if (!extracted) {
+              const lookedUp = await lookupPlaceName(locationText);
+              if (lookedUp) extracted = lookedUp;
+            }
+
+            if (!extracted) {
+              alert("Couldn’t find that place. Try a clearer name like “Greenwich Park”.");
+              return;
+            }
+
+            setSpaces([
+              ...spaces,
+              {
+                name: newSpace.name.trim(),
+                lat: roundCoord(extracted.lat),
+                lng: roundCoord(extracted.lng),
+                fenced: newSpace.fenced,
+                bins: newSpace.bins,
+                toilets: newSpace.toilets,
+                coffee: newSpace.coffee,
+                parking: newSpace.parking,
+              },
+            ]);
+
+            setNewSpace({
+              ...newSpace,
+              name: "",
+              locationText: "",
+              fenced: false,
+              bins: false,
+              toilets: false,
+              coffee: false,
+              parking: false,
+            });
+          }}
+        >
+          Add space
+        </button>
+      </div>
+    )}
+  </div>
+</section>
+
 
     </main>
   );

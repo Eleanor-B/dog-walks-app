@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* =========================
+   Theme tokens
+   ========================= */
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -19,8 +23,285 @@
   }
 }
 
+/* =========================
+   Base page styles
+   ========================= */
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* =========================
+   Type hierarchy
+   ========================= */
+
+h1 {
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 1.2;
+  margin: 0 0 12px 0;
+}
+
+h2 {
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.25;
+  margin: 28px 0 12px 0;
+}
+
+
+/* =========================
+   Form affordance
+   ========================= */
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 500;
+  margin-top: 12px;
+}
+
+input[type="text"],
+input[type="number"],
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+input[type="text"],
+input[type="number"] {
+  margin-top: 6px;
+}
+
+textarea {
+  resize: vertical;
+}
+
+/* =========================
+   Default button (fallback)
+   Keep this for any button without a class.
+   ========================= */
+
+button {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #111;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================
+   Button system (preferred)
+   Use these classes on buttons in page.tsx
+   These override the default button above.
+   ========================= */
+
+button.btn-primary {
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+button.btn-primary:hover {
+  background: #000;
+}
+
+button.btn-secondary {
+  background: #fff;
+  color: #111;
+  border: 1px solid #111;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+button.btn-secondary:hover {
+  background: #f3f3f3;
+}
+
+button.btn-text {
+  background: none;
+  color: #555;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+button.btn-text:hover {
+  color: #111;
+}
+/* =========================
+   Filter chips (selection controls)
+   ========================= */
+
+   .filter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  
+  .filter-chips {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;                 /* ensures chips never touch */
+  }
+  
+  /* Filter chip base */
+  button.filter-chip {
+    margin-top: 0;             /* overrides default button margin */
+    background: #f5f5f5;       /* softer than white so it doesn’t look like CTA */
+    color: #111;
+    border: 1px solid #e2e2e2; /* quiet border */
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  
+  /* Hover */
+  button.filter-chip:hover {
+    background: #efefef;
+    border-color: #cfcfcf;
+  }
+  
+  /* Selected state */
+  button.filter-chip.is-on {
+    background: #111;
+    color: #fff;
+    border-color: #111;
+  }
+  
+  /* Keyboard focus (accessibility) */
+  button.filter-chip:focus-visible {
+    outline: 2px solid #111;
+    outline-offset: 2px;
+  }
+  
+  /* =========================
+   Facilities grid (checkboxes)
+   ========================= */
+
+   .facilities-grid {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    width: 100%;
+  }
+  
+  /* 3 columns on tablet+ */
+  @media (min-width: 768px) {
+  }
+
+  
+  .facility-option {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px;
+    padding: 6px 0;
+    border: 0;
+    background: transparent;
+    width: 100%;
+  }
+  
+  .facility-option span {
+    display: block;
+    text-align: left;
+  }
+  
+
+  
+  /* Keep checkbox + label nicely aligned */
+  .facility-option input[type="checkbox"] {
+    margin: 0;
+  }
+  
+
+/* =========================
+   Utility buttons
+   ========================= */
+
+/* Location button — lightweight, non-primary */
+button.btn-location {
+  margin-top: 0;
+  display: inline-flex;
+  align-items: center;          /* ensures vertical centring */
+  gap: 6px;
+  background: transparent;
+  color: #111;
+  border: none;
+  padding: 4px 6px;
+  font-size: 13px;
+  line-height: 1;               /* prevents text drift */
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+
+button.btn-location:hover {
+  background: #f3f3f3;
+}
+
+button.btn-location:before {
+  content: "⌖";
+  font-size: 18px;              /* slightly larger icon */
+  line-height: 1;
+  display: inline-block;
+}
+
+/* =========================
+   Add control (plus in circle)
+   ========================= */
+
+   button.btn-add-circle {
+    margin-top: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #111;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  
+  button.btn-add-circle:hover {
+    border-color: #111;
+    background: #f7f7f7;
+  }
+  
+  button.btn-add-circle:before {
+    content: "+";
+    font-size: 18px;
+    line-height: 1;
+  }
+  
