@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import MapboxFullMap from "../components/MapboxFullMap";
+
 // ---- Place name lookup (no tracking, no accounts) ----
 async function lookupPlaceName(place: string): Promise<{ lat: number; lng: number } | null> {
   try {
@@ -246,7 +248,8 @@ export default function Home() {
     });
     const [showAddSpace, setShowAddSpace] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
-    
+    const [showFullMap, setShowFullMap] = useState(false);
+
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto" }}>
@@ -440,6 +443,19 @@ export default function Home() {
       <p style={{ marginTop: 8, fontSize: 13, color: "#555" }}>
         This is a preview to help orient you. Tap a space above to view details in your maps app.
       </p>
+      <button
+  type="button"
+  onClick={() => setShowFullMap(true)}
+  style={{
+    marginTop: 10,
+    padding: "10px 12px",
+    width: "fit-content",
+    display: "inline-flex",
+  }}
+>
+  View larger map
+</button>
+
       <img
         src={`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${filteredSpaces
           .slice(0, 10)
@@ -735,6 +751,12 @@ setShowAddSpace(false);
   </div>
 )}
 
+{showFullMap && (
+  <MapboxFullMap
+    spaces={filteredSpaces}
+    onClose={() => setShowFullMap(false)}
+  />
+)}
     </main>
   );
 }
