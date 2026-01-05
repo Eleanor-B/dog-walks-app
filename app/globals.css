@@ -325,6 +325,33 @@ button.btn-location:before {
   display: inline-block;
 }
 
+/* Delete button (trash icon) */
+button.btn-delete {
+  margin-top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: #111;
+  border: none;
+  padding: 4px 6px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+button.btn-delete:hover {
+  background: #f3f3f3;
+}
+
+button.btn-delete:before {
+  content: "🗑";
+  font-size: 16px;
+  line-height: 1;
+  display: inline-block;
+}
+
 /* =========================
    Add control (plus / minus in circle)
    ========================= */

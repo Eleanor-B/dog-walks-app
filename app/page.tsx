@@ -196,14 +196,15 @@ export default function Home() {
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <div style={{ height: 32 }} />
+      {/* Header */}
+      <div style={{ maxWidth: 900, margin: "0 auto", paddingTop: 24 }}>
         <h1>Better dog walks. Closer than you think.</h1>
 
         <p
           style={{
             maxWidth: 520,
-            marginBottom: 20,
+            marginTop: 16,
+            marginBottom: 0,
             color: "#555",
             lineHeight: 1.5,
           }}
@@ -212,19 +213,11 @@ export default function Home() {
           You can look further afield, or add your own spot and name it. Enjoy your walk.
         </p>
 
-        <div style={{ height: 20 }} />
+        {locationError && <p style={{ marginTop: 16, color: "#d32f2f" }}>{locationError}</p>}
       </div>
 
-      <div style={{ marginTop: 12 }}>
-        {myLocation && (
-          <span style={{ marginLeft: 12, color: "#111", fontWeight: 500 }}>
-            Your current location is set ✓
-          </span>
-        )}
-        {locationError && <p style={{ marginTop: 8 }}>{locationError}</p>}
-      </div>
-
-      <section style={{ marginTop: 16 }}>
+      {/* Filters */}
+      <section style={{ marginTop: 40 }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <div className="filter-row">
             <h2 className="text-base font-semibold" style={{ margin: 0 }}>
@@ -298,57 +291,60 @@ export default function Home() {
         </div>
       </section>
 
-      <section style={{ marginTop: 32 }}>
+      {/* Nearby spaces */}
+      <section style={{ marginTop: 40 }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 12,
-              marginBottom: 12,
+              gap: 16,
+              marginBottom: 16,
             }}
           >
             <h2 style={{ margin: 0 }}>Nearby spaces</h2>
 
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
               <button type="button" className="btn-secondary" onClick={getMyLocation}>
                 Use my location
               </button>
-
-              <button
-                type="button"
-                className="btn-location"
-                onClick={() => {
-                  if (selectedSpaceNames.length === 0) {
-                    alert("Please select at least one space to delete.");
-                    return;
-                  }
-                  setShowDeleteModal(true);
-                }}
-              >
-                Delete a space
-              </button>
+              {myLocation && (
+                <span style={{ fontSize: 13, color: "#111", fontWeight: 500 }}>
+                  Location set ✓
+                </span>
+              )}
             </div>
           </div>
+
+          {selectedSpaceNames.length > 0 && (
+            <button
+              type="button"
+              className="btn-delete"
+              onClick={() => setShowDeleteModal(true)}
+              style={{ marginBottom: 16 }}
+            >
+              Delete {selectedSpaceNames.length} {selectedSpaceNames.length === 1 ? "space" : "spaces"}
+            </button>
+          )}
 
           {filteredSpaces.length === 0 ? (
             <p>No spaces match your filters.</p>
           ) : (
-            <ul>
+            <ul style={{ marginTop: 0 }}>
               {filteredSpaces.slice(currentPage * 4, currentPage * 4 + 4).map((space) => (
                 <li
                   key={space.name}
                   style={{
-                    marginBottom: 12,
-                    padding: 10,
+                    marginBottom: 16,
+                    padding: 16,
                     border: "1px solid #ddd",
                     borderRadius: 8,
                     background: selectedSpaceName === space.name ? "#f3f4f6" : "white",
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start", flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flex: 1 }}>
                       <input
                         type="checkbox"
                         checked={selectedSpaceNames.includes(space.name)}
@@ -364,12 +360,12 @@ export default function Home() {
                       <div style={{ flex: 1 }}>
                         <strong>{space.name}</strong>
                         {typeof (space as any).km === "number" && (
-                          <span style={{ marginLeft: 6, color: "#555" }}>
+                          <span style={{ marginLeft: 8, color: "#555" }}>
                             · {(space as any).km.toFixed(1)} km away
                           </span>
                         )}
 
-                        <div style={{ marginTop: 4, fontSize: 13, color: "#555" }}>
+                        <div style={{ marginTop: 8, fontSize: 13, color: "#555" }}>
                           {(() => {
                             const facilities = [
                               space.fenced ? "Fenced" : null,
@@ -408,8 +404,8 @@ export default function Home() {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                gap: 12,
-                marginTop: 16,
+                gap: 16,
+                marginTop: 24,
               }}
             >
               <button
@@ -434,64 +430,63 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Map preview */}
       {filteredSpaces.length > 0 ? (
-        <section id="map" style={{ marginTop: 24 }}>
+        <section style={{ marginTop: 48 }}>
           <div style={{ maxWidth: 900, margin: "0 auto" }}>
-            <h2>Map preview</h2>
-            <p style={{ marginTop: 8, fontSize: 13, color: "#555" }}>
+            <h2 style={{ marginBottom: 8 }}>Map preview</h2>
+            <p style={{ marginTop: 0, marginBottom: 16, fontSize: 13, color: "#555" }}>
               This is a preview to help orient you. Tap a space above to view details in your maps app.
             </p>
             <button
               type="button"
+              className="btn-primary"
               onClick={() => setShowFullMap(true)}
-              style={{
-                marginTop: 10,
-                padding: "10px 12px",
-                width: "fit-content",
-                display: "inline-flex",
-              }}
+              style={{ marginBottom: 16 }}
             >
               View larger map
             </button>
 
-            <MapboxEmbedded spaces={filteredSpaces.slice(0, 10)} />
+            <MapboxEmbedded 
+              spaces={filteredSpaces.slice(0, 10)} 
+              myLocation={myLocation}
+              selectedSpaceNames={selectedSpaceNames}
+            />
           </div>
         </section>
       ) : null}
 
-      <section style={{ marginTop: 24 }}>
+      {/* Add a new space */}
+      <section style={{ marginTop: 48 }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <div id="add-space-anchor" />
-
           <div
             style={{
-              marginTop: 32,
-              width: "100%",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 12,
+              gap: 16,
+              marginBottom: 8,
             }}
           >
-            <h2 style={{ margin: 0, textAlign: "left" }}>Add a new space</h2>
+            <h2 style={{ margin: 0 }}>Add a new space</h2>
 
             <button
-              className="btn btn-primary"
+              className="btn-primary"
               onClick={() => setShowAddSpace(!showAddSpace)}
             >
               Add a space
             </button>
           </div>
 
-          <p style={{ marginTop: 6, maxWidth: 520, color: "#555", fontSize: 14 }}>
+          <p style={{ marginTop: 0, maxWidth: 520, color: "#555", fontSize: 14 }}>
             Add your favourite dog walking space to your list.
           </p>
 
           {showAddSpace && (
-            <div style={{ display: "grid", gap: 10, maxWidth: 520, marginTop: 12 }}>
+            <div style={{ display: "grid", gap: 16, maxWidth: 520, marginTop: 24 }}>
               <label>
                 Add the location
-                <span style={{ fontSize: 13, color: "#555" }}>
+                <span style={{ display: "block", fontSize: 13, color: "#555", marginTop: 4 }}>
                   Just type the name — we'll find the right spot on the map for you.
                 </span>
                 <textarea
@@ -522,10 +517,10 @@ export default function Home() {
                 />
               </label>
 
-              <div style={{ marginTop: 16, width: "100%" }}>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>Facilities</div>
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>Facilities</div>
 
-                <div style={{ fontSize: 13, color: "#555", marginBottom: 12, maxWidth: 520 }}>
+                <div style={{ fontSize: 13, color: "#555", marginBottom: 16, maxWidth: 520 }}>
                   Select the facilities that are available in this new space.
                 </div>
 
@@ -587,12 +582,8 @@ export default function Home() {
 
               <button
                 type="button"
-                style={{
-                  alignSelf: "flex-start",
-                  width: "fit-content",
-                  display: "inline-flex",
-                  padding: "10px 14px",
-                }}
+                className="btn-primary"
+                style={{ marginTop: 8, alignSelf: "flex-start" }}
                 onClick={async () => {
                   if (!newSpace.name.trim()) {
                     alert("Please add a name.");
@@ -652,6 +643,7 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Success modal */}
       {showSuccessModal && (
         <div
           role="dialog"
@@ -672,7 +664,7 @@ export default function Home() {
             style={{
               background: "#fff",
               borderRadius: 14,
-              padding: "14px 16px",
+              padding: "20px 24px",
               maxWidth: 360,
               width: "100%",
               border: "1px solid #e6e6e6",
@@ -680,12 +672,12 @@ export default function Home() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div
                 aria-hidden="true"
                 style={{
-                  width: 22,
-                  height: 22,
+                  width: 24,
+                  height: 24,
                   borderRadius: 999,
                   background: "#111",
                   color: "#fff",
@@ -702,8 +694,8 @@ export default function Home() {
               <div style={{ fontWeight: 600 }}>Your space has been added.</div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-              <button type="button" onClick={() => setShowSuccessModal(false)} style={{ padding: "8px 12px" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+              <button type="button" onClick={() => setShowSuccessModal(false)}>
                 OK
               </button>
             </div>
@@ -711,6 +703,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* Delete confirmation modal */}
       {showDeleteModal && (
         <div
           role="dialog"
@@ -731,7 +724,7 @@ export default function Home() {
             style={{
               background: "#fff",
               borderRadius: 14,
-              padding: "14px 16px",
+              padding: "20px 24px",
               maxWidth: 360,
               width: "100%",
               border: "1px solid #e6e6e6",
@@ -739,28 +732,27 @@ export default function Home() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ fontWeight: 600, marginBottom: 12 }}>
+            <div style={{ fontWeight: 600, marginBottom: 16 }}>
               Are you sure you want to delete {selectedSpaceNames.length === 1 ? "this space" : "these spaces"}?
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
               <button
                 type="button"
                 className="btn-secondary"
                 onClick={() => setShowDeleteModal(false)}
-                style={{ padding: "8px 12px" }}
               >
                 Cancel
               </button>
 
               <button
                 type="button"
+                className="btn-primary"
                 onClick={() => {
                   setSpaces(spaces.filter((s) => !selectedSpaceNames.includes(s.name)));
                   setSelectedSpaceNames([]);
                   setShowDeleteModal(false);
                 }}
-                style={{ padding: "8px 12px", background: "#111", color: "#fff" }}
               >
                 Delete
               </button>
@@ -769,7 +761,15 @@ export default function Home() {
         </div>
       )}
 
-      {showFullMap && <MapboxFullMap spaces={filteredSpaces} onClose={() => setShowFullMap(false)} />}
+      {/* Full map modal */}
+      {showFullMap && (
+        <MapboxFullMap
+          spaces={filteredSpaces}
+          myLocation={myLocation}
+          selectedSpaceNames={selectedSpaceNames}
+          onClose={() => setShowFullMap(false)}
+        />
+      )}
     </main>
   );
 }

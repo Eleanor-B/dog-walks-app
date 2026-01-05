@@ -10,20 +10,25 @@ type Space = {
   lat: number;
   lng: number;
 };
+
 const animationStyles = (
-    <style>{`
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-    `}</style>
-  );
-  
+  <style>{`
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  `}</style>
+);
+
 export default function MapboxFullMap({
   spaces,
+  myLocation,
+  selectedSpaceNames,
   onClose,
 }: {
   spaces: Space[];
+  myLocation: { lat: number; lng: number } | null;
+  selectedSpaceNames: string[];
   onClose: () => void;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -37,14 +42,26 @@ export default function MapboxFullMap({
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: "mapbox://styles/mapbox/light-v11",
-      center: first ? [first.lng, first.lat] : [-0.1276, 51.5072], // London fallback
+      center: first ? [first.lng, first.lat] : [-0.1276, 51.5072],
       zoom: 12,
     });
 
     mapRef.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
+    // Add user location marker (blue)
+    if (myLocation) {
+      new mapboxgl.Marker({ color: "#3b82f6" })
+        .setLngLat([myLocation.lng, myLocation.lat])
+        .setPopup(new mapboxgl.Popup().setText("Your location"))
+        .addTo(mapRef.current!);
+    }
+
+    // Add space markers
     spaces.forEach((space) => {
-      new mapboxgl.Marker({ color: "#111" })
+      const isSelected = selectedSpaceNames.includes(space.name);
+      const color = isSelected ? "#22c55e" : "#111"; // Green if selected, black otherwise
+
+      new mapboxgl.Marker({ color })
         .setLngLat([space.lng, space.lat])
         .setPopup(new mapboxgl.Popup().setText(space.name))
         .addTo(mapRef.current!);
@@ -54,12 +71,12 @@ export default function MapboxFullMap({
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [spaces]);
+  }, [spaces, myLocation, selectedSpaceNames]);
 
   return (
     <>
       {animationStyles}
-  
+
       <div
         role="dialog"
         aria-modal="true"
@@ -91,7 +108,7 @@ export default function MapboxFullMap({
           onClick={(e) => e.stopPropagation()}
         >
           <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }} />
-  
+
           <button
             type="button"
             onClick={onClose}
@@ -114,7 +131,4 @@ export default function MapboxFullMap({
       </div>
     </>
   );
-  
-
-  
 }
