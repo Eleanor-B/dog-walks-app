@@ -3,6 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import MapboxFullMap from "../components/MapboxFullMap";
+import MapboxEmbedded from "../components/MapboxEmbedded";
 
 // ---- Place name lookup (no tracking, no accounts) ----
 async function lookupPlaceName(place: string): Promise<{ lat: number; lng: number } | null> {
@@ -453,21 +454,7 @@ export default function Home() {
               View larger map
             </button>
 
-            <img
-              src={`https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${filteredSpaces
-                .slice(0, 10)
-                .map((s) => `pin-s+111(${s.lng},${s.lat})`)
-                .join(",")}/auto/600x220?padding=40&access_token=${
-                process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-              }`}
-              alt="Map showing nearby green spaces"
-              style={{
-                width: "100%",
-                borderRadius: 8,
-                border: "1px solid #ddd",
-                marginTop: 8,
-              }}
-            />
+            <MapboxEmbedded spaces={filteredSpaces.slice(0, 10)} />
           </div>
         </section>
       ) : null}
