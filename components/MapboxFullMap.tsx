@@ -86,7 +86,8 @@ export default function MapboxFullMap({
     // Click map background to close all popups
     mapRef.current.on('click', () => {
       markersRef.current.forEach(marker => {
-        if (marker.getPopup().isOpen()) {
+        const popup = marker.getPopup();
+        if (popup && popup.isOpen()) {
           marker.togglePopup();
         }
       });
