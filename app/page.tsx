@@ -524,6 +524,7 @@ export default function Home() {
                                 lat: space.lat.toString(),
                                 lng: space.lng.toString(),
                                 fenced: space.fenced,
+                                unfenced: space.unfenced,
                                 bins: space.bins,
                                 toilets: space.toilets,
                                 coffee: space.coffee,
