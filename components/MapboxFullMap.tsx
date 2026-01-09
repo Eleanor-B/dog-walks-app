@@ -23,55 +23,171 @@ const animationStyles = (
 export default function MapboxFullMap({
   spaces,
   myLocation,
+  selectedSpaceName,
   selectedSpaceNames,
   onClose,
 }: {
   spaces: Space[];
   myLocation: { lat: number; lng: number } | null;
+  selectedSpaceName: string | null;
   selectedSpaceNames: string[];
   onClose: () => void;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
 
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
+    if (!mapContainerRef.current) return;
+    
+    // Clean up existing markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
 
-    const first = spaces[0];
+    // Clean up existing map
+    if (mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+    }
+
+    // Determine center - prioritize selected space, then first space, then user location, then London
+    let centerPoint: [number, number];
+    
+    if (selectedSpaceName) {
+      // Find the selected space and center on it
+      const selectedSpace = spaces.find(s => s.name === selectedSpaceName);
+      if (selectedSpace) {
+        centerPoint = [selectedSpace.lng, selectedSpace.lat];
+      } else {
+        // Fallback if selected space not found
+        centerPoint = spaces.length > 0 
+          ? [spaces[0].lng, spaces[0].lat]
+          : myLocation
+          ? [myLocation.lng, myLocation.lat]
+          : [-0.1276, 51.5072];
+      }
+    } else {
+      centerPoint = spaces.length > 0 
+        ? [spaces[0].lng, spaces[0].lat]
+        : myLocation
+        ? [myLocation.lng, myLocation.lat]
+        : [-0.1276, 51.5072];
+    }
 
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: "mapbox://styles/mapbox/light-v11",
-      center: first ? [first.lng, first.lat] : [-0.1276, 51.5072],
-      zoom: 12,
+      center: centerPoint as [number, number],
+      zoom: 16,
     });
 
     mapRef.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
-    // Add user location marker (blue)
-    if (myLocation) {
-      new mapboxgl.Marker({ color: "#3b82f6" })
-        .setLngLat([myLocation.lng, myLocation.lat])
-        .setPopup(new mapboxgl.Popup().setText("Your location"))
-        .addTo(mapRef.current!);
-    }
+    // Click map background to close all popups
+    mapRef.current.on('click', () => {
+      markersRef.current.forEach(marker => {
+        if (marker.getPopup().isOpen()) {
+          marker.togglePopup();
+        }
+      });
+    });
 
-    // Add space markers
-    spaces.forEach((space) => {
-      const isSelected = selectedSpaceNames.includes(space.name);
-      const color = isSelected ? "#22c55e" : "#111"; // Green if selected, black otherwise
+    // Wait for map to load before adding markers
+    mapRef.current.on('load', () => {
+      if (!mapRef.current) return;
 
-      new mapboxgl.Marker({ color })
-        .setLngLat([space.lng, space.lat])
-        .setPopup(new mapboxgl.Popup().setText(space.name))
-        .addTo(mapRef.current!);
+      // Add user location marker (orange with pulse)
+      if (myLocation) {
+        const el = document.createElement("div");
+        el.style.width = "20px";
+        el.style.height = "20px";
+        el.style.borderRadius = "50%";
+        el.style.backgroundColor = "#F88912";
+        el.style.border = "3px solid white";
+        el.style.boxShadow = "0 0 10px rgba(248, 137, 18, 0.5)";
+        el.style.animation = "pulse 2s ease-in-out infinite";
+
+        const popup = new mapboxgl.Popup({ 
+          offset: 25,
+          closeButton: false,
+          className: "custom-popup"
+        }).setHTML(`
+          <div style="background: #FEF3E7; padding: 8px 12px; border-radius: 6px; border: none;">
+            <strong style="color: #C4690A;">Your location</strong>
+          </div>
+        `);
+
+        const marker = new mapboxgl.Marker({ 
+          element: el,
+          anchor: 'center'
+        })
+          .setLngLat([myLocation.lng, myLocation.lat])
+          .setPopup(popup)
+          .addTo(mapRef.current!);
+
+        markersRef.current.push(marker);
+
+        // Show popup on hover
+        el.addEventListener("mouseenter", () => marker.togglePopup());
+        el.addEventListener("mouseleave", () => marker.togglePopup());
+      }
+
+      // Add space markers
+      spaces.forEach((space) => {
+        if (!mapRef.current) return;
+
+        const isSelectedByCheckbox = selectedSpaceNames.includes(space.name);
+        const isSelectedByRow = selectedSpaceName === space.name;
+        const isSelected = isSelectedByCheckbox || isSelectedByRow;
+        
+        const color = isSelected ? "#22c55e" : "#507153";
+
+        const popupBg = isSelected ? "#dcfce7" : "#f3f4f6";
+        const textColor = isSelected ? "#166534" : "#111";
+
+        const popupClass = isSelected ? "custom-popup selected-popup" : "custom-popup unselected-popup";
+        
+        const popup = new mapboxgl.Popup({ 
+          offset: 50,
+          closeButton: false,
+          closeOnClick: false,
+          className: popupClass
+        }).setHTML(`
+          <div style="background: ${popupBg}; padding: 8px 12px; border-radius: 6px; border: none;">
+            <strong style="color: ${textColor};">${space.name}</strong>
+          </div>
+        `);
+        const marker = new mapboxgl.Marker({ 
+          color,
+          anchor: 'bottom'
+        })
+          .setLngLat([space.lng, space.lat])
+          .setPopup(popup)
+          .addTo(mapRef.current!);
+
+        // Show popup by default
+        popup.addTo(mapRef.current!);
+
+        markersRef.current.push(marker);
+
+        // Click pin to toggle popup
+        const markerEl = marker.getElement();
+        markerEl.addEventListener("click", (e) => {
+          e.stopPropagation();
+          marker.togglePopup();
+        });
+      });
     });
 
     return () => {
-      mapRef.current?.remove();
-      mapRef.current = null;
+      markersRef.current.forEach(marker => marker.remove());
+      markersRef.current = [];
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
-  }, [spaces, myLocation, selectedSpaceNames]);
+  }, [spaces, myLocation, selectedSpaceName, selectedSpaceNames]);
 
   return (
     <>

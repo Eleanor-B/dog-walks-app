@@ -14,25 +14,37 @@ type Space = {
 export default function MapboxEmbedded({
   spaces,
   myLocation,
+  selectedSpaceName,
   selectedSpaceNames,
 }: {
   spaces: Space[];
   myLocation: { lat: number; lng: number } | null;
+  selectedSpaceName: string | null;
   selectedSpaceNames: string[];
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
 
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
+    if (!mapContainerRef.current) return;
+    
+    // Clean up existing markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
 
-    // Determine what to show and where to center
-    const selectedSpaces = spaces.filter((s) => selectedSpaceNames.includes(s.name));
-    const hasSelections = selectedSpaces.length > 0;
+    // Clean up existing map
+    if (mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+    }
 
-    // Center on first selected space, or user location, or default London
-    const centerPoint = hasSelections
-      ? [selectedSpaces[0].lng, selectedSpaces[0].lat]
+    // Determine center point
+    const hasRowSelection = selectedSpaceName !== null;
+    const selectedSpace = spaces.find((s) => s.name === selectedSpaceName);
+    
+    const centerPoint = hasRowSelection && selectedSpace
+      ? [selectedSpace.lng, selectedSpace.lat]
       : myLocation
       ? [myLocation.lng, myLocation.lat]
       : [-0.1276, 51.5072];
@@ -41,33 +53,111 @@ export default function MapboxEmbedded({
       container: mapContainerRef.current,
       style: "mapbox://styles/mapbox/light-v11",
       center: centerPoint as [number, number],
-      zoom: hasSelections ? 12 : myLocation ? 13 : 12,
+      zoom: hasRowSelection ? 14 : myLocation ? 13 : 12,
     });
 
     mapRef.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
-    // If there are selected spaces, show them (green pins)
-    if (hasSelections) {
-      selectedSpaces.forEach((space) => {
-        new mapboxgl.Marker({ color: "#22c55e" }) // Green color
-          .setLngLat([space.lng, space.lat])
-          .setPopup(new mapboxgl.Popup().setText(space.name))
+    // Wait for map to load before adding markers
+    mapRef.current.on('load', () => {
+      if (!mapRef.current) return;
+
+      // Add user location marker (orange with pulse)
+      if (myLocation) {
+        const el = document.createElement("div");
+        el.style.width = "20px";
+        el.style.height = "20px";
+        el.style.borderRadius = "50%";
+        el.style.backgroundColor = "#F88912";
+        el.style.border = "3px solid white";
+        el.style.boxShadow = "0 0 10px rgba(248, 137, 18, 0.5)";
+        el.style.animation = "pulse 2s ease-in-out infinite";
+
+        const popup = new mapboxgl.Popup({ 
+          offset: 25,
+          closeButton: false,
+          className: "custom-popup"
+        }).setHTML(`
+          <div style="background: #FEF3E7; padding: 8px 12px; border-radius: 6px; border: none;">
+            <strong style="color: #C4690A;">Your location</strong>
+          </div>
+        `);
+
+        const marker = new mapboxgl.Marker({ 
+          element: el,
+          anchor: 'center'
+        })
+          .setLngLat([myLocation.lng, myLocation.lat])
+          .setPopup(popup)
           .addTo(mapRef.current!);
+
+        markersRef.current.push(marker);
+
+        // Show popup on hover
+        el.addEventListener("mouseenter", () => marker.togglePopup());
+        el.addEventListener("mouseleave", () => marker.togglePopup());
+      }
+
+      // Add space markers with custom colored pins
+      spaces.forEach((space) => {
+        if (!mapRef.current) return;
+
+        const isSelectedByCheckbox = selectedSpaceNames.includes(space.name);
+        const isSelectedByRow = selectedSpaceName === space.name;
+        const isSelected = isSelectedByCheckbox || isSelectedByRow;
+        
+        const color = isSelected ? "#22c55e" : "#507153";
+
+        const popupBg = isSelected ? "#dcfce7" : "#f3f4f6";
+        const textColor = isSelected ? "#166534" : "#111";
+
+        // Create custom pin element
+        const el = document.createElement("div");
+        el.innerHTML = `
+          <svg width="27" height="41" viewBox="0 0 27 41" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13.5 0C6.04416 0 0 6.04416 0 13.5C0 23.625 13.5 41 13.5 41C13.5 41 27 23.625 27 13.5C27 6.04416 20.9558 0 13.5 0Z" fill="${color}"/>
+            <circle cx="13.5" cy="13.5" r="5" fill="white"/>
+          </svg>
+        `;
+        el.style.width = "27px";
+        el.style.height = "41px";
+        el.style.cursor = "pointer";
+
+        const popup = new mapboxgl.Popup({ 
+          offset: 25,
+          closeButton: false,
+          className: "custom-popup"
+        }).setHTML(`
+          <div style="background: ${popupBg}; padding: 8px 12px; border-radius: 6px; border: none;">
+            <strong style="color: ${textColor};">${space.name}</strong>
+          </div>
+        `);
+
+        const marker = new mapboxgl.Marker({ 
+          element: el,
+          anchor: 'bottom'
+        })
+          .setLngLat([space.lng, space.lat])
+          .setPopup(popup)
+          .addTo(mapRef.current!);
+
+        markersRef.current.push(marker);
+
+        // Show popup on hover
+        el.addEventListener("mouseenter", () => marker.togglePopup());
+        el.addEventListener("mouseleave", () => marker.togglePopup());
       });
-    }
-    // Otherwise, if user has set location, show just that
-    else if (myLocation) {
-      new mapboxgl.Marker({ color: "#3b82f6" }) // Blue for user location
-        .setLngLat([myLocation.lng, myLocation.lat])
-        .setPopup(new mapboxgl.Popup().setText("Your location"))
-        .addTo(mapRef.current!);
-    }
+    });
 
     return () => {
-      mapRef.current?.remove();
-      mapRef.current = null;
+      markersRef.current.forEach(marker => marker.remove());
+      markersRef.current = [];
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
-  }, [spaces, myLocation, selectedSpaceNames]);
+  }, [spaces, myLocation, selectedSpaceName, selectedSpaceNames]);
 
   return (
     <div

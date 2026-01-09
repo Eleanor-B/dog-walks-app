@@ -1,5 +1,4 @@
 @import "mapbox-gl/dist/mapbox-gl.css";
-
 @import "tailwindcss";
 
 /* =========================
@@ -7,8 +6,52 @@
    ========================= */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Font families from Next.js */
+  --font-display: var(--font-fraunces);
+  --font-body: var(--font-dm-sans);
+  
+  /* Shadcn-style tokens */
+  --background: 48 50% 98%;
+  --foreground: 160 25% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 160 25% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 160 25% 12%;
+  --primary: 158 55% 42%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 48 45% 94%;
+  --secondary-foreground: 160 25% 20%;
+  --muted: 48 30% 95%;
+  --muted-foreground: 160 15% 40%;
+  --accent: 28 85% 58%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 48 30% 88%;
+  --input: 48 30% 88%;
+  --ring: 158 55% 42%;
+  --radius: 0.75rem;
+  
+  /* Custom semantic tokens */
+  --forest: 158 55% 42%;
+  --forest-light: 158 50% 52%;
+  --forest-dark: 158 60% 28%;
+  --cream: 48 50% 98%;
+  --cream-dark: 48 45% 94%;
+  --terracotta: 28 85% 58%;
+  --terracotta-light: 28 90% 72%;
+  --bark: 30 30% 28%;
+  --sky: 200 70% 55%;
+  
+  /* Shadows */
+  --shadow-soft: 0 4px 24px -4px hsl(160 25% 12% / 0.06);
+  --shadow-elevated: 0 12px 48px -12px hsl(160 25% 12% / 0.12);
+  --shadow-glow: 0 0 40px hsl(158 55% 42% / 0.15);
+  
+  /* Gradients */
+  --gradient-hero: linear-gradient(135deg, hsl(158 55% 42%) 0%, hsl(158 50% 52%) 100%);
+  --gradient-warm: linear-gradient(135deg, hsl(48 50% 98%) 0%, hsl(48 45% 94%) 100%);
+  --gradient-sunset: linear-gradient(135deg, hsl(28 85% 58%) 0%, hsl(28 90% 72%) 100%);
 }
 
 @theme inline {
@@ -18,65 +61,75 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 /* =========================
    Base page styles
    ========================= */
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: hsl(var(--cream));
+  color: hsl(var(--foreground));
+  font-family: var(--font-body);
 }
 
 /* =========================
    Type hierarchy
    ========================= */
 
-h1 {
-  font-weight: 800;
-  font-size: 28px;
-  line-height: 1.2;
-  margin: 0 0 12px 0;
-}
-
-h2 {
-  font-weight: 700;
-  font-size: 20px;
-  line-height: 1.25;
-  margin: 28px 0 12px 0;
-}
-
+   h1 {
+    font-family: var(--font-fraunces), serif;
+    font-weight: 700;
+    font-size: 40px;
+    line-height: 1.2;
+    margin: 0 0 12px 0;
+    color: #006947;
+  }
+  
+  h2 {
+    font-family: var(--font-fraunces), serif;
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 1.25;
+    margin: 28px 0 12px 0;
+    color: #006947;
+  }
 
 /* =========================
    Form affordance
    ========================= */
 
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-weight: 500;
-  margin-top: 12px;
-}
+   label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-family: var(--font-fraunces), serif;
+    font-weight: 200;
+    font-size: 15px;
+    margin-top: 12px;
+    color: #02301F;
+  }
 
-input[type="text"],
-input[type="number"],
-textarea {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 14px;
-  line-height: 1.4;
-}
+  input[type="text"],
+  input[type="number"],
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.4;
+    font-family: var(--font-body);
+    background: hsl(var(--card));
+    color: #02301F;
+  }
+
+  input[type="text"]:focus,
+  input[type="number"]:focus,
+  textarea:focus {
+    outline: 2px solid #006947;
+    outline-offset: 0;
+    border-color: #006947;
+  }
 
 input[type="text"],
 input[type="number"] {
@@ -89,20 +142,21 @@ textarea {
 
 /* =========================
    Default button (fallback)
-   Keep this for any button without a class.
    ========================= */
 
-button {
-  display: inline-block;
-  margin-top: 12px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: none;
-  background: #111;
-  color: #fff;
-  font-size: 14px;
-  cursor: pointer;
-}
+   button {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: none;
+    background: #006947;
+    color: #fff;
+    font-size: 14px;
+    font-family: var(--font-body);
+    cursor: pointer;
+    font-weight: 500;
+  }
 
 button:disabled {
   opacity: 0.6;
@@ -110,229 +164,213 @@ button:disabled {
 }
 
 /* =========================
-   Button system (preferred)
-   Use these classes on buttons in page.tsx
-   These override the default button above.
+   Button system
    ========================= */
 
    button.btn-primary {
-    background: #111;
+    background: #006947;
     color: #fff;
     border: none;
     border-radius: 10px;
     padding: 10px 14px;
     font-size: 14px;
-    transition: background 0.15s ease, transform 0.1s ease;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
   }
-  
-  button.btn-primary:hover {
-    background: #000;
-  }
-  
-  button.btn-primary:focus-visible {
-    outline: 2px solid #111;
-    outline-offset: 2px;
-  }
-  
-  button.btn-primary:active {
-    transform: scale(0.98);
-  }
-  
-  button.btn-primary:disabled {
+
+button.btn-primary:disabled {
     background: #ccc;
     color: #888;
     cursor: not-allowed;
-    transform: none;
+    opacity: 0.6;
   }
   
-  button.btn-secondary {
-    background: #fff;
-    color: #111;
-    border: 1px solid #111;
-    border-radius: 10px;
-    padding: 6px 12px;
-    font-size: 13px;
-    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  button.btn-primary:hover {
+    background: #004d33;
   }
-  
-  button.btn-secondary:hover {
-    background: #f3f3f3;
-  }
-  
-  button.btn-secondary:focus-visible {
-    outline: 2px solid #111;
-    outline-offset: 2px;
-  }
-  
-  button.btn-secondary:active {
-    transform: scale(0.98);
-  }
-  
-  button.btn-secondary:disabled {
-    background: #f5f5f5;
-    color: #ccc;
-    border-color: #ddd;
-    cursor: not-allowed;
-    transform: none;
-  }
-  
-  button.btn-text {
-    background: none;
-    color: #555;
-    border: none;
-    padding: 0;
-    font-size: 13px;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    transition: color 0.15s ease;
-  }
-  
-  button.btn-text:hover {
-    color: #111;
-  }
-  
-  button.btn-text:focus-visible {
-    outline: 2px solid #111;
-    outline-offset: 2px;
-    border-radius: 2px;
-  }
-  
-  button.btn-text:disabled {
-    color: #ccc;
-    cursor: not-allowed;
-  }
+
+button.btn-primary:focus-visible {
+  outline: 2px solid hsl(var(--forest));
+  outline-offset: 2px;
+}
+
+button.btn-primary:active {
+  transform: scale(0.98);
+}
+
+button.btn-primary:disabled {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  cursor: not-allowed;
+  transform: none;
+}
+
+button.btn-secondary {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+button.btn-secondary:hover {
+  background: hsl(var(--secondary));
+  border-color: #006947;
+}
+
+button.btn-secondary:focus-visible {
+  outline: 2px solid #006947;
+  outline-offset: 2px;
+}
+
+button.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+button.btn-secondary:disabled {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  border-color: hsl(var(--border));
+  cursor: not-allowed;
+  transform: none;
+}
+
+button.btn-text {
+  background: none;
+  color: hsl(var(--muted-foreground));
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+button.btn-text:hover {
+  color: #02301F;
+}
+
+button.btn-text:focus-visible {
+  outline: 2px solid hsl(var(--forest));
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+button.btn-text:disabled {
+  color: hsl(var(--muted-foreground));
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* =========================
-   Filter chips (selection controls)
+   Filter chips
    ========================= */
 
-   .filter-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  
-  .filter-chips {
-    margin-top: 10px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;                 /* ensures chips never touch */
-  }
-  
-  /* Filter chip base */
-  button.filter-chip {
-    margin-top: 0;             /* overrides default button margin */
-    background: #f5f5f5;       /* softer than white so it doesn’t look like CTA */
-    color: #111;
-    border: 1px solid #e2e2e2; /* quiet border */
-    border-radius: 999px;
-    padding: 8px 12px;
-    font-size: 13px;
-    line-height: 1;
-    cursor: pointer;
-  }
-  
-  /* Hover */
-  button.filter-chip:hover {
-    background: #efefef;
-    border-color: #cfcfcf;
-  }
-  
-  /* Selected state */
-  button.filter-chip.is-on {
-    background: #111;
-    color: #fff;
-    border-color: #111;
-  }
-  
-  /* Keyboard focus (accessibility) */
-  button.filter-chip:focus-visible {
-    outline: 2px solid #111;
-    outline-offset: 2px;
-  }
-  
-  /* =========================
-   Facilities grid (checkboxes)
+.filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.filter-chips {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+button.filter-chip {
+  margin-top: 0;
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+button.filter-chip svg {
+  flex-shrink: 0;
+}
+
+button.filter-chip:hover {
+  background: hsl(var(--cream-dark));
+  border-color: #006947;
+}
+
+button.filter-chip.is-on {
+  background: #006947;
+  color: #fff;
+  border-color: #006947;
+}
+
+button.filter-chip:focus-visible {
+  outline: 2px solid #006947;
+  outline-offset: 2px;
+}
+
+/* =========================
+   Facilities grid
    ========================= */
 
-   .facilities-grid {
-    margin-top: 10px;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 14px;
-    width: 100%;
-  }
-  
-  /* 3 columns on tablet+ */
-  @media (min-width: 768px) {
-  }
-
-  
-  .facility-option {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 8px;
-    padding: 6px 0;
-    border: 0;
-    background: transparent;
-    width: 100%;
-  }
-  
-  .facility-option span {
-    display: block;
-    text-align: left;
-  }
-  
-
-  
-  /* Keep checkbox + label nicely aligned */
-  .facility-option input[type="checkbox"] {
+   .facility-option input[type="checkbox"] {
     margin: 0;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
   }
-  
 
 /* =========================
    Utility buttons
    ========================= */
 
-/* Location button — lightweight, non-primary */
-button.btn-location {
-  margin-top: 0;
-  display: inline-flex;
-  align-items: center;          /* ensures vertical centring */
-  gap: 6px;
-  background: transparent;
-  color: #111;
+   button.btn-location {
+    margin-top: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    color: #02301F;
   border: none;
   padding: 4px 6px;
   font-size: 13px;
-  line-height: 1;               /* prevents text drift */
+  line-height: 1;
   cursor: pointer;
   border-radius: 8px;
 }
 
-
 button.btn-location:hover {
-  background: #f3f3f3;
+  background: hsl(var(--secondary));
 }
 
 button.btn-location:before {
   content: "⌖";
-  font-size: 18px;              /* slightly larger icon */
+  font-size: 18px;
   line-height: 1;
   display: inline-block;
 }
 
-/* Delete button (trash icon) */
 button.btn-delete {
   margin-top: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   background: transparent;
-  color: #111;
+  color: #02301F;
   border: none;
   padding: 4px 6px;
   font-size: 13px;
@@ -342,7 +380,7 @@ button.btn-delete {
 }
 
 button.btn-delete:hover {
-  background: #f3f3f3;
+  background: hsl(var(--secondary));
 }
 
 button.btn-delete:before {
@@ -353,41 +391,202 @@ button.btn-delete:before {
 }
 
 /* =========================
-   Add control (plus / minus in circle)
+   Add control
    ========================= */
 
    button.btn-add-circle {
     width: 36px;
     height: 36px;
     border-radius: 999px;
-    border: 1px solid #ddd;
-    background: #fff;
-  
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
     display: inline-flex;
     align-items: center;
-justify-content: center;
-padding-top: 2px;
+    justify-content: center;
+    padding-top: 2px;
+    color: #02301F;
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 0.7;
+  cursor: pointer;
+  user-select: none;
+}
 
-  
-    color: #111;
-    font-weight: 700;
-    font-size: 22px;
-    line-height: 0.7;
-  
-    cursor: pointer;
-    user-select: none;
+button.btn-add-circle.is-open {
+  border-color: #006947;
+}
 
-  
+button.btn-add-circle:hover {
+  border-color: #006947;
+  background: hsl(var(--secondary));
+}
+
+/* =========================
+   Map marker animations
+   ========================= */
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
   }
-  
-  
-  button.btn-add-circle.is-open {
-    border-color: #bbb;
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
   }
-  
-  button.btn-add-circle:hover {
-    border-color: #111;
-    background: #f7f7f7;
+}
+
+.marker-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes bounceWiggle {
+  0% {
+    transform: translateY(-20px) scale(0.8);
+    opacity: 0;
   }
-  
-  
+  40% {
+    transform: translateY(0) scale(1.05);
+    opacity: 1;
+  }
+  60% {
+    transform: translateY(-5px) scale(1) rotate(-3deg);
+  }
+  75% {
+    transform: translateY(0) scale(1) rotate(3deg);
+  }
+  85% {
+    transform: rotate(-2deg);
+  }
+  95% {
+    transform: rotate(1deg);
+  }
+  100% {
+    transform: translateY(0) scale(1) rotate(0);
+  }
+}
+
+.marker-bounce {
+  animation: bounceWiggle 0.8s ease-out forwards;
+}
+/* Facility option labels - match filter chip styling */
+.facility-option {
+  font-family: var(--font-dm-sans), sans-serif;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.facility-option:hover {
+  background: hsl(var(--cream-dark));
+  border-color: #006947;
+}
+
+.facility-option svg {
+  flex-shrink: 0;
+}
+
+.facility-option span {
+  line-height: 1;
+}
+/* Custom round checkboxes */
+input[type="checkbox"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  width: 20px !important;
+  height: 20px !important;
+  border: 2px solid #ddd !important;
+  border-radius: 50% !important;
+  cursor: pointer;
+  position: relative;
+  background: white !important;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+input[type="checkbox"]:checked {
+  background: #006947 !important;
+  border-color: #006947 !important;
+}
+
+/* Hide default checkmark, we'll use Phosphor icon instead */
+input[type="checkbox"]::after {
+  display: none;
+}
+/* Custom popup styling - fill entire flag with color */
+.mapboxgl-popup-content {
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.mapboxgl-popup-tip {
+  border-top-color: #dcfce7 !important;
+}
+
+.custom-popup.selected-popup .mapboxgl-popup-tip {
+  border-top-color: #dcfce7 !important;
+}
+
+.custom-popup.unselected-popup .mapboxgl-popup-tip {
+  border-top-color: #f3f4f6 !important;
+}
+/* Form validation error states */
+label input.error,
+label textarea.error {
+  border: 2px solid #A71111 !important;
+  border-color: #A71111 !important;
+  outline: none !important;
+}
+
+label input.error:focus,
+label textarea.error:focus {
+  border-color: #A71111 !important;
+}
+
+div.error-message {
+  color: #A71111 !important;
+  font-size: 13px;
+  margin-top: 4px;
+  font-family: var(--font-dm-sans), sans-serif !important;
+  display: block;
+  font-weight: 400;
+}
+
+input.warning,
+textarea.warning {
+  border: 2px solid #D78203 !important;
+}
+
+.warning-message {
+  color: #D78203;
+  font-size: 13px;
+  margin-top: 4px;
+  font-family: var(--font-dm-sans), sans-serif;
+}
+/* Input and placeholder text styling */
+label input,
+label textarea,
+input[type="text"],
+textarea {
+  font-family: var(--font-dm-sans), sans-serif !important;
+  font-weight: 400 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  font-family: var(--font-dm-sans), sans-serif !important;
+  font-weight: 400;
+}
