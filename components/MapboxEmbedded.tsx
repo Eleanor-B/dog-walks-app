@@ -54,7 +54,7 @@ export default function MapboxEmbedded({
 
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/light-v11",
+      style: "mapbox://styles/mapbox/outdoors-v12",
       center: centerPoint as [number, number],
       zoom: hasRowSelection ? 14 : myLocation ? 13 : 12,
     });
@@ -82,7 +82,7 @@ export default function MapboxEmbedded({
           className: "custom-popup"
         }).setHTML(`
           <div style="background: #FEF3E7; padding: 8px 12px; border-radius: 6px; border: none;">
-            <strong style="color: #C4690A;">Your location</strong>
+            <strong style="color: #2F80EA;">Your location</strong>
           </div>
         `);
 
@@ -109,7 +109,7 @@ export default function MapboxEmbedded({
         const isSelectedByRow = selectedSpaceName === space.name;
         const isSelected = isSelectedByCheckbox || isSelectedByRow;
         
-        const color = isSelected ? "#22c55e" : "#507153";
+        const color = isSelected ? "#DD6616" : "#2B5B2F";
 
         const popupBg = isSelected ? "#dcfce7" : "#f3f4f6";
         const textColor = isSelected ? "#166534" : "#111";
@@ -197,17 +197,17 @@ export default function MapboxEmbedded({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "orange", flexShrink: 0 }}></div>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2F80EA", flexShrink: 0 }}></div>
           <span>Your location</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "rgb(80, 113, 83)", flexShrink: 0 }}></div>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2B5B2F", flexShrink: 0 }}></div>
           <span>Nearby spaces</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "rgb(34, 197, 94)", flexShrink: 0 }}></div>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#DD6616", flexShrink: 0 }}></div>
           <span>Your selected space</span>
-          </div>
+        </div>
       </div>
       
       {/* View Large Map Button */}
