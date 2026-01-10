@@ -231,21 +231,59 @@ export default function MapboxFullMap({
             onClick={onClose}
             style={{
               position: "absolute",
-              top: 16,
-              left: 16,
-              zIndex: 10001,
+              top: 8,
+              right: 16,
+              zIndex: 10002,
               padding: "10px 12px",
-              background: "#111",
+              background: "#006947",
               color: "#fff",
-              border: "1px solid #111",
+              border: "1px solid #006947",
               borderRadius: 10,
               fontWeight: 600,
             }}
           >
             Close
           </button>
+         {/* Map Legend */}
+         <div
+            style={{
+              position: "absolute",
+              top: 16,
+              left: 16,
+              background: "rgba(255, 255, 255, 0.95)",
+              borderRadius: 8,
+              padding: 12,
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              fontSize: 12,
+              fontFamily: "var(--font-dm-sans), sans-serif",
+              color: "#000",
+              zIndex: 10001,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "orange", flexShrink: 0 }}></div>
+              <span>Your location</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "rgb(80, 113, 83)", flexShrink: 0 }}></div>
+              <span>Nearby spaces</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "rgb(34, 197, 94)", flexShrink: 0 }}></div>
+              <span>Your selected space</span>
+            </div>
+            </div>
         </div>
       </div>
+      
+      <style>{`
+        .mapboxgl-ctrl-top-right {
+          top: 70px !important;
+          right: 10px !important;
+        }
+      `}</style>
     </>
   );
 }

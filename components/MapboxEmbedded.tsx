@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
+import { MapTrifold } from "@phosphor-icons/react";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -16,11 +17,13 @@ export default function MapboxEmbedded({
   myLocation,
   selectedSpaceName,
   selectedSpaceNames,
+  onViewLargeMap,
 }: {
-  spaces: Space[];
+  spaces: any[];
   myLocation: { lat: number; lng: number } | null;
   selectedSpaceName: string | null;
   selectedSpaceNames: string[];
+  onViewLargeMap: () => void;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -111,6 +114,7 @@ export default function MapboxEmbedded({
         const popupBg = isSelected ? "#dcfce7" : "#f3f4f6";
         const textColor = isSelected ? "#166534" : "#111";
 
+        
         // Create custom pin element
         const el = document.createElement("div");
         el.innerHTML = `
@@ -141,6 +145,8 @@ export default function MapboxEmbedded({
           .setPopup(popup)
           .addTo(mapRef.current!);
 
+      
+
         markersRef.current.push(marker);
 
         // Show popup on hover
@@ -160,15 +166,76 @@ export default function MapboxEmbedded({
   }, [spaces, myLocation, selectedSpaceName, selectedSpaceNames]);
 
   return (
-    <div
-      ref={mapContainerRef}
-      style={{
-        width: "100%",
-        height: 180,
-        borderRadius: 8,
-        border: "1px solid #ddd",
-        marginTop: 8,
-      }}
-    />
+    <div style={{ position: "relative", marginTop: 8 }}>
+      <div
+        ref={mapContainerRef}
+        style={{
+          width: "100%",
+          height: 180,
+          borderRadius: 8,
+          border: "4px solid #fff",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+        }}
+      />
+      
+      {/* Map Legend */}
+      <div
+        style={{
+          position: "absolute",
+          top: 8,
+          left: 8,
+          background: "rgba(255, 255, 255, 0.95)",
+          borderRadius: 8,
+          padding: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          fontSize: 12,
+          fontFamily: "var(--font-dm-sans), sans-serif",
+          color: "#000",
+          zIndex: 10,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "orange", flexShrink: 0 }}></div>
+          <span>Your location</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "rgb(80, 113, 83)", flexShrink: 0 }}></div>
+          <span>Nearby spaces</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "rgb(34, 197, 94)", flexShrink: 0 }}></div>
+          <span>Your selected space</span>
+          </div>
+      </div>
+      
+      {/* View Large Map Button */}
+      <button
+        type="button"
+        onClick={onViewLargeMap}
+        style={{
+          position: "absolute",
+          bottom: 8,
+          left: 8,
+          background: "#fff",
+          color: "#006947",
+          border: "1px solid #ddd",
+          borderRadius: 10,
+          padding: "10px 10px",
+          fontSize: 13,
+          fontWeight: 500,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          cursor: "pointer",
+          zIndex: 10,
+        }}
+      >
+        <MapTrifold size={16} weight="regular" />
+        View large map
+      </button>
+    </div>
+    
   );
 }

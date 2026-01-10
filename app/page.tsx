@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeSlash, Trash, Pencil, X, Barricade, ArrowsOut, Coffee, Car, Toilet, MapTrifold, Check, MapPinPlus } from "@phosphor-icons/react";
+import { Eye, EyeSlash, Trash, Pencil, X, Barricade, Coffee, Car, Toilet, ArrowsOut, CircleHalf, MapPinPlus, MapTrifold, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import MapboxFullMap from "../components/MapboxFullMap";
 import MapboxEmbedded from "../components/MapboxEmbedded";
 
@@ -44,6 +44,7 @@ const SPACES = [
     lng: -0.0869,
     fenced: true,
     unfenced: false,
+    partFenced: false,
     bins: true,
     toilets: false,
     coffee: true,
@@ -55,6 +56,7 @@ const SPACES = [
     lng: -0.0643467561865794,
     fenced: false,
     unfenced: true,
+    partFenced: false,
     bins: true,
     toilets: true,
     coffee: false,
@@ -66,6 +68,7 @@ const SPACES = [
     lng: 0.0056,
     fenced: false,
     unfenced: true,
+    partFenced: false,
     bins: false,
     toilets: true,
     coffee: true,
@@ -125,6 +128,7 @@ type Space = {
   lng: number;
   fenced: boolean;
   unfenced: boolean;
+  partFenced: boolean;
   bins: boolean;
   toilets: boolean;
   coffee: boolean;
@@ -135,6 +139,7 @@ export default function Home() {
   const [filters, setFilters] = useState({
     fenced: false,
     unfenced: false,
+    partFenced: false,
     bins: false,
     toilets: false,
     coffee: false,
@@ -154,6 +159,7 @@ export default function Home() {
     lng: "",
     fenced: false,
     unfenced: false,
+    partFenced: false,
     bins: false,
     toilets: false,
     coffee: false,
@@ -201,15 +207,16 @@ export default function Home() {
   }
 
   const filteredSpaces = spaces
-    .filter((space) => {
-      if (filters.fenced && !space.fenced) return false;
-      if (filters.unfenced && space.fenced) return false;
-      if (filters.bins && !space.bins) return false;
-      if (filters.toilets && !space.toilets) return false;
-      if (filters.coffee && !space.coffee) return false;
-      if (filters.parking && !space.parking) return false;
-      return true;
-    })
+  .filter((space) => {
+    if (filters.fenced && !space.fenced) return false;
+    if (filters.unfenced && space.fenced) return false;
+    if (filters.partFenced && !space.partFenced) return false;
+    if (filters.bins && !space.bins) return false;
+    if (filters.toilets && !space.toilets) return false;
+    if (filters.coffee && !space.coffee) return false;
+    if (filters.parking && !space.parking) return false;
+    return true;
+  })
     .map((space) => {
       const km = myLocation ? distanceKm(myLocation.lat, myLocation.lng, space.lat, space.lng) : null;
       return { ...space, km };
@@ -225,7 +232,7 @@ export default function Home() {
       <div style={{ maxWidth: 900, margin: "0 auto", paddingTop: 24 }}>
        
       <h1 style={{ fontSize: "40px", fontWeight: 700, marginBottom: "8px" }}>
-  <span style={{ color: "#02301F" }}>Find the perfect spot</span>
+  <span style={{ color: "#DD6616" }}>Find the perfect spot</span>
   <span style={{ color: "#006947" }}> for you and your dog</span>
 </h1>
         <p
@@ -252,67 +259,73 @@ export default function Home() {
           </p>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 16 }}>
-            <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, width: "100%" }}>
+              <div>
               {myLocation && (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setShowMyLocation(!showMyLocation)}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  {showMyLocation ? (
-                    <Eye size={18} weight="regular" style={{ color: "#006947" }} />
-                  ) : (
-                    <EyeSlash size={18} weight="regular" style={{ color: "#006947" }} />
-                  )}
-                  {showMyLocation ? "Hide my location" : "Show my location"}
-                </button>
-              )}
-
-              {!myLocation && (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={getMyLocation}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setShowMyLocation(!showMyLocation)}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      marginTop: 0,
+                      marginBottom: 0,
+                    }}
                   >
-                  <Eye size={18} weight="regular" />
-                  Show my location
-                </button>
-              )}
-            </div>
+                    {showMyLocation ? (
+                      <Eye size={18} weight="regular" style={{ color: "#006947" }} />
+                    ) : (
+                      <EyeSlash size={18} weight="regular" style={{ color: "#006947" }} />
+                    )}
+                    {showMyLocation ? "Hide my location" : "Show my location"}
+                  </button>
+                )}
 
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+{!myLocation && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={getMyLocation}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      marginTop: 0,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <Eye size={18} weight="regular" style={{ color: "#006947" }} />
+                    Show my location
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
               <button
-                type="button"
-                className="btn-primary"
-                onClick={() => setShowAddDrawer(true)}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-              >
-                <MapPinPlus size={18} weight="regular" />
-                Add a space
-              </button>
-              
-              {(selectedSpaceNames.length > 0 || selectedSpaceName !== null) && (
-                <button
                   type="button"
-                  className="btn-text"
-                  onClick={() => {
-                    setSelectedSpaceNames([]);
-                    setSelectedSpaceName(null);
-                  }}
+                  className="btn-primary"
+                  onClick={() => setShowAddDrawer(true)}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 0, marginBottom: 0 }}
                 >
-                  Clear all spaces
+                  <MapPinPlus size={18} weight="regular" />
+                  Add a space
                 </button>
-              )}
+                
+                {(selectedSpaceNames.length > 0 || selectedSpaceName !== null) && (
+                  <button
+                    type="button"
+                    className="btn-text"
+                    onClick={() => {
+                      setSelectedSpaceNames([]);
+                      setSelectedSpaceName(null);
+                    }}
+                  >
+                    Clear all spaces
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -321,6 +334,7 @@ export default function Home() {
             myLocation={showMyLocation ? myLocation : null}
             selectedSpaceName={selectedSpaceName}
             selectedSpaceNames={selectedSpaceNames}
+            onViewLargeMap={() => setShowFullMap(true)}
           />
         </div>
       </section>
@@ -348,6 +362,14 @@ export default function Home() {
             >
               <ArrowsOut size={16} weight="regular" style={{ color: filters.unfenced ? "#fff" : "#006947" }} />
               Unfenced
+            </button>
+            <button
+              type="button"
+              className={`filter-chip ${filters.partFenced ? "is-on" : ""}`}
+              onClick={() => setFilters({ ...filters, partFenced: !filters.partFenced })}
+            >
+              <CircleHalf size={16} weight="regular" style={{ color: filters.partFenced ? "#fff" : "#006947" }} />
+              Part fenced
             </button>
 
             <button
@@ -390,6 +412,7 @@ export default function Home() {
 
         {(filters.fenced ||
           filters.unfenced ||
+          filters.partFenced ||
           filters.bins ||
           filters.toilets ||
           filters.coffee ||
@@ -401,6 +424,7 @@ export default function Home() {
               setFilters({
                 fenced: false,
                 unfenced: false,
+                partFenced: false,
                 bins: false,
                 toilets: false,
                 coffee: false,
@@ -465,7 +489,7 @@ export default function Home() {
                   padding: 16,
                   border: selectedSpaceName === space.name ? "1px solid #C1CFCA" : "1px solid #ddd",
                   borderRadius: 8,
-                  background: selectedSpaceName === space.name ? "#F7FCFA" : "white",
+                  background: selectedSpaceName === space.name ? "#F5FFEF" : "white",
                   boxShadow: selectedSpaceName === space.name ? "0 2px 8px rgba(0, 0, 0, 0.08)" : "none",
                   cursor: "pointer",
                 }}
@@ -513,8 +537,8 @@ export default function Home() {
                       </div>
                       <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                          <strong style={{ fontFamily: "var(--font-fraunces), serif" }}>{space.name}</strong>
-                          <button
+                      <strong style={{ fontFamily: "var(--font-fraunces), serif", color: "#006947" }}>{space.name}</strong>
+                      <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setEditingSpace(space);
@@ -524,7 +548,6 @@ export default function Home() {
                                 lat: space.lat.toString(),
                                 lng: space.lng.toString(),
                                 fenced: space.fenced,
-                                unfenced: space.unfenced,
                                 bins: space.bins,
                                 toilets: space.toilets,
                                 coffee: space.coffee,
@@ -539,12 +562,12 @@ export default function Home() {
                               cursor: "pointer",
                               display: "inline-flex",
                               alignItems: "center",
-                              color: "#666",
+                              color: "#006947",
                               marginTop: 0,
                               flexShrink: 0,
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.color = "#111")}
-                            onMouseLeave={(e) => (e.currentTarget.style.color = "#666")}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = "#004d33")}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = "#006947")}
                           >
                             <Pencil size={16} weight="regular" />
                           </button>
@@ -555,19 +578,39 @@ export default function Home() {
                           </span>
                         )}
 
-                        <div style={{ marginTop: 8, fontSize: 13, color: "#555" }}>
+<div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
                           {(() => {
                             const facilities = [
-                              space.fenced ? "Fenced" : null,
-                              space.bins ? "Dog bins" : null,
-                              space.toilets ? "Toilets" : null,
-                              space.coffee ? "Coffee" : null,
-                              space.parking ? "Parking" : null,
+                              space.fenced && { icon: <Barricade size={12} weight="regular" />, label: "Fenced" },
+                              space.unfenced && { icon: <ArrowsOut size={12} weight="regular" />, label: "Unfenced" },
+                              space.partFenced && { icon: <CircleHalf size={12} weight="regular" />, label: "Part fenced" },
+                              space.bins && { icon: <Trash size={12} weight="regular" />, label: "Dog bins" },
+                              space.toilets && { icon: <Toilet size={12} weight="regular" />, label: "Toilets" },
+                              space.coffee && { icon: <Coffee size={12} weight="regular" />, label: "Coffee" },
+                              space.parking && { icon: <Car size={12} weight="regular" />, label: "Parking" },
                             ].filter(Boolean);
 
                             return facilities.length > 0
-                              ? facilities.join(" · ")
-                              : "Facilities not listed";
+                              ? facilities.map((facility: any, index: number) => (
+                                  <span
+                                    key={index}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 4,
+                                      background: "#f5f5f5",
+                                      border: "1px solid #e2e2e2",
+                                      borderRadius: 999,
+                                      padding: "4px 8px",
+                                      fontSize: 11,
+                                      color: "#02301F",
+                                    }}
+                                  >
+                                    <span style={{ color: "#006947", display: "flex" }}>{facility.icon}</span>
+                                    {facility.label}
+                                  </span>
+                                ))
+                              : <span style={{ fontSize: 11, color: "#555" }}>Facilities not listed</span>;
                           })()}
                         </div>
                       </div>
@@ -599,21 +642,23 @@ export default function Home() {
             </ul>
           )}
 
-          {filteredSpaces.length > 3 && (
+{filteredSpaces.length > 3 && (
             <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 16,
-                marginTop: 24,
-              }}
-            >
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 16,
+              marginTop: 4,
+            }}
+          >
               <button
                 type="button"
                 className="btn-secondary"
                 onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 0}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
+                <CaretLeft size={16} weight="bold" />
                 Previous
               </button>
 
@@ -622,8 +667,10 @@ export default function Home() {
                 className="btn-secondary"
                 onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={(currentPage + 1) * 3 >= filteredSpaces.length}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
                 Next
+                <CaretRight size={16} weight="bold" />
               </button>
             </div>
           )}
@@ -669,8 +716,7 @@ export default function Home() {
                 position: "sticky",
                 top: 0,
                 background: "#fff",
-                borderBottom: "1px solid #e6e6e6",
-                padding: "20px 24px",
+                padding: "20px 24px 16px 24px",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
@@ -695,8 +741,9 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Scrollable content */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+           {/* Scrollable content */}
+           
+           <div style={{ flex: 1, overflowY: "auto", padding: "8px 24px 24px 24px" }}>
               <div style={{ display: "grid", gap: 16, maxWidth: 520 }}>
               <label style={{ fontFamily: "var(--font-fraunces), serif" }}>
                   <span style={{ display: "block", fontWeight: 700, color: "#006947", marginBottom: 4 }}>Add the location</span>
@@ -763,85 +810,55 @@ export default function Home() {
                     }}
                   >
                     <label className="facility-option">
-                      <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0 }}>
-                        <input
-                          type="checkbox"
-                          checked={newSpace.fenced}
-                          onChange={(e) => setNewSpace({ ...newSpace, fenced: e.target.checked })}
-                          style={{ margin: 0 }}
-                        />
-                        {newSpace.fenced && (
-                          <Check 
-                            size={12} 
-                            weight="bold" 
-                            style={{ 
-                              position: "absolute", 
-                              top: "50%", 
-                              left: "50%", 
-                              transform: "translate(-50%, -50%)",
-                              color: "white",
-                              pointerEvents: "none"
-                            }} 
-                          />
-                        )}
-                      </div>
-                      <>
+                      <input
+                        type="checkbox"
+                        checked={newSpace.fenced}
+                        onChange={(e) => setNewSpace({ ...newSpace, fenced: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <Barricade size={16} weight="regular" style={{ color: "#006947" }} />
-                        <span>Fenced</span>
-                      </>
-                    </label>
-                    <label className="facility-option">
-                      <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0 }}>
-                        <input
-                          type="checkbox"
-                          checked={newSpace.unfenced}
-                          onChange={(e) => setNewSpace({ ...newSpace, unfenced: e.target.checked })}
-                          style={{ margin: 0 }}
-                        />
-                        {newSpace.unfenced && (
-                          <Check 
-                            size={12} 
-                            weight="bold" 
-                            style={{ 
-                              position: "absolute", 
-                              top: "50%", 
-                              left: "50%", 
-                              transform: "translate(-50%, -50%)",
-                              color: "white",
-                              pointerEvents: "none"
-                            }} 
-                          />
-                        )}
-                      </div>
-                      <>
-                        <Toilet size={16} weight="regular" style={{ color: "#006947" }} />
-                        <span>Toilets</span>
-                      </>
+                        Fenced
+                      </span>
                     </label>
 
                     <label className="facility-option">
-                      <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0 }}>
-                        <input
-                          type="checkbox"
-                          checked={newSpace.bins}
-                          onChange={(e) => setNewSpace({ ...newSpace, bins: e.target.checked })}
-                          style={{ margin: 0 }}
-                        />
-                        {newSpace.bins && (
-                          <Check 
-                            size={12} 
-                            weight="bold" 
-                            style={{ 
-                              position: "absolute", 
-                              top: "50%", 
-                              left: "50%", 
-                              transform: "translate(-50%, -50%)",
-                              color: "white",
-                              pointerEvents: "none"
-                            }} 
-                          />
-                        )}
-                      </div>
+                      <input
+                        type="checkbox"
+                        checked={newSpace.unfenced}
+                        onChange={(e) => setNewSpace({ ...newSpace, unfenced: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <ArrowsOut size={16} weight="regular" style={{ color: "#006947" }} />
+                        Unfenced
+                      </span>
+                    </label>
+
+                    <label className="facility-option">
+                      <input
+                        type="checkbox"
+                        checked={newSpace.partFenced}
+                        onChange={(e) => setNewSpace({ ...newSpace, partFenced: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <CircleHalf size={16} weight="regular" style={{ color: "#006947" }} />
+                        Part fenced
+                      </span>
+                    </label>
+
+                    <label className="facility-option">
+                      <input
+                        type="checkbox"
+                        checked={newSpace.bins}
+                        onChange={(e) => setNewSpace({ ...newSpace, bins: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
                       <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <Trash size={16} weight="regular" style={{ color: "#006947" }} />
                         Dog bins
@@ -849,90 +866,45 @@ export default function Home() {
                     </label>
 
                     <label className="facility-option">
-                      <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0 }}>
-                        <input
-                          type="checkbox"
-                          checked={newSpace.toilets}
-                          onChange={(e) => setNewSpace({ ...newSpace, toilets: e.target.checked })}
-                          style={{ margin: 0 }}
-                        />
-                        {newSpace.toilets && (
-                          <Check 
-                            size={12} 
-                            weight="bold" 
-                            style={{ 
-                              position: "absolute", 
-                              top: "50%", 
-                              left: "50%", 
-                              transform: "translate(-50%, -50%)",
-                              color: "white",
-                              pointerEvents: "none"
-                            }} 
-                          />
-                        )}
-                      </div>
-                     <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <input
+                        type="checkbox"
+                        checked={newSpace.toilets}
+                        onChange={(e) => setNewSpace({ ...newSpace, toilets: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <Toilet size={16} weight="regular" style={{ color: "#006947" }} />
                         Toilets
                       </span>
                     </label>
 
                     <label className="facility-option">
-                      <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0 }}>
-                        <input
-                          type="checkbox"
-                          checked={newSpace.coffee}
-                          onChange={(e) => setNewSpace({ ...newSpace, coffee: e.target.checked })}
-                          style={{ margin: 0 }}
-                        />
-                        {newSpace.coffee && (
-                          <Check 
-                            size={12} 
-                            weight="bold" 
-                            style={{ 
-                              position: "absolute", 
-                              top: "50%", 
-                              left: "50%", 
-                              transform: "translate(-50%, -50%)",
-                              color: "white",
-                              pointerEvents: "none"
-                            }} 
-                          />
-                        )}
-                      </div>
-                      <>
+                      <input
+                        type="checkbox"
+                        checked={newSpace.coffee}
+                        onChange={(e) => setNewSpace({ ...newSpace, coffee: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <Coffee size={16} weight="regular" style={{ color: "#006947" }} />
-                        <span>Coffee</span>
-                      </>
+                        Coffee
+                      </span>
                     </label>
 
                     <label className="facility-option">
-                      <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0 }}>
-                        <input
-                          type="checkbox"
-                          checked={newSpace.parking}
-                          onChange={(e) => setNewSpace({ ...newSpace, parking: e.target.checked })}
-                          style={{ margin: 0 }}
-                        />
-                        {newSpace.parking && (
-                          <Check 
-                            size={12} 
-                            weight="bold" 
-                            style={{ 
-                              position: "absolute", 
-                              top: "50%", 
-                              left: "50%", 
-                              transform: "translate(-50%, -50%)",
-                              color: "white",
-                              pointerEvents: "none"
-                            }} 
-                          />
-                        )}
-                      </div>
-                      <>
+                      <input
+                        type="checkbox"
+                        checked={newSpace.parking}
+                        onChange={(e) => setNewSpace({ ...newSpace, parking: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <Car size={16} weight="regular" style={{ color: "#006947" }} />
-                        <span>Parking</span>
-                      </>
+                        Parking
+                      </span>
                     </label>
                   </div>
                 </div>
@@ -1096,8 +1068,8 @@ export default function Home() {
             </div>
 
             <div style={{ display: "grid", gap: 16 }}>
-              <label>
-                Space name
+            <label>
+                <span style={{ fontWeight: 700, color: "#006947" }}>Space name</span>
                 <input
                   value={newSpace.name}
                   onChange={(e) =>
@@ -1115,85 +1087,111 @@ export default function Home() {
                 <div style={{ fontWeight: 600, marginBottom: 8 }}>Facilities</div>
 
                 <div
-                  className="facilities-grid"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                    gap: 8,
-                  }}
-                >
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.fenced}
-                      onChange={(e) => setNewSpace({ ...newSpace, fenced: e.target.checked })}
-                    />
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Barricade size={16} weight="regular" />
-                      Fenced
-                    </span>
-                  </label>
+                    className="facilities-grid"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                      gap: 8,
+                    }}
+                  >
+                    <label className="facility-option">
+                      <input
+                        type="checkbox"
+                        checked={newSpace.fenced}
+                        onChange={(e) => setNewSpace({ ...newSpace, fenced: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <Barricade size={16} weight="regular" style={{ color: "#006947" }} />
+                        Fenced
+                      </span>
+                    </label>
 
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.unfenced}
-                      onChange={(e) => setNewSpace({ ...newSpace, unfenced: e.target.checked })}
-                    />
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <ArrowsOut size={16} weight="regular" style={{ color: "#006947" }} />
-                      Unfenced
-                    </span>
-                  </label>
+                    <label className="facility-option">
+                      <input
+                        type="checkbox"
+                        checked={newSpace.unfenced}
+                        onChange={(e) => setNewSpace({ ...newSpace, unfenced: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <ArrowsOut size={16} weight="regular" style={{ color: "#006947" }} />
+                        Unfenced
+                      </span>
+                    </label>
 
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.bins}
-                      onChange={(e) => setNewSpace({ ...newSpace, bins: e.target.checked })}
-                    />
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Trash size={16} weight="regular" />
-                      Dog bins
-                    </span>
-                  </label>
+                    <label className="facility-option">
+                      <input
+                        type="checkbox"
+                        checked={newSpace.partFenced}
+                        onChange={(e) => setNewSpace({ ...newSpace, partFenced: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <CircleHalf size={16} weight="regular" style={{ color: "#006947" }} />
+                        Part fenced
+                      </span>
+                    </label>
 
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.toilets}
-                      onChange={(e) => setNewSpace({ ...newSpace, toilets: e.target.checked })}
-                    />
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Toilet size={16} weight="regular" />
-                      Toilets
-                    </span>
-                  </label>
+                    <label className="facility-option">
+                      <input
+                        type="checkbox"
+                        checked={newSpace.bins}
+                        onChange={(e) => setNewSpace({ ...newSpace, bins: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <Trash size={16} weight="regular" style={{ color: "#006947" }} />
+                        Dog bins
+                      </span>
+                    </label>
 
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.coffee}
-                      onChange={(e) => setNewSpace({ ...newSpace, coffee: e.target.checked })}
-                    />
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Coffee size={16} weight="regular" />
-                      Coffee
-                    </span>
-                  </label>
+                    <label className="facility-option">
+                      <input
+                        type="checkbox"
+                        checked={newSpace.toilets}
+                        onChange={(e) => setNewSpace({ ...newSpace, toilets: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <Toilet size={16} weight="regular" style={{ color: "#006947" }} />
+                        Toilets
+                      </span>
+                    </label>
 
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.parking}
-                      onChange={(e) => setNewSpace({ ...newSpace, parking: e.target.checked })}
-                    />
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Car size={16} weight="regular" />
-                      Parking
-                    </span>
-                  </label>
-                </div>
+                    <label className="facility-option">
+                      <input
+                        type="checkbox"
+                        checked={newSpace.coffee}
+                        onChange={(e) => setNewSpace({ ...newSpace, coffee: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <Coffee size={16} weight="regular" style={{ color: "#006947" }} />
+                        Coffee
+                      </span>
+                    </label>
+
+                    <label className="facility-option">
+                      <input
+                        type="checkbox"
+                        checked={newSpace.parking}
+                        onChange={(e) => setNewSpace({ ...newSpace, parking: e.target.checked })}
+                        style={{ display: "none" }}
+                      />
+                      <span className="custom-checkbox"></span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <Car size={16} weight="regular" style={{ color: "#006947" }} />
+                        Parking
+                      </span>
+                    </label>
+                  </div>
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 8 }}>
