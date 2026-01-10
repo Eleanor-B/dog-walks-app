@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeSlash, Trash, Pencil, X, Barricade, Coffee, Car, Toilet, ArrowsOut, CircleHalf, MapPinPlus, MapTrifold, CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { Eye, EyeSlash, Trash, Pencil, X, Barricade, Coffee, Car, Toilet, ArrowsOut, CircleHalf, MapPinPlus, MapTrifold, CaretLeft, CaretRight, Check } from "@phosphor-icons/react";
 import MapboxFullMap from "../components/MapboxFullMap";
 import MapboxEmbedded from "../components/MapboxEmbedded";
 
