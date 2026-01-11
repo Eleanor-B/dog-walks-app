@@ -1,7 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeSlash, Trash, Pencil, X, Barricade, Coffee, Car, Toilet, ArrowsOut, CircleHalf, MapPinPlus, MapTrifold, CaretLeft, CaretRight, Check } from "@phosphor-icons/react";
+import {
+  Eye,
+  EyeSlash,
+  Trash,
+  Pencil,
+  X,
+  Barricade,
+  Coffee,
+  Car,
+  Toilet,
+  ArrowsOut,
+  CircleHalf,
+  MapPinPlus,
+  MapTrifold,
+  CaretLeft,
+  CaretRight,
+  Check,
+} from "@phosphor-icons/react";
 import MapboxFullMap from "../components/MapboxFullMap";
 import MapboxEmbedded from "../components/MapboxEmbedded";
 
@@ -11,13 +28,9 @@ async function lookupPlaceName(place: string): Promise<{ lat: number; lng: numbe
     const query = `${place} park london`;
 
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        query
-      )}&limit=1`,
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
       {
-        headers: {
-          Accept: "application/json",
-        },
+        headers: { Accept: "application/json" },
       }
     );
 
@@ -207,16 +220,16 @@ export default function Home() {
   }
 
   const filteredSpaces = spaces
-  .filter((space) => {
-    if (filters.fenced && !space.fenced) return false;
-    if (filters.unfenced && space.fenced) return false;
-    if (filters.partFenced && !space.partFenced) return false;
-    if (filters.bins && !space.bins) return false;
-    if (filters.toilets && !space.toilets) return false;
-    if (filters.coffee && !space.coffee) return false;
-    if (filters.parking && !space.parking) return false;
-    return true;
-  })
+    .filter((space) => {
+      if (filters.fenced && !space.fenced) return false;
+      if (filters.unfenced && space.fenced) return false;
+      if (filters.partFenced && !space.partFenced) return false;
+      if (filters.bins && !space.bins) return false;
+      if (filters.toilets && !space.toilets) return false;
+      if (filters.coffee && !space.coffee) return false;
+      if (filters.parking && !space.parking) return false;
+      return true;
+    })
     .map((space) => {
       const km = myLocation ? distanceKm(myLocation.lat, myLocation.lng, space.lat, space.lng) : null;
       return { ...space, km };
@@ -230,21 +243,21 @@ export default function Home() {
     <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ maxWidth: 900, margin: "0 auto", paddingTop: 24 }}>
-       
-      <h1 style={{ fontSize: "40px", fontWeight: 700, marginBottom: "8px" }}>
-  <span style={{ color: "#DD6616" }}>Find the perfect spot</span>
-  <span style={{ color: "#006947" }}> for you and your dog</span>
-</h1>
+        <h1 style={{ fontSize: "40px", fontWeight: 700, marginBottom: "8px" }}>
+          <span style={{ color: "#DD6616" }}>Find the perfect spot</span>
+          <span style={{ color: "#006947" }}> for you and your dog</span>
+        </h1>
+
         <p
           style={{
-            maxWidth: 520,
+            maxWidth: 750,
             marginTop: 16,
             marginBottom: 0,
             color: "#555",
             lineHeight: 1.5,
           }}
         >
-          Discover dog friendly spaces near you and their facilities. Add your own favourite spots. Enjoy your walk.
+          Discover dog-friendly spaces nearby and what they offer. Add your favourite spots as you explore.
         </p>
 
         {locationError && <p style={{ marginTop: 16, color: "#d32f2f" }}>{locationError}</p>}
@@ -255,13 +268,30 @@ export default function Home() {
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <h2 style={{ marginBottom: 8 }}>Map</h2>
           <p style={{ marginTop: 0, marginBottom: 12, fontSize: 13, color: "#555", lineHeight: 1.5 }}>
-            Add your location to find spots nearest to you. Then select which facilities matter to you and your pup.
+            Add your location to see nearby spaces. Filter by what matters to you and your dog.
           </p>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, width: "100%" }}>
+          {/* Button row */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 4,
+              gap: 16,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 4,
+                width: "100%",
+              }}
+            >
               <div>
-              {myLocation && (
+                {myLocation && (
                   <button
                     type="button"
                     className="btn-secondary"
@@ -283,7 +313,7 @@ export default function Home() {
                   </button>
                 )}
 
-{!myLocation && (
+                {!myLocation && (
                   <button
                     type="button"
                     className="btn-secondary"
@@ -303,7 +333,7 @@ export default function Home() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-              <button
+                <button
                   type="button"
                   className="btn-primary"
                   onClick={() => setShowAddDrawer(true)}
@@ -312,7 +342,7 @@ export default function Home() {
                   <MapPinPlus size={18} weight="regular" />
                   Add a space
                 </button>
-                
+
                 {(selectedSpaceNames.length > 0 || selectedSpaceName !== null) && (
                   <button
                     type="button"
@@ -329,25 +359,43 @@ export default function Home() {
             </div>
           </div>
 
-          <MapboxEmbedded
-            spaces={filteredSpaces.slice(0, 10)}
-            myLocation={showMyLocation ? myLocation : null}
-            selectedSpaceName={selectedSpaceName}
-            selectedSpaceNames={selectedSpaceNames}
-            onViewLargeMap={() => setShowFullMap(true)}
-          />
+          {/* Embedded map, fixed height */}
+          <div id="map" className="mb-0 pb-0 overflow-hidden" style={{ height: "70vh" }}>
+            <MapboxEmbedded
+              spaces={filteredSpaces.slice(0, 10)}
+              myLocation={showMyLocation ? myLocation : null}
+              selectedSpaceName={selectedSpaceName}
+              selectedSpaceNames={selectedSpaceNames}
+              onViewLargeMap={() => setShowFullMap(true)}
+            />
+          </div>
         </div>
       </section>
 
-      {/* Filters */}
+      {/* Nearby spaces */}
       <section style={{ marginTop: 40 }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <h2 style={{ margin: 0, marginBottom: 16 }}>
-            Filters
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+            <h2 style={{ margin: 0 }}>Nearby spaces</h2>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowFullMap(true)}
+              style={{
+                marginLeft: 'auto',
+                marginTop: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              <MapTrifold size={16} weight="regular" />
+              View on Map
+            </button>
+          </div>
 
           <div className="filter-chips" aria-label="Filter spaces by facilities">
-          <button
+            <button
               type="button"
               className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
               onClick={() => setFilters({ ...filters, fenced: !filters.fenced })}
@@ -355,6 +403,7 @@ export default function Home() {
               <Barricade size={16} weight="regular" style={{ color: filters.fenced ? "#fff" : "#006947" }} />
               Fenced
             </button>
+
             <button
               type="button"
               className={`filter-chip ${filters.unfenced ? "is-on" : ""}`}
@@ -363,6 +412,7 @@ export default function Home() {
               <ArrowsOut size={16} weight="regular" style={{ color: filters.unfenced ? "#fff" : "#006947" }} />
               Unfenced
             </button>
+
             <button
               type="button"
               className={`filter-chip ${filters.partFenced ? "is-on" : ""}`}
@@ -407,47 +457,13 @@ export default function Home() {
               <Car size={16} weight="regular" style={{ color: filters.parking ? "#fff" : "#006947" }} />
               Parking
             </button>
-            </div>
-        </div>
-
-        {(filters.fenced ||
-          filters.unfenced ||
-          filters.partFenced ||
-          filters.bins ||
-          filters.toilets ||
-          filters.coffee ||
-          filters.parking) && (
-          <button
-            type="button"
-            className="btn-text"
-            onClick={() =>
-              setFilters({
-                fenced: false,
-                unfenced: false,
-                partFenced: false,
-                bins: false,
-                toilets: false,
-                coffee: false,
-                parking: false,
-              })
-            }
-            style={{ marginTop: "16px" }}
-          >
-            Clear filters
-          </button>
-        )}
-      </section>
-
-      {/* Nearby spaces */}
-      <section style={{ marginTop: 40 }}>
-        <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <h2 style={{ marginBottom: 16 }}>Nearby spaces</h2>
+          </div>
 
           {selectedSpaceNames.length > 0 && (
             <button
               type="button"
               style={{
-                marginTop: 0,
+                marginTop: 16,
                 marginBottom: 16,
                 display: "inline-flex",
                 alignItems: "center",
@@ -472,7 +488,7 @@ export default function Home() {
           {filteredSpaces.length === 0 ? (
             <div style={{ padding: "24px 0" }}>
               {myLocation ? (
-                <p>Sorry we can’t find a match - please try fewer filters and search again.</p>
+                <p>Sorry we can't find a match - please try fewer filters and search again.</p>
               ) : (
                 <p style={{ color: "#555" }}>
                   No spaces yet - please add your location and we will find you the nearest spot.
@@ -480,179 +496,186 @@ export default function Home() {
               )}
             </div>
           ) : (
-            <ul style={{ marginTop: 0 }}>
+            <ul style={{ marginTop: 16 }}>
               {filteredSpaces.slice(currentPage * 3, currentPage * 3 + 3).map((space) => (
                 <li
-                key={space.name}
-                style={{
-                  marginBottom: 16,
-                  padding: 16,
-                  border: selectedSpaceName === space.name ? "1px solid #C1CFCA" : "1px solid #ddd",
-                  borderRadius: 8,
-                  background: selectedSpaceName === space.name ? "#F5FFEF" : "white",
-                  boxShadow: selectedSpaceName === space.name ? "0 2px 8px rgba(0, 0, 0, 0.08)" : "none",
-                  cursor: "pointer",
-                }}
+                  key={space.name}
+                  style={{
+                    marginBottom: 16,
+                    padding: 16,
+                    border: selectedSpaceName === space.name ? "1px solid #C1CFCA" : "1px solid #ddd",
+                    borderRadius: 8,
+                    background: selectedSpaceName === space.name ? "#F5FFEF" : "white",
+                    boxShadow: selectedSpaceName === space.name ? "0 2px 8px rgba(0, 0, 0, 0.08)" : "none",
+                    cursor: "pointer",
+                  }}
                   onClick={() => {
                     setSelectedSpaceName(space.name);
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flex: 1 }}>
-                    <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0, marginTop: 2 }}>
-                    <input
-                          type="checkbox"
-                          checked={selectedSpaceNames.includes(space.name)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            if (e.target.checked) {
-                              // Limit to 5 selections
-                              if (selectedSpaceNames.length >= 5) {
-                                alert("You can only select up to 5 spaces at a time.");
-                                e.target.checked = false;
-                                return;
-                              }
-                              setSelectedSpaceNames([...selectedSpaceNames, space.name]);
-                            } else {
-                              setSelectedSpaceNames(selectedSpaceNames.filter((n) => n !== space.name));
-                            }
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ margin: 0 }}
-                        />
-                        {selectedSpaceNames.includes(space.name) && (
-                          <Check 
-                            size={12} 
-                            weight="bold" 
-                            style={{ 
-                              position: "absolute", 
-                              top: "50%", 
-                              left: "50%", 
-                              transform: "translate(-50%, -50%)",
-                              color: "white",
-                              pointerEvents: "none"
-                            }} 
-                          />
-                        )}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                      <strong style={{ fontFamily: "var(--font-fraunces), serif", color: "#006947" }}>{space.name}</strong>
-                      <button
-                            onClick={(e) => {
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 8 }}>
+                      <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flex: 1 }}>
+                        <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0, marginTop: 2 }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedSpaceNames.includes(space.name)}
+                            onChange={(e) => {
                               e.stopPropagation();
-                              setEditingSpace(space);
-                              setNewSpace({
-                                locationText: "",
-                                name: space.name,
-                                lat: space.lat.toString(),
-                                lng: space.lng.toString(),
-                                fenced: space.fenced,
-                                unfenced: space.unfenced,
-                                partFenced: space.partFenced,
-                                bins: space.bins,
-                                toilets: space.toilets,
-                                coffee: space.coffee,
-                                parking: space.parking,
-                              });
-                              setShowEditModal(true);
+                              if (e.target.checked) {
+                                if (selectedSpaceNames.length >= 5) {
+                                  alert("You can only select up to 5 spaces at a time.");
+                                  e.target.checked = false;
+                                  return;
+                                }
+                                setSelectedSpaceNames([...selectedSpaceNames, space.name]);
+                              } else {
+                                setSelectedSpaceNames(selectedSpaceNames.filter((n) => n !== space.name));
+                              }
                             }}
-                            style={{
-                              background: "transparent",
-                              border: "none",
-                              padding: 2,
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              color: "#006947",
-                              marginTop: 0,
-                              flexShrink: 0,
-                            }}
-                            onMouseEnter={(e) => (e.currentTarget.style.color = "#004d33")}
-                            onMouseLeave={(e) => (e.currentTarget.style.color = "#006947")}
-                          >
-                            <Pencil size={16} weight="regular" />
-                          </button>
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ margin: 0 }}
+                          />
+                          {selectedSpaceNames.includes(space.name) && (
+                            <Check
+                              size={12}
+                              weight="bold"
+                              style={{
+                                position: "absolute",
+                                top: "50%",
+                                left: "50%",
+                                transform: "translate(-50%, -50%)",
+                                color: "white",
+                                pointerEvents: "none",
+                              }}
+                            />
+                          )}
                         </div>
-                        {typeof (space as any).km === "number" && (
-                          <span style={{ marginLeft: 0, color: "#555", fontSize: 14 }}>
-                            {(space as any).km.toFixed(1)} km away
-                          </span>
-                        )}
 
-<div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                          {(() => {
-                            const facilities = [
-                              space.fenced && { icon: <Barricade size={12} weight="regular" />, label: "Fenced" },
-                              space.unfenced && { icon: <ArrowsOut size={12} weight="regular" />, label: "Unfenced" },
-                              space.partFenced && { icon: <CircleHalf size={12} weight="regular" />, label: "Part fenced" },
-                              space.bins && { icon: <Trash size={12} weight="regular" />, label: "Dog bins" },
-                              space.toilets && { icon: <Toilet size={12} weight="regular" />, label: "Toilets" },
-                              space.coffee && { icon: <Coffee size={12} weight="regular" />, label: "Coffee" },
-                              space.parking && { icon: <Car size={12} weight="regular" />, label: "Parking" },
-                            ].filter(Boolean);
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                            <strong style={{ fontFamily: "var(--font-fraunces), serif", color: "#006947" }}>
+                              {space.name}
+                            </strong>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingSpace(space);
+                                setNewSpace({
+                                  locationText: "",
+                                  name: space.name,
+                                  lat: space.lat.toString(),
+                                  lng: space.lng.toString(),
+                                  fenced: space.fenced,
+                                  unfenced: space.unfenced,
+                                  partFenced: space.partFenced,
+                                  bins: space.bins,
+                                  toilets: space.toilets,
+                                  coffee: space.coffee,
+                                  parking: space.parking,
+                                });
+                                setShowEditModal(true);
+                              }}
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                padding: 2,
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                color: "#006947",
+                                marginTop: 0,
+                                flexShrink: 0,
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = "#004d33")}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = "#006947")}
+                            >
+                              <Pencil size={16} weight="regular" />
+                            </button>
+                          </div>
 
-                            return facilities.length > 0
-                              ? facilities.map((facility: any, index: number) => (
-                                  <span
-                                    key={index}
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: 4,
-                                      background: "#f5f5f5",
-                                      border: "1px solid #e2e2e2",
-                                      borderRadius: 999,
-                                      padding: "4px 8px",
-                                      fontSize: 11,
-                                      color: "#02301F",
-                                    }}
-                                  >
-                                    <span style={{ color: "#006947", display: "flex" }}>{facility.icon}</span>
-                                    {facility.label}
-                                  </span>
-                                ))
-                              : <span style={{ fontSize: 11, color: "#555" }}>Facilities not listed</span>;
-                          })()}
+                          {typeof (space as any).km === "number" && (
+                            <span style={{ marginLeft: 0, color: "#555", fontSize: 14 }}>
+                              {(space as any).km.toFixed(1)} km away
+                            </span>
+                          )}
                         </div>
                       </div>
+
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowFullMap(true);
+                        }}
+                        style={{
+                          padding: "6px 12px",
+                          height: "fit-content",
+                          marginTop: 0,
+                          flexShrink: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        <MapTrifold size={16} weight="regular" />
+                        Open map
+                      </button>
                     </div>
 
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowFullMap(true);
-                      }}
-                      style={{
-                        padding: "6px 12px",
-                        height: "fit-content",
-                        marginTop: 0,
-                        flexShrink: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
-                    >
-                      <MapTrifold size={16} weight="regular" />
-                      View on map
-                    </button>
+                    <div style={{ marginLeft: 32, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {(() => {
+                        const facilities = [
+                          space.fenced && { icon: <Barricade size={12} weight="regular" />, label: "Fenced" },
+                          space.unfenced && { icon: <ArrowsOut size={12} weight="regular" />, label: "Unfenced" },
+                          space.partFenced && { icon: <CircleHalf size={12} weight="regular" />, label: "Part fenced" },
+                          space.bins && { icon: <Trash size={12} weight="regular" />, label: "Dog bins" },
+                          space.toilets && { icon: <Toilet size={12} weight="regular" />, label: "Toilets" },
+                          space.coffee && { icon: <Coffee size={12} weight="regular" />, label: "Coffee" },
+                          space.parking && { icon: <Car size={12} weight="regular" />, label: "Parking" },
+                        ].filter(Boolean);
+
+                        return facilities.length > 0
+                          ? facilities.map((facility: any, index: number) => (
+                              <span
+                                key={index}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  background: "#f5f5f5",
+                                  border: "1px solid #e2e2e2",
+                                  borderRadius: 999,
+                                  padding: "4px 8px",
+                                  fontSize: 11,
+                                  color: "#02301F",
+                                }}
+                              >
+                                <span style={{ color: "#006947", display: "flex" }}>{facility.icon}</span>
+                                {facility.label}
+                              </span>
+                            ))
+                          : (
+                            <span style={{ fontSize: 11, color: "#555" }}>Facilities not listed</span>
+                          );
+                      })()}
+                    </div>
                   </div>
                 </li>
               ))}
             </ul>
           )}
 
-{filteredSpaces.length > 3 && (
+          {filteredSpaces.length > 3 && (
             <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 16,
-              marginTop: 4,
-            }}
-          >
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 16,
+                marginTop: 4,
+              }}
+            >
               <button
                 type="button"
                 className="btn-secondary"
@@ -743,13 +766,23 @@ export default function Home() {
               </button>
             </div>
 
-           {/* Scrollable content */}
-           
-           <div style={{ flex: 1, overflowY: "auto", padding: "8px 24px 24px 24px" }}>
+            {/* Scrollable content */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "8px 24px 24px 24px" }}>
               <div style={{ display: "grid", gap: 16, maxWidth: 520 }}>
-              <label style={{ fontFamily: "var(--font-fraunces), serif" }}>
-                  <span style={{ display: "block", fontWeight: 700, color: "#006947", marginBottom: 4 }}>Add the location</span>
-                  <span style={{ display: "block", fontSize: 13, color: "#555", marginTop: 4, fontFamily: "var(--font-dm-sans), sans-serif", fontWeight: 400 }}>
+                <label style={{ fontFamily: "var(--font-fraunces), serif" }}>
+                  <span style={{ display: "block", fontWeight: 700, color: "#006947", marginBottom: 4 }}>
+                    Add the location
+                  </span>
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: 13,
+                      color: "#555",
+                      marginTop: 4,
+                      fontFamily: "var(--font-dm-sans), sans-serif",
+                      fontWeight: 400,
+                    }}
+                  >
                     Just type the name as you see it on the map — we'll find the right spot for you.
                   </span>
                   <textarea
@@ -767,16 +800,16 @@ export default function Home() {
                     style={{ minHeight: 40 }}
                     className={formLocationError || locationNotFoundError ? "error" : ""}
                   />
-                  {formLocationError && (
-                    <div className="error-message">Please type in a place name</div>
-                  )}
+                  {formLocationError && <div className="error-message">Please type in a place name</div>}
                   {locationNotFoundError && (
                     <div className="error-message">Sorry - we couldn't find that place name - please try an alternative.</div>
                   )}
                 </label>
 
                 <label style={{ fontFamily: "var(--font-fraunces), serif" }}>
-                  <span style={{ display: "block", fontWeight: 700, color: "#006947", marginBottom: 4 }}>Give your space a name, if you'd like</span>
+                  <span style={{ display: "block", fontWeight: 700, color: "#006947", marginBottom: 4 }}>
+                    Give your space a name, if you'd like
+                  </span>
                   <input
                     value={newSpace.name}
                     onChange={(e) => {
@@ -790,13 +823,11 @@ export default function Home() {
                     type="text"
                     className={spaceNamePrompt ? "warning" : ""}
                   />
-                 {spaceNamePrompt && (
-                    <div className="warning-message">We will use the location name instead</div>
-                  )}
+                  {spaceNamePrompt && <div className="warning-message">We will use the location name instead</div>}
                 </label>
 
                 <div style={{ marginTop: 8 }}>
-                <div style={{ fontWeight: 700, marginBottom: 8, fontFamily: "var(--font-fraunces), serif", color: "#006947" }}>Facilities</div>
+                  <h3>Facilities</h3>
 
                   <div style={{ fontSize: 13, color: "#555", marginBottom: 16 }}>
                     Select the facilities that are available in this new space.
@@ -910,7 +941,7 @@ export default function Home() {
                     </label>
                   </div>
                 </div>
-
+                
                 <button
                   type="button"
                   className="btn-primary"
@@ -938,9 +969,8 @@ export default function Home() {
 
                     // Check space name after location is validated
                     if (!newSpace.name.trim()) {
-                      // If warning already showing, proceed with location name
                       if (spaceNamePrompt) {
-                        // Will use location name as fallback below
+                        // proceed with location name
                       } else {
                         setSpaceNamePrompt(true);
                         return;
@@ -982,7 +1012,7 @@ export default function Home() {
                     setShowToast(true);
                     setTimeout(() => setShowToast(false), 3000);
                   }}
-                  >
+                >
                   <MapPinPlus size={18} weight="regular" />
                   Add space
                 </button>
@@ -1072,7 +1102,7 @@ export default function Home() {
             </div>
 
             <div style={{ display: "grid", gap: 16 }}>
-            <label>
+              <label>
                 <span style={{ fontWeight: 700, color: "#006947" }}>Space name</span>
                 <input
                   value={newSpace.name}
@@ -1088,114 +1118,114 @@ export default function Home() {
               </label>
 
               <div>
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>Facilities</div>
+                <h3>Facilities</h3>
 
                 <div
-                    className="facilities-grid"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                      gap: 8,
-                    }}
-                  >
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.fenced}
-                        onChange={(e) => setNewSpace({ ...newSpace, fenced: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <Barricade size={16} weight="regular" style={{ color: "#006947" }} />
-                        Fenced
-                      </span>
-                    </label>
+                  className="facilities-grid"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                    gap: 8,
+                  }}
+                >
+                  <label className="facility-option">
+                    <input
+                      type="checkbox"
+                      checked={newSpace.fenced}
+                      onChange={(e) => setNewSpace({ ...newSpace, fenced: e.target.checked })}
+                      style={{ display: "none" }}
+                    />
+                    <span className="custom-checkbox"></span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Barricade size={16} weight="regular" style={{ color: "#006947" }} />
+                      Fenced
+                    </span>
+                  </label>
 
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.unfenced}
-                        onChange={(e) => setNewSpace({ ...newSpace, unfenced: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <ArrowsOut size={16} weight="regular" style={{ color: "#006947" }} />
-                        Unfenced
-                      </span>
-                    </label>
+                  <label className="facility-option">
+                    <input
+                      type="checkbox"
+                      checked={newSpace.unfenced}
+                      onChange={(e) => setNewSpace({ ...newSpace, unfenced: e.target.checked })}
+                      style={{ display: "none" }}
+                    />
+                    <span className="custom-checkbox"></span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <ArrowsOut size={16} weight="regular" style={{ color: "#006947" }} />
+                      Unfenced
+                    </span>
+                  </label>
 
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.partFenced}
-                        onChange={(e) => setNewSpace({ ...newSpace, partFenced: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <CircleHalf size={16} weight="regular" style={{ color: "#006947" }} />
-                        Part fenced
-                      </span>
-                    </label>
+                  <label className="facility-option">
+                    <input
+                      type="checkbox"
+                      checked={newSpace.partFenced}
+                      onChange={(e) => setNewSpace({ ...newSpace, partFenced: e.target.checked })}
+                      style={{ display: "none" }}
+                    />
+                    <span className="custom-checkbox"></span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <CircleHalf size={16} weight="regular" style={{ color: "#006947" }} />
+                      Part fenced
+                    </span>
+                  </label>
 
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.bins}
-                        onChange={(e) => setNewSpace({ ...newSpace, bins: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <Trash size={16} weight="regular" style={{ color: "#006947" }} />
-                        Dog bins
-                      </span>
-                    </label>
+                  <label className="facility-option">
+                    <input
+                      type="checkbox"
+                      checked={newSpace.bins}
+                      onChange={(e) => setNewSpace({ ...newSpace, bins: e.target.checked })}
+                      style={{ display: "none" }}
+                    />
+                    <span className="custom-checkbox"></span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Trash size={16} weight="regular" style={{ color: "#006947" }} />
+                      Dog bins
+                    </span>
+                  </label>
 
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.toilets}
-                        onChange={(e) => setNewSpace({ ...newSpace, toilets: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <Toilet size={16} weight="regular" style={{ color: "#006947" }} />
-                        Toilets
-                      </span>
-                    </label>
+                  <label className="facility-option">
+                    <input
+                      type="checkbox"
+                      checked={newSpace.toilets}
+                      onChange={(e) => setNewSpace({ ...newSpace, toilets: e.target.checked })}
+                      style={{ display: "none" }}
+                    />
+                    <span className="custom-checkbox"></span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Toilet size={16} weight="regular" style={{ color: "#006947" }} />
+                      Toilets
+                    </span>
+                  </label>
 
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.coffee}
-                        onChange={(e) => setNewSpace({ ...newSpace, coffee: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <Coffee size={16} weight="regular" style={{ color: "#006947" }} />
-                        Coffee
-                      </span>
-                    </label>
+                  <label className="facility-option">
+                    <input
+                      type="checkbox"
+                      checked={newSpace.coffee}
+                      onChange={(e) => setNewSpace({ ...newSpace, coffee: e.target.checked })}
+                      style={{ display: "none" }}
+                    />
+                    <span className="custom-checkbox"></span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Coffee size={16} weight="regular" style={{ color: "#006947" }} />
+                      Coffee
+                    </span>
+                  </label>
 
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.parking}
-                        onChange={(e) => setNewSpace({ ...newSpace, parking: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <Car size={16} weight="regular" style={{ color: "#006947" }} />
-                        Parking
-                      </span>
-                    </label>
-                  </div>
+                  <label className="facility-option">
+                    <input
+                      type="checkbox"
+                      checked={newSpace.parking}
+                      onChange={(e) => setNewSpace({ ...newSpace, parking: e.target.checked })}
+                      style={{ display: "none" }}
+                    />
+                    <span className="custom-checkbox"></span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Car size={16} weight="regular" style={{ color: "#006947" }} />
+                      Parking
+                    </span>
+                  </label>
+                </div>
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 8 }}>
@@ -1221,7 +1251,7 @@ export default function Home() {
 
                     setSpaces(
                       spaces.map((s) =>
-                        s.name === editingSpace.name
+                        s.name === editingSpace!.name
                           ? {
                               ...s,
                               name: newSpace.name.trim(),
@@ -1295,11 +1325,7 @@ export default function Home() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setShowDeleteModal(false)}
-              >
+              <button type="button" className="btn-secondary" onClick={() => setShowDeleteModal(false)}>
                 Cancel
               </button>
 
@@ -1308,19 +1334,18 @@ export default function Home() {
                 className="btn-primary"
                 onClick={() => {
                   const remainingSpaces = spaces.filter((s) => !selectedSpaceNames.includes(s.name));
-                  
-                  // If deleting all spaces and user has location, find nearest from SPACES
+
                   if (remainingSpaces.length === 0 && myLocation) {
                     const spacesWithDistance = SPACES.map((space) => ({
                       ...space,
                       distance: distanceKm(myLocation.lat, myLocation.lng, space.lat, space.lng),
                     })).sort((a, b) => a.distance - b.distance);
-                    
-                    setSpaces([spacesWithDistance[0]]);
+
+                    setSpaces([spacesWithDistance[0] as any]);
                   } else {
                     setSpaces(remainingSpaces);
                   }
-                  
+
                   setSelectedSpaceNames([]);
                   setShowDeleteModal(false);
                 }}

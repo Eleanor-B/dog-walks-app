@@ -1,6 +1,33 @@
 @import "mapbox-gl/dist/mapbox-gl.css";
 @import "tailwindcss";
 
+/* Ensure embedded map fills the container with NO gaps */
+#map,
+#map > * {
+  height: 216px !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#map .mapboxgl-map,
+#map .mapboxgl-canvas,
+#map .mapboxgl-canvas-container,
+#map iframe {
+  height: 100% !important;
+  width: 100% !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Remove any accidental spacing under the map */
+#map {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 0 !important;
+}
+
 /* =========================
    Theme tokens
    ========================= */
@@ -78,9 +105,9 @@
    h1 {
     font-family: var(--font-fraunces), serif;
     font-weight: 700;
-    font-size: 40px;
+    font-size: 36px;
     line-height: 1.2;
-    margin: 0 0 12px 0;
+    margin: 0 0 8px 0;
     color: #006947;
   }
   
@@ -89,8 +116,17 @@
     font-weight: 700;
     font-size: 22px;
     line-height: 1.25;
-    margin: 28px 0 12px 0;
+    margin: 20px 0 8px 0;
     color: #006947;
+  }
+
+  h3 {
+    font-family: var(--font-fraunces), serif;
+    font-weight: 200;
+    font-size: 15px;
+    line-height: 1.3;
+    margin: 8px 0 6px 0;
+    color: #02301F;
   }
 
 /* =========================
@@ -104,7 +140,7 @@
     font-family: var(--font-fraunces), serif;
     font-weight: 200;
     font-size: 15px;
-    margin-top: 12px;
+    margin-top: 8px;
     color: #02301F;
   }
 
@@ -146,7 +182,7 @@ textarea {
 
    button {
     display: inline-block;
-    margin-top: 12px;
+    margin-top: 8px;
     padding: 8px 12px;
     border-radius: 8px;
     border: none;
@@ -274,15 +310,16 @@ button.btn-text:disabled {
 .filter-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
+  margin-bottom: 8px;
 }
 
 .filter-chips {
-  margin-top: 10px;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 8px;
 }
 
 button.filter-chip {
@@ -380,7 +417,7 @@ button.btn-location:hover {
 }
 
 button.btn-location:before {
-  content: "⌖";
+  content: "📍";
   font-size: 18px;
   line-height: 1;
   display: inline-block;

@@ -31,204 +31,183 @@ export default function MapboxEmbedded({
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
-    
-    // Clean up existing markers
-    markersRef.current.forEach(marker => marker.remove());
-    markersRef.current = [];
 
-    // Clean up existing map
-    if (mapRef.current) {
-      mapRef.current.remove();
-      mapRef.current = null;
+    const bounds = new mapboxgl.LngLatBounds();
+
+    if (myLocation) {
+      bounds.extend([myLocation.lng, myLocation.lat]);
     }
 
-    // Determine center point
-    const hasRowSelection = selectedSpaceName !== null;
-    const selectedSpace = spaces.find((s) => s.name === selectedSpaceName);
-    
-    const centerPoint = hasRowSelection && selectedSpace
-      ? [selectedSpace.lng, selectedSpace.lat]
-      : myLocation
-      ? [myLocation.lng, myLocation.lat]
-      : [-0.1276, 51.5072];
-
-    mapRef.current = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/outdoors-v12",
-      center: centerPoint as [number, number],
-      zoom: hasRowSelection ? 14 : myLocation ? 13 : 12,
+    spaces.forEach((space) => {
+      bounds.extend([space.lng, space.lat]);
     });
 
-    mapRef.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: "mapbox://styles/mapbox/streets-v12",
+      bounds: bounds.isEmpty() ? undefined : bounds,
+      fitBoundsOptions: { padding: 40 },
+    });
 
-    // Wait for map to load before adding markers
-    mapRef.current.on('load', () => {
-      if (!mapRef.current) return;
+    mapRef.current = map;
 
-      // Add user location marker (orange with pulse)
-      if (myLocation) {
-        const el = document.createElement("div");
-        el.style.width = "20px";
-        el.style.height = "20px";
-        el.style.borderRadius = "50%";
-        el.style.backgroundColor = "#F88912";
-        el.style.border = "3px solid white";
-        el.style.boxShadow = "0 0 10px rgba(248, 137, 18, 0.5)";
-        el.style.animation = "pulse 2s ease-in-out infinite";
+    // User location marker
+    if (myLocation) {
+      const userEl = document.createElement("div");
+      userEl.style.width = "16px";
+      userEl.style.height = "16px";
+      userEl.style.borderRadius = "50%";
+      userEl.style.backgroundColor = "#F88912";
+      userEl.style.border = "3px solid white";
+      userEl.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
+      userEl.className = "marker-pulse";
 
-        const popup = new mapboxgl.Popup({ 
-          offset: 25,
-          closeButton: false,
-          className: "custom-popup"
-        }).setHTML(`
-          <div style="background: #FEF3E7; padding: 8px 12px; border-radius: 6px; border: none;">
-            <strong style="color: #2F80EA;">Your location</strong>
-          </div>
-        `);
+      new mapboxgl.Marker({ element: userEl })
+        .setLngLat([myLocation.lng, myLocation.lat])
+        .addTo(map);
+    }
 
-        const marker = new mapboxgl.Marker({ 
-          element: el,
-          anchor: 'center'
-        })
-          .setLngLat([myLocation.lng, myLocation.lat])
-          .setPopup(popup)
-          .addTo(mapRef.current!);
+    // Space markers
+    spaces.forEach((space) => {
+      const isSelected = selectedSpaceName === space.name;
+      const isInList = selectedSpaceNames.includes(space.name);
 
-        markersRef.current.push(marker);
+      const markerEl = document.createElement("div");
+      markerEl.style.width = "32px";
+      markerEl.style.height = "32px";
+      markerEl.style.cursor = "pointer";
+      markerEl.innerHTML = `
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 2C11.0294 2 7 6.02944 7 11C7 17.5 16 30 16 30C16 30 25 17.5 25 11C25 6.02944 20.9706 2 16 2Z" 
+                fill="${isSelected ? "#DD6616" : "#006947"}" 
+                stroke="white" 
+                stroke-width="2"/>
+          <circle cx="16" cy="11" r="4" fill="white"/>
+        </svg>
+      `;
 
-        // Show popup on hover
-        el.addEventListener("mouseenter", () => marker.togglePopup());
-        el.addEventListener("mouseleave", () => marker.togglePopup());
-      }
+      const popup = new mapboxgl.Popup({
+        offset: 15,
+        closeButton: false,
+        closeOnClick: false,
+        className: isInList ? "custom-popup selected-popup" : "custom-popup unselected-popup",
+      }).setHTML(`
+        <div style="
+          padding: 8px 12px;
+          background: ${isInList ? "#dcfce7" : "#f3f4f6"};
+          border-radius: 6px;
+          font-family: var(--font-dm-sans), sans-serif;
+          font-size: 13px;
+          font-weight: 500;
+          color: #02301F;
+          white-space: nowrap;
+        ">
+          ${space.name}
+        </div>
+      `);
 
-      // Add space markers with custom colored pins
-      spaces.forEach((space) => {
-        if (!mapRef.current) return;
+      const marker = new mapboxgl.Marker({ element: markerEl })
+        .setLngLat([space.lng, space.lat])
+        .setPopup(popup)
+        .addTo(map);
 
-        const isSelectedByCheckbox = selectedSpaceNames.includes(space.name);
-        const isSelectedByRow = selectedSpaceName === space.name;
-        const isSelected = isSelectedByCheckbox || isSelectedByRow;
-        
-        const color = isSelected ? "#DD6616" : "#2B5B2F";
+      markersRef.current.push(marker);
 
-        const popupBg = isSelected ? "#dcfce7" : "#f3f4f6";
-        const textColor = isSelected ? "#166534" : "#111";
+      markerEl.addEventListener("mouseenter", () => {
+        marker.togglePopup();
+      });
 
-        
-        // Create custom pin element
-        const el = document.createElement("div");
-        el.innerHTML = `
-          <svg width="27" height="41" viewBox="0 0 27 41" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M13.5 0C6.04416 0 0 6.04416 0 13.5C0 23.625 13.5 41 13.5 41C13.5 41 27 23.625 27 13.5C27 6.04416 20.9558 0 13.5 0Z" fill="${color}"/>
-            <circle cx="13.5" cy="13.5" r="5" fill="white"/>
-          </svg>
-        `;
-        el.style.width = "27px";
-        el.style.height = "41px";
-        el.style.cursor = "pointer";
-
-        const popup = new mapboxgl.Popup({ 
-          offset: 25,
-          closeButton: false,
-          className: "custom-popup"
-        }).setHTML(`
-          <div style="background: ${popupBg}; padding: 8px 12px; border-radius: 6px; border: none;">
-            <strong style="color: ${textColor};">${space.name}</strong>
-          </div>
-        `);
-
-        const marker = new mapboxgl.Marker({ 
-          element: el,
-          anchor: 'bottom'
-        })
-          .setLngLat([space.lng, space.lat])
-          .setPopup(popup)
-          .addTo(mapRef.current!);
-
-      
-
-        markersRef.current.push(marker);
-
-        // Show popup on hover
-        el.addEventListener("mouseenter", () => marker.togglePopup());
-        el.addEventListener("mouseleave", () => marker.togglePopup());
+      markerEl.addEventListener("mouseleave", () => {
+        marker.togglePopup();
       });
     });
 
     return () => {
-      markersRef.current.forEach(marker => marker.remove());
+      markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
+      map.remove();
     };
   }, [spaces, myLocation, selectedSpaceName, selectedSpaceNames]);
 
   return (
-    <div style={{ position: "relative", marginTop: 8 }}>
-      <div
-        ref={mapContainerRef}
-        style={{
-          width: "100%",
-          height: 180,
-          borderRadius: 8,
-          border: "4px solid #fff",
+    <div style={{ position: "relative", marginTop: 4, marginBottom: 0 }}>
+      <div 
+        ref={mapContainerRef} 
+        style={{ 
+          width: "100%", 
+          height: 216, 
+          borderRadius: 8, 
+          border: "4px solid #fff", 
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-        }}
+          display: "block",
+          margin: 0,
+          padding: 0
+        }} 
       />
-      
-      {/* Map Legend */}
+
+      {/* Legend */}
       <div
         style={{
           position: "absolute",
-          top: 8,
-          left: 8,
-          background: "rgba(255, 255, 255, 0.95)",
+          top: 12,
+          left: 12,
+          background: "white",
+          padding: "8px 12px",
           borderRadius: 8,
-          padding: 12,
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
           fontSize: 12,
           fontFamily: "var(--font-dm-sans), sans-serif",
-          color: "#000",
           zIndex: 10,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2F80EA", flexShrink: 0 }}></div>
-          <span>Your location</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2B5B2F", flexShrink: 0 }}></div>
-          <span>Nearby spaces</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#DD6616", flexShrink: 0 }}></div>
-          <span>Your selected space</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: "50%",
+                backgroundColor: "#F88912",
+                border: "2px solid white",
+              }}
+            />
+            <span>Your location</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="16" height="16" viewBox="0 0 32 32" fill="none">
+              <path
+                d="M16 2C11.0294 2 7 6.02944 7 11C7 17.5 16 30 16 30C16 30 25 17.5 25 11C25 6.02944 20.9706 2 16 2Z"
+                fill="#006947"
+                stroke="white"
+                strokeWidth="2"
+              />
+              <circle cx="16" cy="11" r="4" fill="white" />
+            </svg>
+            <span>Dog space</span>
+          </div>
         </div>
       </div>
-      
-      {/* View Large Map Button */}
+
+      {/* View large map button */}
       <button
-        type="button"
         onClick={onViewLargeMap}
         style={{
           position: "absolute",
-          bottom: 8,
-          left: 8,
-          background: "#fff",
-          color: "#006947",
-          border: "1px solid #ddd",
-          borderRadius: 10,
-          padding: "10px 10px",
+          bottom: 12,
+          left: 12,
+          background: "white",
+          border: "none",
+          padding: "8px 12px",
+          borderRadius: 8,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          cursor: "pointer",
           fontSize: 13,
+          fontFamily: "var(--font-dm-sans), sans-serif",
           fontWeight: 500,
-          display: "inline-flex",
+          display: "flex",
           alignItems: "center",
           gap: 6,
-          cursor: "pointer",
+          color: "#02301F",
           zIndex: 10,
         }}
       >
@@ -236,6 +215,5 @@ export default function MapboxEmbedded({
         View large map
       </button>
     </div>
-    
   );
 }

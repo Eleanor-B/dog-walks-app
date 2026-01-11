@@ -97,7 +97,7 @@ export default function MapboxFullMap({
     mapRef.current.on('load', () => {
       if (!mapRef.current) return;
 
-      // Add user location marker (orange with pulse)
+      // Add user location marker (#2F80EA with pulse)
       if (myLocation) {
         const el = document.createElement("div");
         el.style.width = "20px";
