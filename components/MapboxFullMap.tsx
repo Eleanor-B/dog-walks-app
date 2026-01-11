@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
+import { X, Signpost, CaretLeft, PersonSimpleWalk, Car, List } from "@phosphor-icons/react";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -26,12 +27,18 @@ export default function MapboxFullMap({
   selectedSpaceName,
   selectedSpaceNames,
   onClose,
+  onGetDirections,
+  routeData,
+  onChangeRoute,
 }: {
   spaces: Space[];
   myLocation: { lat: number; lng: number } | null;
   selectedSpaceName: string | null;
   selectedSpaceNames: string[];
   onClose: () => void;
+  onGetDirections?: (space: Space) => void;
+  routeData?: any;
+  onChangeRoute?: () => void;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -80,6 +87,48 @@ export default function MapboxFullMap({
       center: centerPoint as [number, number],
       zoom: 16,
     });
+
+    // Draw route if routeData is provided
+    if (routeData && mapRef.current) {
+      const map = mapRef.current;
+
+      map.on('load', () => {
+        if (!map.getSource('route')) {
+          map.addSource('route', {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              properties: {},
+              geometry: routeData.geometry
+            }
+          });
+
+          map.addLayer({
+            id: 'route',
+            type: 'line',
+            source: 'route',
+            layout: {
+              'line-join': 'round',
+              'line-cap': 'round'
+            },
+            paint: {
+              'line-color': routeData.mode === 'walking' ? '#2F80ED' : routeData.mode === 'driving' ? '#DD6616' : '#006947',
+              'line-width': 4,
+              'line-opacity': 0.8
+            }
+          });
+
+          const coordinates = routeData.geometry.coordinates;
+          const bounds = coordinates.reduce((bounds: any, coord: any) => {
+            return bounds.extend(coord);
+          }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+
+          map.fitBounds(bounds, {
+            padding: { top: 100, bottom: 100, left: 50, right: 50 }
+          });
+        }
+      });
+    }
 
     mapRef.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
@@ -188,7 +237,7 @@ export default function MapboxFullMap({
         mapRef.current = null;
       }
     };
-  }, [spaces, myLocation, selectedSpaceName, selectedSpaceNames]);
+  }, [spaces, myLocation, selectedSpaceName, selectedSpaceNames, routeData]);
 
   return (
     <>
@@ -226,12 +275,48 @@ export default function MapboxFullMap({
         >
           <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }} />
 
+          {/* Breadcrumb */}
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: 16,
+              left: 16,
+              background: "#fff",
+              border: "1px solid #ddd",
+              borderRadius: 8,
+              padding: "8px 12px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#02301F",
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+              zIndex: 10,
+            }}
+            className="btn-text"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#f5f5f5";
+              e.currentTarget.style.borderColor = "#006947";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#fff";
+              e.currentTarget.style.borderColor = "#ddd";
+            }}
+          >
+            <CaretLeft size={16} weight="bold" />
+            Back to spaces
+          </button>
+
+          {/* Close Button */}
           <button
             type="button"
             onClick={onClose}
             style={{
               position: "absolute",
-              top: 8,
+              top: 16,
               right: 16,
               zIndex: 10002,
               padding: "10px 12px",
@@ -240,15 +325,65 @@ export default function MapboxFullMap({
               border: "1px solid #006947",
               borderRadius: 10,
               fontWeight: 600,
+              cursor: "pointer",
             }}
           >
-            Close
+            <X size={20} weight="bold" />
           </button>
-         {/* Map Legend */}
-         <div
+
+          {/* Route Info Card */}
+          {routeData && (
+            <div
+              style={{
+                position: "absolute",
+                top: 70,
+                left: 16,
+                right: 16,
+                maxWidth: 400,
+                background: "#fff",
+                borderRadius: 12,
+                padding: 16,
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                zIndex: 10,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {routeData.mode === 'walking' && <PersonSimpleWalk size={24} weight="regular" color="#006947" />}
+                  {routeData.mode === 'driving' && <Car size={24} weight="regular" color="#006947" />}
+                  {routeData.mode === 'transit' && <Car size={24} weight="regular" color="#006947" />}
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: "#02301F", fontFamily: "var(--font-fraunces), serif" }}>
+                      {routeData.mode === 'walking' ? 'Walking' : routeData.mode === 'driving' ? 'Driving' : 'Transit'} to {routeData.destinationName}
+                    </div>
+                    <div style={{ fontSize: 14, color: "#555", marginTop: 2 }}>
+                      {Math.round(routeData.duration / 60)} min · {(routeData.distance / 1000).toFixed(1)} km
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={onChangeRoute}
+                className="btn-text"
+                style={{
+                  padding: "6px 0",
+                  fontSize: 13,
+                  color: "#006947",
+                  textDecoration: "underline",
+                  marginTop: 0,
+                }}
+              >
+                Change route
+              </button>
+            </div>
+          )}
+
+          {/* Map Legend */}
+          <div
             style={{
               position: "absolute",
-              top: 16,
+              top: routeData ? 220 : 70,
               left: 16,
               background: "rgba(255, 255, 255, 0.95)",
               borderRadius: 8,
@@ -263,18 +398,49 @@ export default function MapboxFullMap({
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2F80EA", flexShrink: 0 }}></div>
-          <span>Your location</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2B5B2F", flexShrink: 0 }}></div>
-          <span>Nearby spaces</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#DD6616", flexShrink: 0 }}></div>
-          <span>Your selected space</span>
-        </div>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#F88912", flexShrink: 0 }}></div>
+              <span>Your location</span>
             </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2B5B2F", flexShrink: 0 }}></div>
+              <span>Dog spaces</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#DD6616", flexShrink: 0 }}></div>
+              <span>Selected space</span>
+            </div>
+          </div>
+
+          {/* Get Directions Button - Only show when no route */}
+          {!routeData && selectedSpaceName && onGetDirections && (
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                const selectedSpace = spaces.find(s => s.name === selectedSpaceName);
+                if (selectedSpace && onGetDirections) {
+                  onGetDirections(selectedSpace);
+                }
+              }}
+              style={{
+                position: "absolute",
+                top: "calc(70px + 90px + 32px)",
+                left: 16,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 16px",
+                fontSize: 14,
+                fontWeight: 600,
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                zIndex: 10,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Signpost size={20} weight="regular" />
+              Get directions
+            </button>
+          )}
         </div>
       </div>
       

@@ -18,9 +18,11 @@ import {
   CaretLeft,
   CaretRight,
   Check,
+  Signpost,
 } from "@phosphor-icons/react";
 import MapboxFullMap from "../components/MapboxFullMap";
 import MapboxEmbedded from "../components/MapboxEmbedded";
+import DirectionsDrawer from "../components/DirectionsDrawer";
 
 // ---- Place name lookup (no tracking, no accounts) ----
 async function lookupPlaceName(place: string): Promise<{ lat: number; lng: number } | null> {
@@ -190,6 +192,9 @@ export default function Home() {
   const [formLocationError, setFormLocationError] = useState(false);
   const [locationNotFoundError, setLocationNotFoundError] = useState(false);
   const [spaceNamePrompt, setSpaceNamePrompt] = useState(false);
+  const [showDirectionsDrawer, setShowDirectionsDrawer] = useState(false);
+  const [directionsSpace, setDirectionsSpace] = useState<Space | null>(null);
+  const [routeData, setRouteData] = useState<any>(null);
 
   function getMyLocation() {
     setLocationError(null);
@@ -602,26 +607,49 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowFullMap(true);
-                        }}
-                        style={{
-                          padding: "6px 12px",
-                          height: "fit-content",
-                          marginTop: 0,
-                          flexShrink: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }}
-                      >
-                        <MapTrifold size={16} weight="regular" />
-                        Open map
-                      </button>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowFullMap(true);
+                          }}
+                          style={{
+                            padding: "6px 12px",
+                            height: "fit-content",
+                            marginTop: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <MapTrifold size={16} weight="regular" />
+                          Open map
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          disabled={selectedSpaceName !== space.name}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDirectionsSpace(space);
+                            setShowDirectionsDrawer(true);
+                          }}
+                          style={{
+                            padding: "6px 12px",
+                            height: "fit-content",
+                            marginTop: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <Signpost size={16} weight="regular" />
+                          Get directions
+                        </button>
+                      </div>
                     </div>
 
                     <div style={{ marginLeft: 32, display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -1364,9 +1392,38 @@ export default function Home() {
           myLocation={showMyLocation ? myLocation : null}
           selectedSpaceName={selectedSpaceName}
           selectedSpaceNames={selectedSpaceNames}
-          onClose={() => setShowFullMap(false)}
+          onClose={() => {
+            setShowFullMap(false);
+            setRouteData(null);
+          }}
+          onGetDirections={(space) => {
+            setDirectionsSpace(space);
+            setShowDirectionsDrawer(true);
+          }}
+          routeData={routeData}
+          onChangeRoute={() => {
+            setShowFullMap(false);
+            setRouteData(null);
+            setShowDirectionsDrawer(true);
+          }}
         />
       )}
+
+      {/* Directions Drawer */}
+      <DirectionsDrawer
+        isOpen={showDirectionsDrawer}
+        onClose={() => setShowDirectionsDrawer(false)}
+        spaceName={directionsSpace?.name || ""}
+        spaceLat={directionsSpace?.lat || 0}
+        spaceLng={directionsSpace?.lng || 0}
+        userLocation={myLocation}
+        onRequestLocation={getMyLocation}
+        onShowRoute={(route) => {
+          setRouteData(route);
+          setShowFullMap(true);
+          setShowDirectionsDrawer(false);
+        }}
+      />
 
       <style>{`
         @keyframes fadeIn {
