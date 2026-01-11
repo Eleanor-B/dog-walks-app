@@ -10,6 +10,13 @@ type Space = {
   name: string;
   lat: number;
   lng: number;
+  fenced: boolean;
+  unfenced: boolean;
+  partFenced: boolean;
+  bins: boolean;
+  toilets: boolean;
+  coffee: boolean;
+  parking: boolean;
 };
 
 const animationStyles = (
