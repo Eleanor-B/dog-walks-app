@@ -103,7 +103,7 @@ export default function DirectionsDrawer({
           maxWidth: 900,
           margin: "0 auto",
           boxShadow: "0 -4px 24px rgba(0, 0, 0, 0.1)",
-          animation: isLoading ? "slideDownOut 0.4s ease-in forwards" : "slideUpBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+          animation: isLoading ? "slideDownOut 0.4s ease-in forwards" : "slideUpBounce 0.6s cubic-bezier(0.25, 1.15, 0.5, 1) forwards",
         }}
       >
         {/* Header */}
@@ -147,7 +147,7 @@ export default function DirectionsDrawer({
               color: "#8B5000",
             }}
           >
-            📍 Share your location to get personalized directions
+            📍 Show your location to get directions
           </div>
         )}
 
@@ -299,11 +299,11 @@ export default function DirectionsDrawer({
             opacity: 0;
           }
           60% {
-            transform: translateY(-8px);
+            transform: translateY(-4px);
             opacity: 1;
           }
           80% {
-            transform: translateY(4px);
+            transform: translateY(2px);
           }
           100% {
             transform: translateY(0);

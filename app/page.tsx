@@ -41,7 +41,7 @@ async function lookupPlaceName(place: string): Promise<{ lat: number; lng: numbe
 
     if (!res.ok) return null;
 
-    const data = await res.json();
+    const data = await res.json() as any[];
     if (!Array.isArray(data) || data.length === 0) return null;
 
     const lat = Number(data[0].lat);
@@ -50,7 +50,8 @@ async function lookupPlaceName(place: string): Promise<{ lat: number; lng: numbe
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
     return { lat, lng };
-  } catch {
+  } catch (error) {
+    console.error('Error looking up place:', error);
     return null;
   }
 }
@@ -188,6 +189,7 @@ export default function Home() {
   const [selectedSpaceNames, setSelectedSpaceNames] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddDrawer, setShowAddDrawer] = useState(false);
+  const [fabBottom, setFabBottom] = useState(24);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
   const [showToast, setShowToast] = useState(false);
@@ -215,6 +217,25 @@ export default function Home() {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Make FAB stop at footer
+  useEffect(() => {
+    const handleScroll = () => {
+      const footer = document.querySelector("footer");
+      if (!footer) return;
+      const footerRect = footer.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+      if (footerRect.top < windowHeight) {
+        const newBottom = windowHeight - footerRect.top + 24;
+        setFabBottom(newBottom);
+      } else {
+        setFabBottom(24);
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   function getMyLocation() {
@@ -329,20 +350,22 @@ export default function Home() {
       </div>
 
       {/* Map */}
-      <section style={{ marginTop: 40 }}>
-        <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          {/* Embedded map, fixed height */}
-          <div id="map" className="mb-0 pb-0 overflow-hidden" style={{ height: "70vh" }}>
-            <MapboxEmbedded
-              spaces={filteredSpaces.slice(0, 10)}
-              myLocation={showMyLocation ? myLocation : null}
-              selectedSpaceName={selectedSpaceName}
-              selectedSpaceNames={selectedSpaceNames}
-              onViewLargeMap={() => setShowFullMap(true)}
-            />
+      {!showFullMap && (
+        <section style={{ marginTop: 40 }}>
+          <div style={{ maxWidth: 900, margin: "0 auto" }}>
+            {/* Embedded map, fixed height */}
+            <div id="map" className="mb-0 pb-0 overflow-hidden" style={{ height: "70vh" }}>
+              <MapboxEmbedded
+                spaces={filteredSpaces.slice(0, 10)}
+                myLocation={showMyLocation ? myLocation : null}
+                selectedSpaceName={selectedSpaceName}
+                selectedSpaceNames={selectedSpaceNames}
+                onViewLargeMap={() => setShowFullMap(true)}
+              />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Nearby spaces */}
       <section style={{ marginTop: 40 }}>
@@ -462,7 +485,7 @@ export default function Home() {
                     padding: 16,
                     border: selectedSpaceName === space.name ? "1px solid #C1CFCA" : "1px solid #ddd",
                     borderRadius: 8,
-                    background: selectedSpaceName === space.name ? "#F5FFEF" : "white",
+                    background: selectedSpaceName === space.name ? "#EEFFE3" : "white",
                     boxShadow: selectedSpaceName === space.name ? "0 2px 8px rgba(0, 0, 0, 0.08)" : "none",
                     cursor: "pointer",
                   }}
@@ -1398,17 +1421,19 @@ export default function Home() {
         onClick={() => setShowAddDrawer(true)}
         style={{
           position: "fixed",
-          bottom: 24,
+          bottom: fabBottom,
           right: 24,
           width: 56,
           height: 56,
           borderRadius: "50%",
-          background: "#006947",
+          background: "#DD6616",
           color: "#fff",
           border: "none",
-          boxShadow: "0 4px 16px rgba(0, 105, 71, 0.3)",
+          boxShadow: "0 4px 16px rgba(221, 102, 22, 0.3)",
           fontSize: 28,
           fontWeight: 300,
+          lineHeight: 0,
+          paddingTop: 2,
           cursor: "pointer",
           zIndex: 100,
           display: "flex",
@@ -1418,11 +1443,11 @@ export default function Home() {
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = "scale(1.1)";
-          e.currentTarget.style.boxShadow = "0 6px 20px rgba(0, 105, 71, 0.4)";
+          e.currentTarget.style.boxShadow = "0 6px 20px rgba(221, 102, 22, 0.4)";
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = "scale(1)";
-          e.currentTarget.style.boxShadow = "0 4px 16px rgba(0, 105, 71, 0.3)";
+          e.currentTarget.style.boxShadow = "0 4px 16px rgba(221, 102, 22, 0.3)";
         }}
         aria-label="Add a new space"
       >

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import { X, Signpost, CaretLeft, PersonSimpleWalk, Car, List } from "@phosphor-icons/react";
+import CollapsibleLegend from "./CollapsibleLegend";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -10,13 +11,6 @@ type Space = {
   name: string;
   lat: number;
   lng: number;
-  fenced: boolean;
-  unfenced: boolean;
-  partFenced: boolean;
-  bins: boolean;
-  toilets: boolean;
-  coffee: boolean;
-  parking: boolean;
 };
 
 const animationStyles = (
@@ -50,6 +44,86 @@ export default function MapboxFullMap({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [liveDistance, setLiveDistance] = useState<number | null>(null);
+  const [liveDuration, setLiveDuration] = useState<number | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+
+  // Calculate distance between two points in meters
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371000; // Earth's radius in meters
+    const toRad = (n: number) => (n * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in meters
+  };
+
+  // Start navigation with live tracking
+  const startNavigation = () => {
+    if (!routeData || !myLocation) return;
+
+    setIsNavigating(true);
+
+    // Start watching user's position
+    if (navigator.geolocation) {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (position) => {
+          const currentLat = position.coords.latitude;
+          const currentLng = position.coords.longitude;
+          const destLat = routeData.destination.lat;
+          const destLng = routeData.destination.lng;
+
+          // Calculate remaining distance
+          const distanceMeters = calculateDistance(currentLat, currentLng, destLat, destLng);
+          setLiveDistance(distanceMeters);
+
+          // Estimate duration based on mode and distance
+          let speedMps; // meters per second
+          if (routeData.mode === 'walking') {
+            speedMps = 1.4; // ~5 km/h walking speed
+          } else if (routeData.mode === 'driving') {
+            speedMps = 13.9; // ~50 km/h average city driving
+          } else {
+            speedMps = 8.3; // ~30 km/h for transit
+          }
+          const durationSeconds = distanceMeters / speedMps;
+          setLiveDuration(durationSeconds);
+        },
+        (error) => {
+          console.error('Error watching position:', error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0,
+        }
+      );
+    }
+  };
+
+  // Stop navigation
+  const stopNavigation = () => {
+    setIsNavigating(false);
+    setLiveDistance(null);
+    setLiveDuration(null);
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -153,15 +227,15 @@ export default function MapboxFullMap({
     mapRef.current.on('load', () => {
       if (!mapRef.current) return;
 
-      // Add user location marker (#2F80EA with pulse)
+      // Add user location marker (#31A6FF blue with pulse)
       if (myLocation) {
         const el = document.createElement("div");
         el.style.width = "20px";
         el.style.height = "20px";
         el.style.borderRadius = "50%";
-        el.style.backgroundColor = "#F88912";
+        el.style.backgroundColor = "#31A6FF";
         el.style.border = "3px solid white";
-        el.style.boxShadow = "0 0 10px rgba(248, 137, 18, 0.5)";
+        el.style.boxShadow = "0 0 10px rgba(49, 166, 255, 0.5)";
         el.style.animation = "pulse 2s ease-in-out infinite";
 
         const popup = new mapboxgl.Popup({ 
@@ -169,8 +243,8 @@ export default function MapboxFullMap({
           closeButton: false,
           className: "custom-popup"
         }).setHTML(`
-          <div style="background: #FEF3E7; padding: 8px 12px; border-radius: 6px; border: none;">
-            <strong style="color: #C4690A;">Your location</strong>
+          <div style="background: #E8F5FE; padding: 8px 12px; border-radius: 6px; border: none;">
+            <strong style="color: #1976D2;">Your location</strong>
           </div>
         `);
 
@@ -282,28 +356,28 @@ export default function MapboxFullMap({
         >
           <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }} />
 
-          {/* Breadcrumb */}
+          {/* Back to spaces Button */}
           <button
             onClick={onClose}
             style={{
               position: "absolute",
               top: 16,
               left: 16,
+              padding: "10px 12px",
               background: "#fff",
+              color: "#02301F",
               border: "1px solid #ddd",
-              borderRadius: 8,
-              padding: "8px 12px",
+              borderRadius: 10,
+              fontSize: 13,
+              fontWeight: 500,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 6,
-              fontSize: 13,
-              fontWeight: 500,
-              color: "#02301F",
               boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
               zIndex: 10,
             }}
-            className="btn-text"
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "#f5f5f5";
               e.currentTarget.style.borderColor = "#006947";
@@ -325,17 +399,23 @@ export default function MapboxFullMap({
               position: "absolute",
               top: 16,
               right: 16,
-              zIndex: 10002,
               padding: "10px 12px",
               background: "#006947",
               color: "#fff",
               border: "1px solid #006947",
               borderRadius: 10,
+              fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+              zIndex: 10002,
             }}
           >
-            <X size={20} weight="bold" />
+            <X size={16} weight="bold" />
           </button>
 
           {/* Route Info Card */}
@@ -352,6 +432,7 @@ export default function MapboxFullMap({
                 padding: 16,
                 boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
                 zIndex: 10,
+                marginBottom: 16,
               }}
             >
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
@@ -364,65 +445,81 @@ export default function MapboxFullMap({
                       {routeData.mode === 'walking' ? 'Walking' : routeData.mode === 'driving' ? 'Driving' : 'Transit'} to {routeData.destinationName}
                     </div>
                     <div style={{ fontSize: 14, color: "#555", marginTop: 2 }}>
-                      {Math.round(routeData.duration / 60)} min · {(routeData.distance / 1000).toFixed(1)} km
+                      {isNavigating && liveDistance !== null && liveDuration !== null ? (
+                        <>
+                          {Math.round(liveDuration / 60)} min · {(liveDistance / 1000).toFixed(1)} km remaining
+                        </>
+                      ) : (
+                        <>
+                          {Math.round(routeData.duration / 60)} min · {(routeData.distance / 1000).toFixed(1)} km
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <button
-                onClick={onChangeRoute}
-                className="btn-text"
-                style={{
-                  padding: "6px 0",
-                  fontSize: 13,
-                  color: "#006947",
-                  textDecoration: "underline",
-                  marginTop: 0,
-                }}
-              >
-                Change route
-              </button>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <button
+                  onClick={onChangeRoute}
+                  className="btn-text"
+                  style={{
+                    padding: "6px 0",
+                    fontSize: 13,
+                    color: "#006947",
+                    textDecoration: "underline",
+                    marginTop: 0,
+                  }}
+                >
+                  Change route
+                </button>
+
+                <button
+                  type="button"
+                  onClick={isNavigating ? stopNavigation : startNavigation}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 16px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    marginTop: 0,
+                    background: isNavigating ? "#DC2626" : "#006947",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 10,
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+                    transition: "background 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = isNavigating ? "#B91C1C" : "#004d33";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = isNavigating ? "#DC2626" : "#006947";
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ transform: "rotate(0deg)" }}>
+                    <path d="M8 2L8 14M8 2L4 6M8 2L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  {isNavigating ? 'Exit' : 'Start'}
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Map Legend */}
-          <div
-            style={{
-              position: "absolute",
-              top: routeData ? 220 : 70,
-              left: 16,
-              background: "rgba(255, 255, 255, 0.95)",
-              borderRadius: 8,
-              padding: 12,
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-              fontSize: 12,
-              fontFamily: "var(--font-dm-sans), sans-serif",
-              color: "#000",
-              zIndex: 10001,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#F88912", flexShrink: 0 }}></div>
-              <span>Your location</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2B5B2F", flexShrink: 0 }}></div>
-              <span>Dog spaces</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#DD6616", flexShrink: 0 }}></div>
-              <span>Selected space</span>
-            </div>
-          </div>
+          {/* Collapsible Map Legend */}
+          <CollapsibleLegend 
+            top={routeData ? 240 : 80}
+            left={16}
+            showSelected={true}
+          />
 
-          {/* Get Directions Button - Only show when no route */}
+          {/* Get Directions Button */}
           {!routeData && selectedSpaceName && onGetDirections && (
             <button
               type="button"
-              className="btn-primary"
               onClick={() => {
                 const selectedSpace = spaces.find(s => s.name === selectedSpaceName);
                 if (selectedSpace && onGetDirections) {
@@ -431,20 +528,26 @@ export default function MapboxFullMap({
               }}
               style={{
                 position: "absolute",
-                top: "calc(70px + 90px + 32px)",
-                left: 16,
+                top: 16,
+                right: 68,
+                padding: "10px 12px",
+                background: "#006947",
+                color: "#fff",
+                border: "1px solid #006947",
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
-                padding: "10px 16px",
-                fontSize: 14,
-                fontWeight: 600,
-                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                zIndex: 10,
+                justifyContent: "center",
+                gap: 6,
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+                zIndex: 10002,
                 whiteSpace: "nowrap",
               }}
             >
-              <Signpost size={20} weight="regular" />
+              <Signpost size={16} weight="regular" />
               Get directions
             </button>
           )}

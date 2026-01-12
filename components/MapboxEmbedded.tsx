@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
-import { MapTrifold } from "@phosphor-icons/react";
+import { MagnifyingGlassPlus } from "@phosphor-icons/react";
+import CollapsibleLegend from "./CollapsibleLegend";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -57,9 +58,9 @@ export default function MapboxEmbedded({
       userEl.style.width = "16px";
       userEl.style.height = "16px";
       userEl.style.borderRadius = "50%";
-      userEl.style.backgroundColor = "#F88912";
+      userEl.style.backgroundColor = "#31A6FF";
       userEl.style.border = "3px solid white";
-      userEl.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
+      userEl.style.boxShadow = "0 2px 8px rgba(49, 166, 255, 0.3)";
       userEl.className = "marker-pulse";
 
       new mapboxgl.Marker({ element: userEl })
@@ -79,7 +80,7 @@ export default function MapboxEmbedded({
       markerEl.innerHTML = `
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M16 2C11.0294 2 7 6.02944 7 11C7 17.5 16 30 16 30C16 30 25 17.5 25 11C25 6.02944 20.9706 2 16 2Z" 
-                fill="${isSelected ? "#DD6616" : "#006947"}" 
+                fill="${isSelected ? "#DD6616" : "#2B5B2F"}" 
                 stroke="white" 
                 stroke-width="2"/>
           <circle cx="16" cy="11" r="4" fill="white"/>
@@ -145,48 +146,12 @@ export default function MapboxEmbedded({
         }} 
       />
 
-      {/* Legend */}
-      <div
-        style={{
-          position: "absolute",
-          top: 12,
-          left: 12,
-          background: "white",
-          padding: "8px 12px",
-          borderRadius: 8,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          fontSize: 12,
-          fontFamily: "var(--font-dm-sans), sans-serif",
-          zIndex: 10,
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: "50%",
-                backgroundColor: "#F88912",
-                border: "2px solid white",
-              }}
-            />
-            <span>Your location</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <svg width="16" height="16" viewBox="0 0 32 32" fill="none">
-              <path
-                d="M16 2C11.0294 2 7 6.02944 7 11C7 17.5 16 30 16 30C16 30 25 17.5 25 11C25 6.02944 20.9706 2 16 2Z"
-                fill="#006947"
-                stroke="white"
-                strokeWidth="2"
-              />
-              <circle cx="16" cy="11" r="4" fill="white" />
-            </svg>
-            <span>Dog space</span>
-          </div>
-        </div>
-      </div>
+      {/* Collapsible Legend */}
+      <CollapsibleLegend 
+        top={12}
+        left={12}
+        showSelected={false}
+      />
 
       {/* View large map button */}
       <button
@@ -211,7 +176,7 @@ export default function MapboxEmbedded({
           zIndex: 10,
         }}
       >
-        <MapTrifold size={16} weight="regular" />
+        <MagnifyingGlassPlus size={16} weight="regular" />
         View large map
       </button>
     </div>
