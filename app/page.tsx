@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Eye,
   EyeSlash,
@@ -19,10 +19,13 @@ import {
   CaretRight,
   Check,
   Signpost,
+  User,
 } from "@phosphor-icons/react";
 import MapboxFullMap from "../components/MapboxFullMap";
 import MapboxEmbedded from "../components/MapboxEmbedded";
 import DirectionsDrawer from "../components/DirectionsDrawer";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
 
 // ---- Place name lookup (no tracking, no accounts) ----
 async function lookupPlaceName(place: string): Promise<{ lat: number; lng: number } | null> {
@@ -195,6 +198,24 @@ export default function Home() {
   const [showDirectionsDrawer, setShowDirectionsDrawer] = useState(false);
   const [directionsSpace, setDirectionsSpace] = useState<Space | null>(null);
   const [routeData, setRouteData] = useState<any>(null);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Show filters when user scrolls past the map
+  useEffect(() => {
+    const handleScroll = () => {
+      const mapSection = document.querySelector('#map');
+      if (mapSection) {
+        const mapBottom = mapSection.getBoundingClientRect().bottom;
+        // Show filters when map is scrolled out of view
+        if (mapBottom < window.innerHeight * 0.3) {
+          setShowFilters(true);
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   function getMyLocation() {
     setLocationError(null);
@@ -245,12 +266,15 @@ export default function Home() {
     });
 
   return (
-    <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <Header onLogin={() => console.log("Login clicked")} user={null} />
+      
+      <main style={{ flex: 1, padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto", width: "100%" }}>
       {/* Header */}
       <div style={{ maxWidth: 900, margin: "0 auto", paddingTop: 24 }}>
         <h1 style={{ fontSize: "40px", fontWeight: 700, marginBottom: "8px" }}>
-          <span style={{ color: "#DD6616" }}>Find the perfect spot</span>
-          <span style={{ color: "#006947" }}> for you and your dog</span>
+          <span style={{ color: "#DD6616" }}>Find great places</span>
+          <span style={{ color: "#006947" }}> to walk your dog</span>
         </h1>
 
         <p
@@ -262,7 +286,43 @@ export default function Home() {
             lineHeight: 1.5,
           }}
         >
-          Discover dog-friendly spaces nearby and what they offer. Add your favourite spots as you explore.
+          Discover dog-friendly spaces nearby and what they offer.{" "}
+          {!myLocation ? (
+            <button
+              type="button"
+              className="btn-text"
+              onClick={getMyLocation}
+              disabled={isGettingLocation}
+              style={{
+                display: "inline",
+                padding: 0,
+                marginTop: 0,
+                textDecoration: "underline",
+                textUnderlineOffset: "3px",
+                color: "#006947",
+                cursor: "pointer",
+              }}
+            >
+              {isGettingLocation ? "Getting location..." : "Show my location"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn-text"
+              onClick={() => setShowMyLocation(!showMyLocation)}
+              style={{
+                display: "inline",
+                padding: 0,
+                marginTop: 0,
+                textDecoration: "underline",
+                textUnderlineOffset: "3px",
+                color: "#006947",
+                cursor: "pointer",
+              }}
+            >
+              {showMyLocation ? "Hide my location" : "Show my location"}
+            </button>
+          )}
         </p>
 
         {locationError && <p style={{ marginTop: 16, color: "#d32f2f" }}>{locationError}</p>}
@@ -271,99 +331,6 @@ export default function Home() {
       {/* Map */}
       <section style={{ marginTop: 40 }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <h2 style={{ marginBottom: 8 }}>Map</h2>
-          <p style={{ marginTop: 0, marginBottom: 12, fontSize: 13, color: "#555", lineHeight: 1.5 }}>
-            Add your location to see nearby spaces. Filter by what matters to you and your dog.
-          </p>
-
-          {/* Button row */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 4,
-              gap: 16,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 4,
-                width: "100%",
-              }}
-            >
-              <div>
-                {myLocation && (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setShowMyLocation(!showMyLocation)}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      marginTop: 0,
-                      marginBottom: 0,
-                    }}
-                  >
-                    {showMyLocation ? (
-                      <Eye size={18} weight="regular" style={{ color: "#006947" }} />
-                    ) : (
-                      <EyeSlash size={18} weight="regular" style={{ color: "#006947" }} />
-                    )}
-                    {showMyLocation ? "Hide my location" : "Show my location"}
-                  </button>
-                )}
-
-                {!myLocation && (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={getMyLocation}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      marginTop: 0,
-                      marginBottom: 0,
-                    }}
-                  >
-                    <Eye size={18} weight="regular" style={{ color: "#006947" }} />
-                    Show my location
-                  </button>
-                )}
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() => setShowAddDrawer(true)}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 0, marginBottom: 0 }}
-                >
-                  <MapPinPlus size={18} weight="regular" />
-                  Add a space
-                </button>
-
-                {(selectedSpaceNames.length > 0 || selectedSpaceName !== null) && (
-                  <button
-                    type="button"
-                    className="btn-text"
-                    onClick={() => {
-                      setSelectedSpaceNames([]);
-                      setSelectedSpaceName(null);
-                    }}
-                  >
-                    Clear all spaces
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Embedded map, fixed height */}
           <div id="map" className="mb-0 pb-0 overflow-hidden" style={{ height: "70vh" }}>
             <MapboxEmbedded
@@ -380,26 +347,10 @@ export default function Home() {
       {/* Nearby spaces */}
       <section style={{ marginTop: 40 }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <h2 style={{ margin: 0 }}>Nearby spaces</h2>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => setShowFullMap(true)}
-              style={{
-                marginLeft: 'auto',
-                marginTop: 0,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6
-              }}
-            >
-              <MapTrifold size={16} weight="regular" />
-              View on Map
-            </button>
-          </div>
+          <h2 style={{ margin: 0, marginBottom: 8 }}>Nearby spaces</h2>
 
-          <div className="filter-chips" aria-label="Filter spaces by facilities">
+          {showFilters && (
+            <div className="filter-chips" aria-label="Filter spaces by facilities">
             <button
               type="button"
               className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
@@ -463,6 +414,7 @@ export default function Home() {
               Parking
             </button>
           </div>
+          )}
 
           {selectedSpaceNames.length > 0 && (
             <button
@@ -776,7 +728,7 @@ export default function Home() {
                 zIndex: 10,
               }}
             >
-              <h2 style={{ margin: 0 }}>Add a new space</h2>
+              <h2>Add a new space</h2>
               <button
                 type="button"
                 onClick={() => setShowAddDrawer(false)}
@@ -798,9 +750,9 @@ export default function Home() {
             <div style={{ flex: 1, overflowY: "auto", padding: "8px 24px 24px 24px" }}>
               <div style={{ display: "grid", gap: 16, maxWidth: 520 }}>
                 <label style={{ fontFamily: "var(--font-fraunces), serif" }}>
-                  <span style={{ display: "block", fontWeight: 700, color: "#006947", marginBottom: 4 }}>
+                  <h3 style={{ marginBottom: 4 }}>
                     Add the location
-                  </span>
+                  </h3>
                   <span
                     style={{
                       display: "block",
@@ -835,9 +787,9 @@ export default function Home() {
                 </label>
 
                 <label style={{ fontFamily: "var(--font-fraunces), serif" }}>
-                  <span style={{ display: "block", fontWeight: 700, color: "#006947", marginBottom: 4 }}>
+                  <h3 style={{ marginBottom: 4 }}>
                     Give your space a name, if you'd like
-                  </span>
+                  </h3>
                   <input
                     value={newSpace.name}
                     onChange={(e) => {
@@ -1439,6 +1391,46 @@ export default function Home() {
           to { transform: translate(-50%, 0); opacity: 1; }
         }
       `}</style>
+
+      {/* Floating Action Button (FAB) */}
+      <button
+        type="button"
+        onClick={() => setShowAddDrawer(true)}
+        style={{
+          position: "fixed",
+          bottom: 24,
+          right: 24,
+          width: 56,
+          height: 56,
+          borderRadius: "50%",
+          background: "#006947",
+          color: "#fff",
+          border: "none",
+          boxShadow: "0 4px 16px rgba(0, 105, 71, 0.3)",
+          fontSize: 28,
+          fontWeight: 300,
+          cursor: "pointer",
+          zIndex: 100,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "all 0.2s ease",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = "scale(1.1)";
+          e.currentTarget.style.boxShadow = "0 6px 20px rgba(0, 105, 71, 0.4)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "scale(1)";
+          e.currentTarget.style.boxShadow = "0 4px 16px rgba(0, 105, 71, 0.3)";
+        }}
+        aria-label="Add a new space"
+      >
+        +
+      </button>
     </main>
+    
+    <Footer />
+    </div>
   );
 }
