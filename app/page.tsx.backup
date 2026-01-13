@@ -1,8 +1,5 @@
 "use client";
-import { useAuth } from "../lib/useAuth";
-import WelcomeBanner from "../components/WelcomeBanner";
-import WelcomeMessage from "../components/WelcomeMessage";
-import StickyNav from "../components/StickyNav";
+
 import { useState, useEffect } from "react";
 import {
   Eye,
@@ -23,7 +20,6 @@ import {
   Check,
   Signpost,
   User,
-  MapPinSimple,
 } from "@phosphor-icons/react";
 import MapboxFullMap from "../components/MapboxFullMap";
 import MapboxEmbedded from "../components/MapboxEmbedded";
@@ -159,7 +155,6 @@ type Space = {
 };
 
 export default function Home() {
-  const { user, loading } = useAuth();
   const [filters, setFilters] = useState({
     fenced: false,
     unfenced: false,
@@ -194,7 +189,6 @@ export default function Home() {
   const [selectedSpaceNames, setSelectedSpaceNames] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddDrawer, setShowAddDrawer] = useState(false);
-  const [fabBottom, setFabBottom] = useState(24);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
   const [showToast, setShowToast] = useState(false);
@@ -222,25 +216,6 @@ export default function Home() {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Make FAB stop at footer
-  useEffect(() => {
-    const handleScroll = () => {
-      const footer = document.querySelector("footer");
-      if (!footer) return;
-      const footerRect = footer.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      if (footerRect.top < windowHeight) {
-        const newBottom = windowHeight - footerRect.top + 24;
-        setFabBottom(newBottom);
-      } else {
-        setFabBottom(24);
-      }
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   function getMyLocation() {
@@ -293,118 +268,85 @@ export default function Home() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Header user={user} />
+      <Header onLogin={() => console.log("Login clicked")} user={null} />
       
-      {!loading && <WelcomeBanner user={user} />}
+      <main style={{ flex: 1, padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto", width: "100%" }}>
+      {/* Header */}
+      <div style={{ maxWidth: 900, margin: "0 auto", paddingTop: 24 }}>
+        <h1 style={{ fontSize: "40px", fontWeight: 700, marginBottom: "8px" }}>
+          <span style={{ color: "#DD6616" }}>Find great places</span>
+          <span style={{ color: "#006947" }}> to walk your dog</span>
+        </h1>
 
-{user && !loading && <StickyNav />}
-
-<main style={{ flex: 1, padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto", width: "100%" }}>
-  {/* Header */}
-  <div style={{ maxWidth: 900, margin: "0 auto", paddingTop: 24 }}>
-  {user ? (
-  <>
-    <h1 style={{ fontSize: "40px", fontWeight: 600, marginBottom: "8px" }}>
-      <span style={{ color: "#DD6616" }}>Find a great new place</span>
-      <span style={{ color: "#006947" }}> to walk today</span>
-    </h1>
-    <WelcomeMessage firstName={user.user_metadata?.first_name || "there"} />
-  </>
-) : (
-  <h1 style={{ fontSize: "40px", fontWeight: 600, marginBottom: "8px" }}>
-    <span style={{ color: "#DD6616" }}>Find great places</span>
-    <span style={{ color: "#006947" }}> to walk your dog</span>
-  </h1>
-)}
-
-<p
-  style={{
-    maxWidth: 750,
-    marginTop: 16,
-    marginBottom: 0,
-    color: "#555",
-    lineHeight: 1.5,
-  }}
->
-  Discover dog-friendly spaces nearby and what they offer.
-</p>
+        <p
+          style={{
+            maxWidth: 750,
+            marginTop: 16,
+            marginBottom: 0,
+            color: "#555",
+            lineHeight: 1.5,
+          }}
+        >
+          Discover dog-friendly spaces nearby and what they offer.{" "}
+          {!myLocation ? (
+            <button
+              type="button"
+              className="btn-text"
+              onClick={getMyLocation}
+              disabled={isGettingLocation}
+              style={{
+                display: "inline",
+                padding: 0,
+                marginTop: 0,
+                textDecoration: "underline",
+                textUnderlineOffset: "3px",
+                color: "#006947",
+                cursor: "pointer",
+              }}
+            >
+              {isGettingLocation ? "Getting location..." : "Show my location"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn-text"
+              onClick={() => setShowMyLocation(!showMyLocation)}
+              style={{
+                display: "inline",
+                padding: 0,
+                marginTop: 0,
+                textDecoration: "underline",
+                textUnderlineOffset: "3px",
+                color: "#006947",
+                cursor: "pointer",
+              }}
+            >
+              {showMyLocation ? "Hide my location" : "Show my location"}
+            </button>
+          )}
+        </p>
 
         {locationError && <p style={{ marginTop: 16, color: "#d32f2f" }}>{locationError}</p>}
       </div>
-{/* Show location button */}
-<div style={{ maxWidth: 900, margin: "0 auto", marginTop: 8 }}>
-  {!myLocation ? (
-    <button
-      type="button"
-      onClick={getMyLocation}
-      disabled={isGettingLocation}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: 0,
-        marginTop: 0,
-        background: "transparent",
-        border: "none",
-        textDecoration: "underline",
-        textUnderlineOffset: "3px",
-        color: "#006947",
-        cursor: "pointer",
-        fontSize: 13,
-        fontWeight: 500,
-      }}
-    >
-      <MapPinSimple size={16} weight="bold" />
-      {isGettingLocation ? "Getting location..." : "Show my location"}
-    </button>
-  ) : (
-    <button
-      type="button"
-      onClick={() => setShowMyLocation(!showMyLocation)}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: 0,
-        marginTop: 0,
-        background: "transparent",
-        border: "none",
-        textDecoration: "underline",
-        textUnderlineOffset: "3px",
-        color: "#006947",
-        cursor: "pointer",
-        fontSize: 13,
-        fontWeight: 500,
-      }}
-    >
-      <MapPinSimple size={16} weight="bold" />
-      {showMyLocation ? "Hide my location" : "Show my location"}
-    </button>
-  )}
-</div>
-
 
       {/* Map */}
-      {!showFullMap && (
-        <section style={{ marginTop: 40 }}>
-          <div style={{ maxWidth: 900, margin: "0 auto" }}>
-            {/* Embedded map, fixed height */}
-            <div id="map" className="mb-0 pb-0 overflow-hidden" style={{ height: "70vh" }}>
-              <MapboxEmbedded
-                spaces={filteredSpaces.slice(0, 10)}
-                myLocation={showMyLocation ? myLocation : null}
-                selectedSpaceName={selectedSpaceName}
-                selectedSpaceNames={selectedSpaceNames}
-                onViewLargeMap={() => setShowFullMap(true)}
-              />
-            </div>
+      <section style={{ marginTop: 40 }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          {/* Embedded map, fixed height */}
+          <div id="map" className="mb-0 pb-0 overflow-hidden" style={{ height: "70vh" }}>
+            <MapboxEmbedded
+              spaces={filteredSpaces.slice(0, 10)}
+              myLocation={showMyLocation ? myLocation : null}
+              selectedSpaceName={selectedSpaceName}
+              selectedSpaceNames={selectedSpaceNames}
+              onViewLargeMap={() => setShowFullMap(true)}
+            />
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       {/* Nearby spaces */}
-    
-      <section id="my-spaces" style={{ marginTop: 40 }}>
+      <section style={{ marginTop: 40 }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <h2 style={{ margin: 0, marginBottom: 8 }}>Nearby spaces</h2>
 
@@ -1457,19 +1399,17 @@ export default function Home() {
         onClick={() => setShowAddDrawer(true)}
         style={{
           position: "fixed",
-          bottom: fabBottom,
+          bottom: 24,
           right: 24,
           width: 56,
           height: 56,
           borderRadius: "50%",
-          background: "#DD6616",
+          background: "#006947",
           color: "#fff",
           border: "none",
-          boxShadow: "0 4px 16px rgba(221, 102, 22, 0.3)",
+          boxShadow: "0 4px 16px rgba(0, 105, 71, 0.3)",
           fontSize: 28,
           fontWeight: 300,
-          lineHeight: 0,
-          paddingTop: 2,
           cursor: "pointer",
           zIndex: 100,
           display: "flex",
@@ -1479,11 +1419,11 @@ export default function Home() {
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = "scale(1.1)";
-          e.currentTarget.style.boxShadow = "0 6px 20px rgba(221, 102, 22, 0.4)";
+          e.currentTarget.style.boxShadow = "0 6px 20px rgba(0, 105, 71, 0.4)";
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = "scale(1)";
-          e.currentTarget.style.boxShadow = "0 4px 16px rgba(221, 102, 22, 0.3)";
+          e.currentTarget.style.boxShadow = "0 4px 16px rgba(0, 105, 71, 0.3)";
         }}
         aria-label="Add a new space"
       >

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -40,101 +39,133 @@ export default function Header({ user }: HeaderProps) {
   };
 
   return (
-    <header
-      style={{
-        background: "hsl(48, 71%, 97%)",
-        boxShadow: "0 4px 16px rgba(0, 0, 0, 0.04)",
-        position: "sticky",
-        top: 0,
-        zIndex: 1000,
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? "translateY(0)" : "translateY(-100%)",
-        transition: "opacity 0.7s ease, transform 0.7s ease",
-      }}
-    >
-      <div
+    <>
+      <style jsx>{`
+        .header-logo {
+          height: 24px;
+          width: auto;
+          cursor: pointer;
+        }
+        @media (min-width: 640px) {
+          .header-logo {
+            height: 31px;
+          }
+        }
+        .signup-btn {
+          padding: 5px 10px;
+          margin-top: 0;
+          font-size: 12px;
+          white-space: nowrap;
+        }
+        @media (min-width: 640px) {
+          .signup-btn {
+            padding: 6px 14px;
+            font-size: 13px;
+          }
+        }
+        .login-link {
+          background: transparent;
+          border: none;
+          color: #006947;
+          font-size: 12px;
+          cursor: pointer;
+          padding: 0;
+          margin-top: 0;
+          font-family: var(--font-dm-sans), sans-serif;
+          transition: color 0.15s ease;
+          font-weight: 500;
+          white-space: nowrap;
+        }
+        @media (min-width: 640px) {
+          .login-link {
+            font-size: 13px;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+          }
+        }
+        .login-link:hover {
+          color: #004d33;
+        }
+        .logout-link {
+          background: transparent;
+          border: none;
+          color: #006947;
+          font-size: 12px;
+          cursor: pointer;
+          text-decoration: underline;
+          text-underline-offset: 3px;
+          padding: 0;
+          margin-top: 0;
+          font-family: var(--font-dm-sans), sans-serif;
+          transition: color 0.15s ease;
+          font-weight: 500;
+        }
+        @media (min-width: 640px) {
+          .logout-link {
+            font-size: 13px;
+          }
+        }
+        .logout-link:hover {
+          color: #004d33;
+        }
+      `}</style>
+      <header
         style={{
-          maxWidth: 900,
-          margin: "0 auto",
-          padding: "12px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
+          background: "hsl(48, 71%, 97%)",
+          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.02)",
+          position: "sticky",
+          top: 0,
+          zIndex: 1000,
+          opacity: isVisible ? 1 : 0,
+          transform: isVisible ? "translateY(0)" : "translateY(-100%)",
+          transition: "opacity 0.7s ease, transform 0.7s ease",
         }}
       >
-        {/* Logo - Left Side */}
-        <Link href="/" style={{ display: "flex", alignItems: "center" }}>
-          <img
-            src="/GWTD-logov2.svg"
-            alt="Go Walk The Dog"
-            style={{
-              height: 26,
-              width: "auto",
-              cursor: "pointer",
-            }}
-          />
-        </Link>
+        <div
+          style={{
+            maxWidth: 900,
+            margin: "0 auto",
+            padding: "10px 16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          {/* Logo - Left Side */}
+          <Link href="/" style={{ display: "flex", alignItems: "center" }}>
+            <img
+              src="/GWTD-logov2.svg"
+              alt="Go Walk The Dog"
+              className="header-logo"
+            />
+          </Link>
 
-        {/* Navigation - Right Side */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {user ? (
-            // Logged in - Show Log Out text link in forest green
-            <button
-              onClick={handleLogout}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#006947",
-                fontSize: 13,
-                cursor: "pointer",
-                textDecoration: "underline",
-                textUnderlineOffset: 3,
-                padding: 0,
-                marginTop: 0,
-                fontFamily: "var(--font-dm-sans), sans-serif",
-                transition: "color 0.15s ease",
-                fontWeight: 500,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#004d33";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#006947";
-              }}
-            >
-              Log out
-            </button>
-          ) : (
-            // Logged out - Show Sign Up and Log In buttons
-            <>
-              <Link href="/signup">
-                <button
-                  className="btn-primary"
-                  style={{
-                    padding: "8px 16px",
-                    marginTop: 0,
-                    fontSize: 13,
-                  }}
-                >
-                  Sign up
-                </button>
-              </Link>
-              <Link href="/login">
-                <button
-                  className="btn-secondary"
-                  style={{
-                    padding: "8px 16px",
-                    marginTop: 0,
-                    fontSize: 13,
-                  }}
-                >
-                  Log in
-                </button>
-              </Link>
-            </>
-          )}
+          {/* Navigation - Right Side */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {user ? (
+              <button
+                onClick={handleLogout}
+                className="logout-link"
+              >
+                Log out
+              </button>
+            ) : (
+              <>
+                <Link href="/signup">
+                  <button className="btn-primary signup-btn">
+                    Sign up
+                  </button>
+                </Link>
+                <Link href="/login">
+                  <button className="login-link">
+                    Log in
+                  </button>
+                </Link>
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   );
 }

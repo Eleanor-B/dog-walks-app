@@ -183,12 +183,12 @@ textarea {
    button {
     display: inline-block;
     margin-top: 8px;
-    padding: 8px 12px;
+    padding: 5px 10px;
     border-radius: 8px;
     border: none;
     background: #006947;
     color: #fff;
-    font-size: 13px;
+    font-size: 12px;
     font-family: var(--font-body);
     cursor: pointer;
     font-weight: 500;
@@ -207,11 +207,11 @@ button:disabled {
     background: #006947;
     color: #fff;
     border: none;
-    border-radius: 10px;
-    padding: 10px 10px;
+    border-radius: 8px;
+    padding: 6px 14px;
     font-size: 13px;
     font-weight: 500;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
     transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
   }
 
@@ -246,8 +246,8 @@ button.btn-secondary {
   background: #fff;
   color: #006947;
   border: 1px solid #ddd;
-  border-radius: 10px;
-  padding: 10px 10px;
+  border-radius: 8px;
+  padding: 6px 14px;
   font-size: 13px;
   font-weight: 500;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
@@ -325,28 +325,30 @@ button.btn-text:disabled {
 
 button.filter-chip {
   margin-top: 0;
-  background: #C9DCC5;
-  color: hsl(var(--secondary-foreground));
-  border: 1px solid hsl(var(--border));
+  background: #F5F5F5;
+  color: #333;
+  border: 1px solid #E5E5E5;
   border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 13px;
+  padding: 5px 10px;
+  font-size: 12px;
   line-height: 1;
   cursor: pointer;
   display: inline-flex;
   flex-direction: row;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   white-space: nowrap;
   font-weight: 500;
 }
 
 button.filter-chip svg {
   flex-shrink: 0;
+  width: 14px;
+  height: 14px;
 }
 
 button.filter-chip:hover {
-  background: hsl(var(--cream-dark));
+  background: #EBEBEB;
   border-color: #006947;
 }
 
@@ -360,7 +362,6 @@ button.filter-chip:focus-visible {
   outline: 2px solid #006947;
   outline-offset: 2px;
 }
-
 /* =========================
    Facilities grid
    ========================= */
@@ -542,13 +543,13 @@ button.btn-add-circle:hover {
   display: inline-flex;
   flex-direction: row;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border: 1px solid hsl(var(--border));
-  background: #C9DCC5;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid #E5E5E5;
+  background: #F5F5F5;
   border-radius: 999px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
   font-weight: 500;
   white-space: nowrap;
@@ -556,12 +557,14 @@ button.btn-add-circle:hover {
 }
 
 .facility-option:hover {
-  background: hsl(var(--cream-dark));
+  background: #EBEBEB;
   border-color: #006947;
 }
 
 .facility-option svg {
   flex-shrink: 0;
+  width: 14px;
+  height: 14px;
 }
 
 .facility-option span {

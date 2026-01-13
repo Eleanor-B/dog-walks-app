@@ -8,8 +8,7 @@ export default function StickyNav() {
 
   useEffect(() => {
     const handleScroll = () => {
-      // Check if user has scrolled past the banner
-      setIsSticky(window.scrollY > 100);
+      setIsSticky(window.scrollY > 80);
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -24,10 +23,10 @@ export default function StickyNav() {
         left: 0,
         right: 0,
         background: "#fff",
-        padding: "16px 24px",
+        padding: "10px 16px",
         zIndex: 50,
         transition: "all 0.2s ease",
-        boxShadow: isSticky ? "0 2px 8px rgba(0,0,0,0.08)" : "none",
+        boxShadow: isSticky ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
         borderBottomLeftRadius: 16,
         borderBottomRightRadius: 16,
       }}
@@ -37,7 +36,7 @@ export default function StickyNav() {
           maxWidth: 900,
           margin: "0 auto",
           display: "flex",
-          gap: 24,
+          gap: 20,
           alignItems: "center",
           justifyContent: "center",
         }}
@@ -52,16 +51,17 @@ export default function StickyNav() {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: 5,
             background: "transparent",
             border: "none",
             color: "#02301F",
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: 600,
             cursor: "pointer",
-            padding: "6px 12px",
+            padding: "4px 8px",
             borderRadius: 6,
             transition: "background 0.15s ease",
+            marginTop: 0,
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "#F5F5F5";
@@ -70,14 +70,14 @@ export default function StickyNav() {
             e.currentTarget.style.background = "transparent";
           }}
         >
-          <MapPin size={18} weight="bold" style={{ color: "#006947" }} />
+          <MapPin size={16} weight="bold" style={{ color: "#006947" }} />
           My Spaces
         </button>
 
         <div
           style={{
             width: 1,
-            height: 20,
+            height: 16,
             background: "#E5E7EB",
           }}
         />
@@ -92,16 +92,17 @@ export default function StickyNav() {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: 5,
             background: "transparent",
             border: "none",
             color: "#02301F",
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: 600,
             cursor: "pointer",
-            padding: "6px 12px",
+            padding: "4px 8px",
             borderRadius: 6,
             transition: "background 0.15s ease",
+            marginTop: 0,
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "#F5F5F5";
@@ -110,7 +111,7 @@ export default function StickyNav() {
             e.currentTarget.style.background = "transparent";
           }}
         >
-          <Heart size={18} weight="bold" style={{ color: "#DD6616" }} />
+          <Heart size={16} weight="bold" style={{ color: "#DD6616" }} />
           My Favourites
         </button>
       </div>

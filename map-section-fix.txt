@@ -1,0 +1,16 @@
+      {!showFullMap && (
+        <section style={{ marginTop: 40 }}>
+          <div style={{ maxWidth: 900, margin: "0 auto" }}>
+            {/* Embedded map, fixed height */}
+            <div id="map" className="mb-0 pb-0 overflow-hidden" style={{ height: "70vh" }}>
+              <MapboxEmbedded
+                spaces={filteredSpaces.slice(0, 10)}
+                myLocation={showMyLocation ? myLocation : null}
+                selectedSpaceName={selectedSpaceName}
+                selectedSpaceNames={selectedSpaceNames}
+                onViewLargeMap={() => setShowFullMap(true)}
+              />
+            </div>
+          </div>
+        </section>
+      )}
