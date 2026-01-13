@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
     "@phosphor-icons/react": "^2.1.10",
     "leaflet": "^1.9.4",
     "mapbox-gl": "^3.17.0",
