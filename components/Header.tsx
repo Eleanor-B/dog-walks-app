@@ -78,13 +78,13 @@ export default function Header({ user }: HeaderProps) {
         {/* Navigation - Right Side */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {user ? (
-            // Logged in - Show Log Out text link
+            // Logged in - Show Log Out text link in forest green
             <button
               onClick={handleLogout}
               style={{
                 background: "transparent",
                 border: "none",
-                color: "#666",
+                color: "#006947",
                 fontSize: 13,
                 cursor: "pointer",
                 textDecoration: "underline",
@@ -93,12 +93,13 @@ export default function Header({ user }: HeaderProps) {
                 marginTop: 0,
                 fontFamily: "var(--font-dm-sans), sans-serif",
                 transition: "color 0.15s ease",
+                fontWeight: 500,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#02301F";
+                e.currentTarget.style.color = "#004d33";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#666";
+                e.currentTarget.style.color = "#006947";
               }}
             >
               Log out

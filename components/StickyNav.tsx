@@ -24,11 +24,12 @@ export default function StickyNav() {
         left: 0,
         right: 0,
         background: "#fff",
-        borderBottom: "1px solid #E5E7EB",
-        padding: "12px 24px",
+        padding: "16px 24px",
         zIndex: 50,
         transition: "all 0.2s ease",
         boxShadow: isSticky ? "0 2px 8px rgba(0,0,0,0.08)" : "none",
+        borderBottomLeftRadius: 16,
+        borderBottomRightRadius: 16,
       }}
     >
       <div
