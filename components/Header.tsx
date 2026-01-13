@@ -71,7 +71,7 @@ export default function Header({ user }: HeaderProps) {
           cursor: pointer;
           padding: 0;
           margin-top: 0;
-          font-family: var(--font-dm-sans), sans-serif;
+          font-family: var(--font-outfit), sans-serif;
           transition: color 0.15s ease;
           font-weight: 500;
           white-space: nowrap;
@@ -96,7 +96,7 @@ export default function Header({ user }: HeaderProps) {
           text-underline-offset: 3px;
           padding: 0;
           margin-top: 0;
-          font-family: var(--font-dm-sans), sans-serif;
+          font-family: var(--font-outfit), sans-serif;
           transition: color 0.15s ease;
           font-weight: 500;
         }
@@ -112,7 +112,7 @@ export default function Header({ user }: HeaderProps) {
       <header
         style={{
           background: "hsl(48, 71%, 97%)",
-          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.02)",
+          boxShadow: "0 6px 20px rgba(0, 105, 71, 0.12)",
           position: "sticky",
           top: 0,
           zIndex: 1000,
@@ -125,7 +125,7 @@ export default function Header({ user }: HeaderProps) {
           style={{
             maxWidth: 900,
             margin: "0 auto",
-            padding: "10px 16px",
+            padding: "14px 24px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",

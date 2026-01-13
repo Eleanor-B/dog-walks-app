@@ -322,8 +322,10 @@ export default function Home() {
     maxWidth: 750,
     marginTop: 16,
     marginBottom: 0,
-    color: "#555",
+    color: "#006947",
     lineHeight: 1.5,
+    fontFamily: "var(--font-fraunces), serif",
+    fontWeight: 600,
   }}
 >
   Discover dog-friendly spaces nearby and what they offer.
@@ -332,7 +334,7 @@ export default function Home() {
         {locationError && <p style={{ marginTop: 16, color: "#d32f2f" }}>{locationError}</p>}
       </div>
 {/* Show location button */}
-<div style={{ maxWidth: 900, margin: "0 auto", marginTop: 8 }}>
+<div style={{ maxWidth: 900, margin: "0 auto", marginTop: 16, marginBottom: -8 }}>
   {!myLocation ? (
     <button
       type="button"
@@ -386,7 +388,7 @@ export default function Home() {
 
       {/* Map */}
       {!showFullMap && (
-        <section style={{ marginTop: 40 }}>
+        <section style={{ marginTop: 16 }}>
           <div style={{ maxWidth: 900, margin: "0 auto" }}>
             {/* Embedded map, fixed height */}
             <div id="map" className="mb-0 pb-0 overflow-hidden" style={{ height: "70vh" }}>
@@ -406,7 +408,7 @@ export default function Home() {
     
       <section id="my-spaces" style={{ marginTop: 40 }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <h2 style={{ margin: 0, marginBottom: 8 }}>Nearby spaces</h2>
+          <h2 style={{ margin: 0, marginBottom: 8 }}>Nearby places</h2>
 
           {showFilters && (
             <div className="filter-chips" aria-label="Filter spaces by facilities">
@@ -741,7 +743,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Add space drawer */}
+      {/* Add place drawer */}
       {showAddDrawer && (
         <>
           {/* Overlay */}
@@ -787,7 +789,7 @@ export default function Home() {
                 zIndex: 10,
               }}
             >
-              <h2>Add a new space</h2>
+              <h2>Add a new place</h2>
               <button
                 type="button"
                 onClick={() => setShowAddDrawer(false)}
@@ -810,7 +812,7 @@ export default function Home() {
               <div style={{ display: "grid", gap: 16, maxWidth: 520 }}>
                 <label style={{ fontFamily: "var(--font-fraunces), serif" }}>
                   <h3 style={{ marginBottom: 4 }}>
-                    Add the location
+                    Add the location name
                   </h3>
                   <span
                     style={{
@@ -822,7 +824,7 @@ export default function Home() {
                       fontWeight: 400,
                     }}
                   >
-                    Just type the name as you see it on the map — we'll find the right spot for you.
+                Just type the name as you see it on the map — we'll find the right spot for you.
                   </span>
                   <textarea
                     value={(newSpace as any).locationText ?? ""}
@@ -847,7 +849,7 @@ export default function Home() {
 
                 <label style={{ fontFamily: "var(--font-fraunces), serif" }}>
                   <h3 style={{ marginBottom: 4 }}>
-                    Give your space a name, if you'd like
+                  Give this place a title
                   </h3>
                   <input
                     value={newSpace.name}
@@ -869,7 +871,7 @@ export default function Home() {
                   <h3>Facilities</h3>
 
                   <div style={{ fontSize: 13, color: "#555", marginBottom: 16 }}>
-                    Select the facilities that are available in this new space.
+                    Select the facilities that are available here.
                   </div>
 
                   <div
@@ -1053,7 +1055,7 @@ export default function Home() {
                   }}
                 >
                   <MapPinPlus size={18} weight="regular" />
-                  Add space
+                  Add place
                 </button>
               </div>
             </div>
@@ -1119,7 +1121,7 @@ export default function Home() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ margin: 0 }}>Edit space</h2>
+              <h2 style={{ margin: 0 }}>Edit place</h2>
               <button
                 type="button"
                 onClick={() => {
@@ -1142,7 +1144,7 @@ export default function Home() {
 
             <div style={{ display: "grid", gap: 16 }}>
               <label>
-                <span style={{ fontWeight: 700, color: "#006947" }}>Space name</span>
+                <span style={{ fontWeight: 700, color: "#006947" }}>Place name</span>
                 <input
                   value={newSpace.name}
                   onChange={(e) =>
@@ -1485,7 +1487,7 @@ export default function Home() {
           e.currentTarget.style.transform = "scale(1)";
           e.currentTarget.style.boxShadow = "0 4px 16px rgba(221, 102, 22, 0.3)";
         }}
-        aria-label="Add a new space"
+        aria-label="Add a new place"
       >
         +
       </button>

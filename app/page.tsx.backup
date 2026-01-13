@@ -729,7 +729,7 @@ export default function Home() {
                 zIndex: 10,
               }}
             >
-              <h2>Add a new space</h2>
+              <h2>Add a new place</h2>
               <button
                 type="button"
                 onClick={() => setShowAddDrawer(false)}
@@ -1061,7 +1061,7 @@ export default function Home() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ margin: 0 }}>Edit space</h2>
+              <h2 style={{ margin: 0 }}>Edit place</h2>
               <button
                 type="button"
                 onClick={() => {
@@ -1425,7 +1425,7 @@ export default function Home() {
           e.currentTarget.style.transform = "scale(1)";
           e.currentTarget.style.boxShadow = "0 4px 16px rgba(0, 105, 71, 0.3)";
         }}
-        aria-label="Add a new space"
+        aria-label="Add a new place"
       >
         +
       </button>
