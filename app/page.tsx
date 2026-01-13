@@ -1,5 +1,6 @@
 "use client";
-
+import { useAuth } from "../lib/useAuth";
+import WelcomeBanner from "../components/WelcomeBanner";
 import { useState, useEffect } from "react";
 import {
   Eye,
@@ -155,6 +156,7 @@ type Space = {
 };
 
 export default function Home() {
+  const { user, loading } = useAuth();
   const [filters, setFilters] = useState({
     fenced: false,
     unfenced: false,
@@ -291,6 +293,7 @@ export default function Home() {
       <Header onLogin={() => console.log("Login clicked")} user={null} />
       
       <main style={{ flex: 1, padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto", width: "100%" }}>
+      {!loading && <WelcomeBanner user={user} />}
       {/* Header */}
       <div style={{ maxWidth: 900, margin: "0 auto", paddingTop: 24 }}>
         <h1 style={{ fontSize: "40px", fontWeight: 700, marginBottom: "8px" }}>
