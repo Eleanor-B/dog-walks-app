@@ -1,18 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import { User } from "@phosphor-icons/react";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type HeaderProps = {
-  onLogin?: () => void;
-  user?: {
-    name: string;
-    avatar?: string;
-  } | null;
+  user?: any;
 };
 
-export default function Header({ onLogin, user }: HeaderProps) {
+export default function Header({ user }: HeaderProps) {
+  const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -21,13 +20,10 @@ export default function Header({ onLogin, user }: HeaderProps) {
       const currentScrollY = window.scrollY;
 
       if (currentScrollY < 10) {
-        // At top of page, always show
         setIsVisible(true);
       } else if (currentScrollY < lastScrollY) {
-        // Scrolling up, show header
         setIsVisible(true);
       } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        // Scrolling down and past 100px, hide header
         setIsVisible(false);
       }
 
@@ -35,11 +31,13 @@ export default function Header({ onLogin, user }: HeaderProps) {
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.refresh();
+  };
 
   return (
     <header
@@ -65,7 +63,7 @@ export default function Header({ onLogin, user }: HeaderProps) {
         }}
       >
         {/* Logo - Left Side */}
-        <div style={{ display: "flex", alignItems: "center" }}>
+        <Link href="/" style={{ display: "flex", alignItems: "center" }}>
           <img
             src="/GWTD-logov2.svg"
             alt="Go Walk The Dog"
@@ -75,77 +73,64 @@ export default function Header({ onLogin, user }: HeaderProps) {
               cursor: "pointer",
             }}
           />
-        </div>
+        </Link>
 
         {/* Navigation - Right Side */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {user ? (
-            // Logged in state - Avatar
-            <div
+            // Logged in - Show Log Out text link
+            <button
+              onClick={handleLogout}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
+                background: "transparent",
+                border: "none",
+                color: "#666",
+                fontSize: 13,
                 cursor: "pointer",
+                textDecoration: "underline",
+                textUnderlineOffset: 3,
+                padding: 0,
+                marginTop: 0,
+                fontFamily: "var(--font-dm-sans), sans-serif",
+                transition: "color 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "#02301F";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "#666";
               }}
             >
-              {user.avatar ? (
-                <img
-                  src={user.avatar}
-                  alt={user.name}
+              Log out
+            </button>
+          ) : (
+            // Logged out - Show Sign Up and Log In buttons
+            <>
+              <Link href="/signup">
+                <button
+                  className="btn-primary"
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "50%",
-                    border: "2px solid #006947",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "50%",
-                    background: "#006947",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#fff",
-                    fontWeight: 600,
-                    fontSize: 14,
+                    padding: "8px 16px",
+                    marginTop: 0,
+                    fontSize: 13,
                   }}
                 >
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <span
-                style={{
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: "#02301F",
-                  fontFamily: "var(--font-dm-sans), sans-serif",
-                }}
-              >
-                {user.name}
-              </span>
-            </div>
-          ) : (
-            // Logged out state - Login button
-            <button
-              onClick={onLogin}
-              className="btn-secondary"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "8px 16px",
-                marginTop: 0,
-                fontSize: 14,
-              }}
-            >
-              <User size={18} weight="regular" />
-              Log in
-            </button>
+                  Sign up
+                </button>
+              </Link>
+              <Link href="/login">
+                <button
+                  className="btn-secondary"
+                  style={{
+                    padding: "8px 16px",
+                    marginTop: 0,
+                    fontSize: 13,
+                  }}
+                >
+                  Log in
+                </button>
+              </Link>
+            </>
           )}
         </div>
       </div>

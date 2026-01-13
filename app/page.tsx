@@ -1,6 +1,7 @@
 "use client";
 import { useAuth } from "../lib/useAuth";
 import WelcomeBanner from "../components/WelcomeBanner";
+import StickyNav from "../components/StickyNav";
 import { useState, useEffect } from "react";
 import {
   Eye,
@@ -290,16 +291,26 @@ export default function Home() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Header onLogin={() => console.log("Login clicked")} user={null} />
+      <Header user={user} />
       
-      <main style={{ flex: 1, padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto", width: "100%" }}>
       {!loading && <WelcomeBanner user={user} />}
-      {/* Header */}
-      <div style={{ maxWidth: 900, margin: "0 auto", paddingTop: 24 }}>
-        <h1 style={{ fontSize: "40px", fontWeight: 700, marginBottom: "8px" }}>
-          <span style={{ color: "#DD6616" }}>Find great places</span>
-          <span style={{ color: "#006947" }}> to walk your dog</span>
-        </h1>
+
+{user && !loading && <StickyNav />}
+
+<main style={{ flex: 1, padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto", width: "100%" }}>
+  {/* Header */}
+  <div style={{ maxWidth: 900, margin: "0 auto", paddingTop: 24 }}>
+    {user ? (
+      <h1 style={{ fontSize: "40px", fontWeight: 700, marginBottom: "8px" }}>
+        <span style={{ color: "#DD6616" }}>Find a great new place</span>
+        <span style={{ color: "#006947" }}> to walk today</span>
+      </h1>
+    ) : (
+      <h1 style={{ fontSize: "40px", fontWeight: 700, marginBottom: "8px" }}>
+        <span style={{ color: "#DD6616" }}>Find great places</span>
+        <span style={{ color: "#006947" }}> to walk your dog</span>
+      </h1>
+    )}
 
         <p
           style={{
@@ -371,7 +382,8 @@ export default function Home() {
       )}
 
       {/* Nearby spaces */}
-      <section style={{ marginTop: 40 }}>
+    
+      <section id="my-spaces" style={{ marginTop: 40 }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <h2 style={{ margin: 0, marginBottom: 8 }}>Nearby spaces</h2>
 
