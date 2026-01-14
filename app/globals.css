@@ -154,7 +154,7 @@
     border-radius: 6px;
     font-size: 14px;
     line-height: 1.4;
-    font-family: var(--font-body);
+    font-family: var(--font-outfit), sans-serif;
     background: hsl(var(--card));
     color: #02301F;
   }
@@ -189,7 +189,7 @@ textarea {
     background: #006947;
     color: #fff;
     font-size: 12px;
-    font-family: var(--font-body);
+    font-family: var(--font-outfit), sans-serif;
     cursor: pointer;
     font-weight: 500;
   }
