@@ -1,66 +1,54 @@
 "use client";
-import { useAuth } from "../lib/useAuth";
-import WelcomeBanner from "../components/WelcomeBanner";
-import WelcomeMessage from "../components/WelcomeMessage";
-import StickyNav from "../components/StickyNav";
+import MapboxFullMap from "./components/MapboxFullMap";
 import { useState, useEffect } from "react";
+
 import {
-  Eye,
-  EyeSlash,
-  Trash,
-  Pencil,
-  X,
+  MapPin,
+  NavigationArrow,
   Barricade,
+  TrashSimple,
+  Toilet,
   Coffee,
   Car,
-  Toilet,
-  ArrowsOut,
-  CircleHalf,
-  MapPinPlus,
-  MapTrifold,
+  Plus,
+  X,
   CaretLeft,
   CaretRight,
+  ArrowLeft,
+  MagnifyingGlassPlus,
+  MagnifyingGlassMinus,
+  PersonSimpleWalk,
+  Train,
+  CaretDown,
   Check,
-  Signpost,
-  User,
-  MapPinSimple,
+  Warning,
+  Heart,
+  CircleHalf,
 } from "@phosphor-icons/react";
-import MapboxFullMap from "../components/MapboxFullMap";
-import MapboxEmbedded from "../components/MapboxEmbedded";
-import DirectionsDrawer from "../components/DirectionsDrawer";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
 
-// ---- Place name lookup (no tracking, no accounts) ----
-async function lookupPlaceName(place: string): Promise<{ lat: number; lng: number } | null> {
-  try {
-    const query = `${place} park london`;
+// ===== TYPES =====
+type Space = {
+  name: string;
+  lat: number;
+  lng: number;
+  fenced: boolean;
+  unfenced: boolean;
+  partFenced: boolean;
+  bins: boolean;
+  toilets: boolean;
+  coffee: boolean;
+  parking: boolean;
+};
 
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
-      {
-        headers: { Accept: "application/json" },
-      }
-    );
+type Location = {
+  lat: number;
+  lng: number;
+};
 
-    if (!res.ok) return null;
+type TransportMode = "walking" | "driving" | "transit" | null;
 
-    const data = await res.json() as any[];
-    if (!Array.isArray(data) || data.length === 0) return null;
-
-    const lat = Number(data[0].lat);
-    const lng = Number(data[0].lon);
-
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-    return { lat, lng };
-  } catch (error) {
-    console.error('Error looking up place:', error);
-    return null;
-  }
-}
-
-const SPACES = [
+// ===== SAMPLE DATA =====
+const SPACES: Space[] = [
   {
     name: "Dulwich Park – enclosed field",
     lat: 51.4429,
@@ -97,69 +85,86 @@ const SPACES = [
     coffee: true,
     parking: true,
   },
+  {
+    name: "Brockwell Park – fenced meadow",
+    lat: 51.4516,
+    lng: -0.1065,
+    fenced: true,
+    unfenced: false,
+    partFenced: false,
+    bins: true,
+    toilets: true,
+    coffee: true,
+    parking: false,
+  },
+  {
+    name: "Burgess Park – open fields",
+    lat: 51.4833,
+    lng: -0.0833,
+    fenced: false,
+    unfenced: true,
+    partFenced: false,
+    bins: true,
+    toilets: false,
+    coffee: false,
+    parking: true,
+  },
 ];
 
-function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number) {
+// ===== UTILITIES =====
+function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const R = 6371;
   const toRad = (n: number) => (n * Math.PI) / 180;
-
   const dLat = toRad(bLat - aLat);
   const dLng = toRad(bLng - aLng);
-
   const lat1 = toRad(aLat);
   const lat2 = toRad(bLat);
-
   const x =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2);
-
   const c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
   return R * c;
 }
 
-function roundCoord(n: number, decimals = 3) {
-  return Number(n.toFixed(decimals));
+async function lookupPostcode(postcode: string): Promise<Location | null> {
+  try {
+    const query = postcode.trim();
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=gb`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return null;
+    const lat = Number(data[0].lat);
+    const lng = Number(data[0].lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { lat, lng };
+  } catch {
+    return null;
+  }
 }
 
-function extractLatLngFromText(input: string): { lat: number; lng: number } | null {
-  const text = input.trim();
-
-  // Google Maps often contains "@lat,lng"
-  const atMatch = text.match(/@(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)/);
-  if (atMatch) {
-    return { lat: Number(atMatch[1]), lng: Number(atMatch[3]) };
-  }
-
-  // Sometimes links contain "q=lat,lng"
-  const qMatch = text.match(/[?&]q=(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)/);
-  if (qMatch) {
-    return { lat: Number(qMatch[1]), lng: Number(qMatch[3]) };
-  }
-
-  // OpenStreetMap often contains "#map=zoom/lat/lng"
-  const osmMatch = text.match(/#map=\d+\/(-?\d+(\.\d+)?)\/(-?\d+(\.\d+)?)/);
-  if (osmMatch) {
-    return { lat: Number(osmMatch[1]), lng: Number(osmMatch[3]) };
-  }
-
-  return null;
-}
-
-type Space = {
-  name: string;
-  lat: number;
-  lng: number;
-  fenced: boolean;
-  unfenced: boolean;
-  partFenced: boolean;
-  bins: boolean;
-  toilets: boolean;
-  coffee: boolean;
-  parking: boolean;
-};
-
+// ===== MAIN COMPONENT =====
+ // State declarations
 export default function Home() {
-  const { user, loading } = useAuth();
+  // Location state
+  const [userLocation, setUserLocation] = useState<Location | null>(null);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [locationDenied, setLocationDenied] = useState(false);
+  const [failedSearchAttempts, setFailedSearchAttempts] = useState(0);
+  const [postcodeInput, setPostcodeInput] = useState("");
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  // Space state
+  const [spaces, setSpaces] = useState<Space[]>(SPACES);
+  const [selectedSpaceNames, setSelectedSpaceNames] = useState<string[]>([]);
+  const [expandedCardNames, setExpandedCardNames] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const ITEMS_PER_PAGE = 3;
+
+  // Filter state
   const [filters, setFilters] = useState({
     fenced: false,
     unfenced: false,
@@ -170,12 +175,19 @@ export default function Home() {
     parking: false,
   });
 
-  const [myLocation, setMyLocation] = useState<null | { lat: number; lng: number }>(null);
-  const [showMyLocation, setShowMyLocation] = useState(true);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [selectedSpaceName, setSelectedSpaceName] = useState<string | null>(null);
-  const [spaces, setSpaces] = useState<Space[]>(SPACES);
+// Map view state
+const [showMapView, setShowMapView] = useState(false);
+const [mapZoom, setMapZoom] = useState(16); // Default zoom level - adjust here (16 = street level detail for walking)
+
+  // Directions state
+  const [showDirectionsDrawer, setShowDirectionsDrawer] = useState(false);
+  const [showPickSpaceDrawer, setShowPickSpaceDrawer] = useState(false);
+  const [selectedTransportMode, setSelectedTransportMode] = useState<TransportMode>(null);
+  const [directionsTarget, setDirectionsTarget] = useState<Space | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  // Add space state
+  const [showAddDrawer, setShowAddDrawer] = useState(false);
   const [newSpace, setNewSpace] = useState({
     locationText: "",
     name: "",
@@ -190,91 +202,94 @@ export default function Home() {
     parking: false,
   });
 
-  const [currentPage, setCurrentPage] = useState(0);
-  const [selectedSpaceNames, setSelectedSpaceNames] = useState<string[]>([]);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showAddDrawer, setShowAddDrawer] = useState(false);
-  const [fabBottom, setFabBottom] = useState(24);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingSpace, setEditingSpace] = useState<Space | null>(null);
+  // Selection view state (Great Choice panel + map)
+const [showSelectionView, setShowSelectionView] = useState(false);
+const [hideTopDrawer, setHideTopDrawer] = useState(false); /* Controls drawer slide-up animation */
+
+  // Toast state
   const [showToast, setShowToast] = useState(false);
-  const [showFullMap, setShowFullMap] = useState(false);
-  const [formLocationError, setFormLocationError] = useState(false);
-  const [locationNotFoundError, setLocationNotFoundError] = useState(false);
-  const [spaceNamePrompt, setSpaceNamePrompt] = useState(false);
-  const [showDirectionsDrawer, setShowDirectionsDrawer] = useState(false);
-  const [directionsSpace, setDirectionsSpace] = useState<Space | null>(null);
-  const [routeData, setRouteData] = useState<any>(null);
-  const [showFilters, setShowFilters] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
-  // Show filters when user scrolls past the map
-  useEffect(() => {
-    const handleScroll = () => {
-      const mapSection = document.querySelector('#map');
-      if (mapSection) {
-        const mapBottom = mapSection.getBoundingClientRect().bottom;
-        // Show filters when map is scrolled out of view
-        if (mapBottom < window.innerHeight * 0.3) {
-          setShowFilters(true);
-        }
-      }
-    };
+  // Favorites state
+const [favorites, setFavorites] = useState<string[]>([]);
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+const toggleFavorite = (spaceName: string) => {
+  setFavorites((prev) =>
+    prev.includes(spaceName)
+      ? prev.filter((name) => name !== spaceName)
+      : [...prev, spaceName]
+  );
+};
+// Login alert state (for favorites)
+const [showLoginAlert, setShowLoginAlert] = useState<string | null>(null);
 
-  // Make FAB stop at footer
-  useEffect(() => {
-    const handleScroll = () => {
-      const footer = document.querySelector("footer");
-      if (!footer) return;
-      const footerRect = footer.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      if (footerRect.top < windowHeight) {
-        const newBottom = windowHeight - footerRect.top + 24;
-        setFabBottom(newBottom);
-      } else {
-        setFabBottom(24);
-      }
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  function getMyLocation() {
-    setLocationError(null);
-
+  // ===== LOCATION HANDLERS =====
+  const requestGeolocation = () => {
     if (!navigator.geolocation) {
-      setLocationError("Your browser can't share location.");
+      setLocationError("Your browser doesn't support location services.");
+      setLocationDenied(true);
       return;
     }
 
-    setIsGettingLocation(true);
+    setIsLoadingLocation(true);
+    setLocationError(null);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setMyLocation({
+        setUserLocation({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         });
-        setShowMyLocation(true);
-        setIsGettingLocation(false);
+        setShowLocationModal(false);
+        setShowMapView(true);
+        setShowDirectionsDrawer(false);
+        setIsNavigating(true);
+        /* DELAY_DRAWER_HIDE: Wait before sliding drawer up - adjust 800ms as needed */
+        setTimeout(() => setHideTopDrawer(true), 800);
+        setIsLoadingLocation(false);
       },
       (err) => {
-        setIsGettingLocation(false);
-        if (err.code === 1) setLocationError("Location permission was blocked.");
-        else setLocationError("Couldn't get your location. Try again.");
+        setIsLoadingLocation(false);
+        setLocationDenied(true);
+        if (err.code === 1) {
+          setLocationError("Location access was denied.");
+        } else {
+          setLocationError("Couldn't get your location. Please try again or enter manually.");
+        }
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
-  }
+  };
 
+  const handlePostcodeSubmit = async () => {
+    if (!postcodeInput.trim()) return;
+
+    setIsLoadingLocation(true);
+    setLocationError(null);
+
+    const location = await lookupPostcode(postcodeInput);
+
+    if (location) {
+      setUserLocation(location);
+      setShowLocationModal(false);
+        setShowMapView(true);
+        setShowDirectionsDrawer(false);
+        setIsNavigating(true);
+        /* DELAY_DRAWER_HIDE: Wait before sliding drawer up - adjust 800ms as needed */
+        setTimeout(() => setHideTopDrawer(true), 800);
+    } else {
+      setLocationError("Sorry we can't find that location, please try another area name");
+      setFailedSearchAttempts(prev => prev + 1);
+    }
+
+    setIsLoadingLocation(false);
+  };
+
+  // ===== FILTER & SORT LOGIC =====
   const filteredSpaces = spaces
     .filter((space) => {
       if (filters.fenced && !space.fenced) return false;
-      if (filters.unfenced && space.fenced) return false;
+      if (filters.unfenced && !space.unfenced) return false;
       if (filters.partFenced && !space.partFenced) return false;
       if (filters.bins && !space.bins) return false;
       if (filters.toilets && !space.toilets) return false;
@@ -282,1218 +297,1079 @@ export default function Home() {
       if (filters.parking && !space.parking) return false;
       return true;
     })
-    .map((space) => {
-      const km = myLocation ? distanceKm(myLocation.lat, myLocation.lng, space.lat, space.lng) : null;
-      return { ...space, km };
-    })
+    .map((space) => ({
+      ...space,
+      km: userLocation ? distanceKm(userLocation.lat, userLocation.lng, space.lat, space.lng) : null,
+    }))
     .sort((a, b) => {
       if (a.km === null || b.km === null) return 0;
       return a.km - b.km;
     });
 
+  const totalPages = Math.ceil(filteredSpaces.length / ITEMS_PER_PAGE);
+  const paginatedSpaces = filteredSpaces.slice(
+    currentPage * ITEMS_PER_PAGE,
+    (currentPage + 1) * ITEMS_PER_PAGE
+  );
+
+  // ===== SELECTION HANDLERS =====
+const toggleSpaceSelection = (name: string) => {
+  if (selectedSpaceNames.includes(name)) {
+    // Deselect - close selection view and map
+    setSelectedSpaceNames([]);
+    setShowSelectionView(false);
+    setShowMapView(false);
+    setDirectionsTarget(null);
+  } else {
+    // Select - open selection view and load map
+    const space = filteredSpaces.find(s => s.name === name);
+    setSelectedSpaceNames([name]);
+    setShowSelectionView(true);
+    setShowMapView(true);
+    setDirectionsTarget(space || null);
+  }
+};
+
+// Back to search - full reset
+const handleBackToSearch = () => {
+  setShowSelectionView(false);
+  setShowMapView(false);
+  setSelectedSpaceNames([]);
+  setDirectionsTarget(null);
+  setShowDirectionsDrawer(false);
+  setSelectedTransportMode(null);
+  setIsNavigating(false);
+  setHideTopDrawer(false); /* Reset drawer state when going back */
+};
+
+  const handleGetDirections = () => {
+    if (selectedSpaceNames.length === 0) return;
+
+    if (selectedSpaceNames.length === 1) {
+      const space = spaces.find((s) => s.name === selectedSpaceNames[0]);
+      if (space) {
+        setDirectionsTarget(space);
+        setShowMapView(true);
+        setShowDirectionsDrawer(true);
+      }
+    } else {
+      setShowPickSpaceDrawer(true);
+    }
+  };
+
+  const handlePickSpaceForDirections = (space: Space) => {
+    setDirectionsTarget(space);
+    setShowPickSpaceDrawer(false);
+    setShowMapView(true);
+    setShowDirectionsDrawer(true);
+  };
+
+  const handleSelectTransportMode = (mode: TransportMode) => {
+    // Check if we have user location, if not show modal
+    setSelectedTransportMode(mode);
+    if (!userLocation) {
+      setShowLocationModal(true);
+      return;
+    }
+    setSelectedTransportMode(mode);
+    setIsNavigating(true);
+        /* DELAY_DRAWER_HIDE: Wait before sliding drawer up - adjust 800ms as needed */
+        setTimeout(() => setHideTopDrawer(true), 800);
+    setShowDirectionsDrawer(false);
+        setIsNavigating(true);
+        /* DELAY_DRAWER_HIDE: Wait before sliding drawer up - adjust 800ms as needed */
+        setTimeout(() => setHideTopDrawer(true), 800);
+    setShowMapView(true);
+    // In real app, this would fetch directions from Mapbox API
+  };
+
+  // ===== ADD SPACE HANDLER =====
+  const handleAddSpace = async () => {
+    if (!newSpace.name.trim()) return;
+
+    let lat = parseFloat(newSpace.lat);
+    let lng = parseFloat(newSpace.lng);
+
+    if (newSpace.locationText && (!lat || !lng)) {
+      const location = await lookupPostcode(newSpace.locationText);
+      if (location) {
+        lat = location.lat;
+        lng = location.lng;
+      }
+    }
+
+    if (!lat || !lng) {
+      setToastMessage("Please enter a valid location");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+
+    const space: Space = {
+      name: newSpace.name,
+      lat,
+      lng,
+      fenced: newSpace.fenced,
+      unfenced: newSpace.unfenced,
+      partFenced: newSpace.partFenced,
+      bins: newSpace.bins,
+      toilets: newSpace.toilets,
+      coffee: newSpace.coffee,
+      parking: newSpace.parking,
+    };
+
+    setSpaces([...spaces, space]);
+    setNewSpace({
+      locationText: "",
+      name: "",
+      lat: "",
+      lng: "",
+      fenced: false,
+      unfenced: false,
+      partFenced: false,
+      bins: false,
+      toilets: false,
+      coffee: false,
+      parking: false,
+    });
+    setShowAddDrawer(false);
+    setToastMessage("Space added successfully!");
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const hasActiveFilters = Object.values(filters).some(Boolean);
+
+  const clearFilters = () => {
+    setFilters({
+      fenced: false,
+      unfenced: false,
+      partFenced: false,
+      bins: false,
+      toilets: false,
+      coffee: false,
+      parking: false,
+    });
+  };
+
+  // ===== RENDER =====
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Header user={user} />
-      
-      {!loading && <WelcomeBanner user={user} />}
-
-{user && !loading && <StickyNav />}
-
-<main style={{ flex: 1, padding: 24, fontFamily: "system-ui", maxWidth: 900, margin: "0 auto", width: "100%" }}>
-  {/* Header */}
-  <div style={{ maxWidth: 900, margin: "0 auto", paddingTop: 24 }}>
-  {user ? (
-  <>
-    <h1 style={{ fontSize: "40px", fontWeight: 600, marginBottom: "8px" }}>
-      <span style={{ color: "#DD6616" }}>Find a great new place</span>
-      <span style={{ color: "#006947" }}> to walk today</span>
-    </h1>
-    <WelcomeMessage firstName={user.user_metadata?.first_name || "there"} />
-  </>
-) : (
-  <h1 style={{ fontSize: "40px", fontWeight: 600, marginBottom: "8px" }}>
-    <span style={{ color: "#DD6616" }}>Find great places</span>
-    <span style={{ color: "#006947" }}> to walk your dog</span>
-  </h1>
-)}
-
-<p
-  style={{
-    maxWidth: 750,
-    marginTop: 16,
-    marginBottom: 0,
-    color: "#006947",
-    lineHeight: 1.5,
-    fontFamily: "var(--font-fraunces), serif",
-    fontWeight: 600,
-  }}
->
-  Discover dog-friendly spaces nearby and what they offer.
-</p>
-
-        {locationError && <p style={{ marginTop: 16, color: "#d32f2f" }}>{locationError}</p>}
-      </div>
-{/* Show location button */}
-<div style={{ maxWidth: 900, margin: "0 auto", marginTop: 16, marginBottom: -8 }}>
-  {!myLocation ? (
-    <button
-      type="button"
-      onClick={getMyLocation}
-      disabled={isGettingLocation}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: 0,
-        marginTop: 0,
-        background: "transparent",
-        border: "none",
-        textDecoration: "underline",
-        textUnderlineOffset: "3px",
-        color: "#006947",
-        cursor: "pointer",
-        fontSize: 13,
-        fontWeight: 500,
-      }}
-    >
-      <MapPinSimple size={16} weight="bold" />
-      {isGettingLocation ? "Getting location..." : "Show my location"}
-    </button>
-  ) : (
-    <button
-      type="button"
-      onClick={() => setShowMyLocation(!showMyLocation)}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: 0,
-        marginTop: 0,
-        background: "transparent",
-        border: "none",
-        textDecoration: "underline",
-        textUnderlineOffset: "3px",
-        color: "#006947",
-        cursor: "pointer",
-        fontSize: 13,
-        fontWeight: 500,
-      }}
-    >
-      <MapPinSimple size={16} weight="bold" />
-      {showMyLocation ? "Hide my location" : "Show my location"}
-    </button>
-  )}
-</div>
-
-
-      {/* Map */}
-      {!showFullMap && (
-        <section style={{ marginTop: 16 }}>
-          <div style={{ maxWidth: 900, margin: "0 auto" }}>
-            {/* Embedded map, fixed height */}
-            <div id="map" className="mb-0 pb-0 overflow-hidden" style={{ height: "70vh" }}>
-              <MapboxEmbedded
-                spaces={filteredSpaces.slice(0, 10)}
-                myLocation={showMyLocation ? myLocation : null}
-                selectedSpaceName={selectedSpaceName}
-                selectedSpaceNames={selectedSpaceNames}
-                onViewLargeMap={() => setShowFullMap(true)}
-              />
+    <div className="page-container">
+      {/* ===== LOCATION PERMISSION MODAL ===== */}
+      {showLocationModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ gap: "16px", display: "flex", flexDirection: "column", paddingTop: "48px" }}>
+            {/* Close button - top right */}
+            <button onClick={() => setShowLocationModal(false)} style={{ position: "fixed", top: "12px", right: "12px", background: "none", border: "none", padding: 12, margin: 0, cursor: "pointer" }}>
+              <X size={24} color="var(--color-text-secondary)" />
+            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <h3 className="modal-title" style={{ margin: 0 }}>Enter your postcode or location to find spaces</h3>
             </div>
+            {!locationDenied ? (
+              <div className="modal-actions" style={{ gap: "10px", display: "flex", flexDirection: "column" }}>
+                <button
+                  className="btn-primary"
+                  onClick={requestGeolocation}
+                  disabled={isLoadingLocation}
+                  style={{ width: "100%", margin: 0 }}
+                >
+                  {isLoadingLocation ? "Getting location..." : "Allow once"}
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    requestGeolocation();
+                    // In real app, would set preference for always allowing
+                  }}
+                  disabled={isLoadingLocation}
+                  style={{ width: "100%", margin: 0 }}
+                >
+                  Allow every time
+                </button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setLocationDenied(true)}
+                  style={{ width: "100%", margin: 0 }}
+                >
+                  Dont allow
+                </button>
+              </div>
+            ) : failedSearchAttempts >= 3 ? (
+              <>
+                <p className="modal-text" style={{ margin: 0, color: "var(--color-terracotta)" }}>
+                  We are sorry we are having trouble locating you. To get directions please allow us to use your location.
+                </p>
+                <div className="modal-actions" style={{ gap: "10px", display: "flex", flexDirection: "column" }}>
+                  <button
+                    className="btn-primary"
+                    onClick={requestGeolocation}
+                    disabled={isLoadingLocation}
+                    style={{ width: "100%", margin: 0 }}
+                  >
+                    {isLoadingLocation ? "Getting location..." : "Allow once"}
+                  </button>
+                  <button
+                    className="btn-primary"
+                    onClick={() => {
+                      requestGeolocation();
+                    }}
+                    disabled={isLoadingLocation}
+                    style={{ width: "100%", margin: 0 }}
+                  >
+                    Allow every time
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="modal-text" style={{ margin: 0, color: "var(--color-terracotta)" }}>
+                  {locationError}
+                </p>
+                <div style={{ marginBottom: 16 }}>
+                  <input
+                    type="text"
+                    placeholder="e.g. SE22 9QA or Peckham"
+                    value={postcodeInput}
+                    onChange={(e) => setPostcodeInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handlePostcodeSubmit()}
+                    style={{ marginTop: 0 }}
+                  />
+                </div>
+                <div className="modal-actions" style={{ gap: "10px", display: "flex", flexDirection: "column" }}>
+                  <button
+                    className="btn-primary"
+                    onClick={handlePostcodeSubmit}
+                    disabled={isLoadingLocation || !postcodeInput.trim()}
+                    style={{ width: "100%", margin: 0 }}
+                  >
+                    {isLoadingLocation ? "Finding..." : "Find spaces"}
+                  </button>
+                  <button
+                    className="btn-text"
+                    onClick={() => {
+                      setLocationError(null);
+                      setPostcodeInput("");
+                    }}
+                    style={{ marginTop: 12, textAlign: "center" }}
+                  >
+                    Try location again
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-        </section>
+        </div>
       )}
 
-      {/* Nearby spaces */}
-    
-      <section id="my-spaces" style={{ marginTop: 40 }}>
-        <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <h2 style={{ margin: 0, marginBottom: 8 }}>Nearby places</h2>
-
-          {showFilters && (
-            <div className="filter-chips" aria-label="Filter spaces by facilities">
+      {/* ===== HEADER ===== */}
+      <header className="header">
+        <div className="header-content" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "14px" }}>
+          {hideTopDrawer ? (
+            /* Map mode - show Back button only */
             <button
-              type="button"
+              onClick={handleBackToSearch}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#006947",
+              }}
+            >
+              <CaretLeft size={18} weight="bold" />
+              Back
+            </button>
+          ) : (
+            /* Normal mode - show logo and auth buttons */
+            <>
+              <div style={{ flex: "1 1 0", minWidth: 0 }}>
+                <img src="/GWTD-logov2.svg" alt="GoWalkTheDog" style={{ height: 24 }} />
+              </div>
+              <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
+                <button className="btn-primary" onClick={() => window.location.href = "/signup"} style={{ height: "32px", padding: "0 12px", fontSize: "13px", margin: 0, display: "flex", alignItems: "center" }}>
+                  Sign up
+                </button>
+                <button className="btn-text" onClick={() => window.location.href = "/login"} style={{ height: "32px", padding: "0 12px", fontSize: "13px", margin: 0, display: "flex", alignItems: "center", color: "var(--color-primary)" }}>
+                  Log in
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </header>
+      {/* ===== MAIN CONTENT ===== */}
+      <main className="main-content">
+        {/* Main Headline */}
+        <section style={{ paddingTop: "16px", marginBottom: "24px" }}>
+          <h1 style={{ margin: "0 0 24px 0", padding: 0 }}>
+            Find great places to walk your dog
+          </h1>
+          <p style={{ fontSize: "18px", lineHeight: "1.4", color: "var(--color-primary)", margin: "0 0 24px 0", padding: 0, fontWeight: 500 }}>
+            Discover the facilities you need and get directions
+          </p>
+        </section>
+
+        {/* Filters */}
+        <section style={{ marginBottom: "24px" }}>
+          <div style={{ padding: 0, marginBottom: "4px" }}>
+          <p style={{ fontSize: "14px", fontWeight: 500, color: "#333333", margin: 0 }}>
+              Select facilities {hasActiveFilters && `(${Object.values(filters).filter(Boolean).length})`}
+            </p>
+          </div>
+
+          <div className="filter-chips" style={{ padding: "12px 0", overflowX: "auto", display: "flex", gap: "10px" }}>
+            <button
               className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
               onClick={() => setFilters({ ...filters, fenced: !filters.fenced })}
             >
-              <Barricade size={16} weight="regular" style={{ color: filters.fenced ? "#fff" : "#006947" }} />
+              <Barricade size={16} weight="bold" />
               Fenced
             </button>
-
             <button
-              type="button"
               className={`filter-chip ${filters.unfenced ? "is-on" : ""}`}
               onClick={() => setFilters({ ...filters, unfenced: !filters.unfenced })}
             >
-              <ArrowsOut size={16} weight="regular" style={{ color: filters.unfenced ? "#fff" : "#006947" }} />
               Unfenced
             </button>
-
             <button
-              type="button"
               className={`filter-chip ${filters.partFenced ? "is-on" : ""}`}
               onClick={() => setFilters({ ...filters, partFenced: !filters.partFenced })}
             >
-              <CircleHalf size={16} weight="regular" style={{ color: filters.partFenced ? "#fff" : "#006947" }} />
-              Part fenced
+              <CircleHalf size={16} weight="bold" />
+              Part-fenced
             </button>
-
             <button
-              type="button"
               className={`filter-chip ${filters.bins ? "is-on" : ""}`}
               onClick={() => setFilters({ ...filters, bins: !filters.bins })}
             >
-              <Trash size={16} weight="regular" style={{ color: filters.bins ? "#fff" : "#006947" }} />
+              <TrashSimple size={16} weight="bold" />
               Dog bins
             </button>
-
             <button
-              type="button"
               className={`filter-chip ${filters.toilets ? "is-on" : ""}`}
               onClick={() => setFilters({ ...filters, toilets: !filters.toilets })}
             >
-              <Toilet size={16} weight="regular" style={{ color: filters.toilets ? "#fff" : "#006947" }} />
+              <Toilet size={16} weight="bold" />
               Toilets
             </button>
-
             <button
-              type="button"
               className={`filter-chip ${filters.coffee ? "is-on" : ""}`}
               onClick={() => setFilters({ ...filters, coffee: !filters.coffee })}
             >
-              <Coffee size={16} weight="regular" style={{ color: filters.coffee ? "#fff" : "#006947" }} />
+              <Coffee size={16} weight="bold" />
               Coffee
             </button>
-
             <button
-              type="button"
               className={`filter-chip ${filters.parking ? "is-on" : ""}`}
               onClick={() => setFilters({ ...filters, parking: !filters.parking })}
             >
-              <Car size={16} weight="regular" style={{ color: filters.parking ? "#fff" : "#006947" }} />
+              <Car size={16} weight="bold" />
               Parking
             </button>
           </div>
-          )}
-
-          {selectedSpaceNames.length > 0 && (
-            <button
-              type="button"
-              style={{
-                marginTop: 16,
-                marginBottom: 16,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                background: "transparent",
-                color: "#111",
-                border: "none",
-                padding: "4px 6px",
-                fontSize: 13,
-                cursor: "pointer",
-                borderRadius: 8,
-              }}
-              onClick={() => setShowDeleteModal(true)}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f3f3")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              <Trash size={16} weight="regular" />
-              Delete {selectedSpaceNames.length} {selectedSpaceNames.length === 1 ? "space" : "spaces"}
-            </button>
-          )}
-
-          {filteredSpaces.length === 0 ? (
-            <div style={{ padding: "24px 0" }}>
-              {myLocation ? (
-                <p>Sorry we can't find a match - please try fewer filters and search again.</p>
-              ) : (
-                <p style={{ color: "#555" }}>
-                  No spaces yet - please add your location and we will find you the nearest spot.
-                </p>
-              )}
-            </div>
-          ) : (
-            <ul style={{ marginTop: 16 }}>
-              {filteredSpaces.slice(currentPage * 3, currentPage * 3 + 3).map((space) => (
-                <li
-                  key={space.name}
-                  style={{
-                    marginBottom: 16,
-                    padding: 16,
-                    border: selectedSpaceName === space.name ? "1px solid #C1CFCA" : "1px solid #ddd",
-                    borderRadius: 8,
-                    background: selectedSpaceName === space.name ? "#EEFFE3" : "white",
-                    boxShadow: selectedSpaceName === space.name ? "0 2px 8px rgba(0, 0, 0, 0.08)" : "none",
-                    cursor: "pointer",
-                  }}
-                  onClick={() => {
-                    setSelectedSpaceName(space.name);
-                  }}
-                >
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 8 }}>
-                      <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flex: 1 }}>
-                        <div style={{ position: "relative", width: 20, height: 20, flexShrink: 0, marginTop: 2 }}>
-                          <input
-                            type="checkbox"
-                            checked={selectedSpaceNames.includes(space.name)}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              if (e.target.checked) {
-                                if (selectedSpaceNames.length >= 5) {
-                                  alert("You can only select up to 5 spaces at a time.");
-                                  e.target.checked = false;
-                                  return;
-                                }
-                                setSelectedSpaceNames([...selectedSpaceNames, space.name]);
-                              } else {
-                                setSelectedSpaceNames(selectedSpaceNames.filter((n) => n !== space.name));
-                              }
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ margin: 0 }}
-                          />
-                          {selectedSpaceNames.includes(space.name) && (
-                            <Check
-                              size={12}
-                              weight="bold"
-                              style={{
-                                position: "absolute",
-                                top: "50%",
-                                left: "50%",
-                                transform: "translate(-50%, -50%)",
-                                color: "white",
-                                pointerEvents: "none",
-                              }}
-                            />
-                          )}
-                        </div>
-
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                            <strong style={{ fontFamily: "var(--font-fraunces), serif", color: "#006947" }}>
-                              {space.name}
-                            </strong>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingSpace(space);
-                                setNewSpace({
-                                  locationText: "",
-                                  name: space.name,
-                                  lat: space.lat.toString(),
-                                  lng: space.lng.toString(),
-                                  fenced: space.fenced,
-                                  unfenced: space.unfenced,
-                                  partFenced: space.partFenced,
-                                  bins: space.bins,
-                                  toilets: space.toilets,
-                                  coffee: space.coffee,
-                                  parking: space.parking,
-                                });
-                                setShowEditModal(true);
-                              }}
-                              style={{
-                                background: "transparent",
-                                border: "none",
-                                padding: 2,
-                                cursor: "pointer",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                color: "#006947",
-                                marginTop: 0,
-                                flexShrink: 0,
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.color = "#004d33")}
-                              onMouseLeave={(e) => (e.currentTarget.style.color = "#006947")}
-                            >
-                              <Pencil size={16} weight="regular" />
-                            </button>
-                          </div>
-
-                          {typeof (space as any).km === "number" && (
-                            <span style={{ marginLeft: 0, color: "#555", fontSize: 14 }}>
-                              {(space as any).km.toFixed(1)} km away
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowFullMap(true);
-                          }}
-                          style={{
-                            padding: "6px 12px",
-                            height: "fit-content",
-                            marginTop: 0,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                          }}
-                        >
-                          <MapTrifold size={16} weight="regular" />
-                          Open map
-                        </button>
-
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          disabled={selectedSpaceName !== space.name}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDirectionsSpace(space);
-                            setShowDirectionsDrawer(true);
-                          }}
-                          style={{
-                            padding: "6px 12px",
-                            height: "fit-content",
-                            marginTop: 0,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                          }}
-                        >
-                          <Signpost size={16} weight="regular" />
-                          Get directions
-                        </button>
-                      </div>
-                    </div>
-
-                    <div style={{ marginLeft: 32, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {(() => {
-                        const facilities = [
-                          space.fenced && { icon: <Barricade size={12} weight="regular" />, label: "Fenced" },
-                          space.unfenced && { icon: <ArrowsOut size={12} weight="regular" />, label: "Unfenced" },
-                          space.partFenced && { icon: <CircleHalf size={12} weight="regular" />, label: "Part fenced" },
-                          space.bins && { icon: <Trash size={12} weight="regular" />, label: "Dog bins" },
-                          space.toilets && { icon: <Toilet size={12} weight="regular" />, label: "Toilets" },
-                          space.coffee && { icon: <Coffee size={12} weight="regular" />, label: "Coffee" },
-                          space.parking && { icon: <Car size={12} weight="regular" />, label: "Parking" },
-                        ].filter(Boolean);
-
-                        return facilities.length > 0
-                          ? facilities.map((facility: any, index: number) => (
-                              <span
-                                key={index}
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 4,
-                                  background: "#f5f5f5",
-                                  border: "1px solid #e2e2e2",
-                                  borderRadius: 999,
-                                  padding: "4px 8px",
-                                  fontSize: 11,
-                                  color: "#02301F",
-                                }}
-                              >
-                                <span style={{ color: "#006947", display: "flex" }}>{facility.icon}</span>
-                                {facility.label}
-                              </span>
-                            ))
-                          : (
-                            <span style={{ fontSize: 11, color: "#555" }}>Facilities not listed</span>
-                          );
-                      })()}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {filteredSpaces.length > 3 && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 16,
-                marginTop: 4,
-              }}
-            >
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setCurrentPage(currentPage - 1)}
-                disabled={currentPage === 0}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-              >
-                <CaretLeft size={16} weight="bold" />
-                Previous
-              </button>
-
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={(currentPage + 1) * 3 >= filteredSpaces.length}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-              >
-                Next
-                <CaretRight size={16} weight="bold" />
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Add place drawer */}
-      {showAddDrawer && (
-        <>
-          {/* Overlay */}
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.5)",
-              zIndex: 9998,
-              animation: "fadeIn 200ms ease-out",
-            }}
-            onClick={() => setShowAddDrawer(false)}
-          />
-
-          {/* Drawer */}
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              width: "calc(100% - 40px)",
-              maxWidth: 520,
-              background: "#fff",
-              zIndex: 9999,
-              boxShadow: "-4px 0 24px rgba(0,0,0,0.15)",
-              display: "flex",
-              flexDirection: "column",
-              animation: "slideInFromRight 300ms ease-out",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Sticky header */}
-            <div
-              style={{
-                position: "sticky",
-                top: 0,
-                background: "#fff",
-                padding: "20px 24px 16px 24px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                zIndex: 10,
-              }}
-            >
-              <h2>Add a new place</h2>
-              <button
-                type="button"
-                onClick={() => setShowAddDrawer(false)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 4,
-                  display: "flex",
-                  alignItems: "center",
-                  color: "#555",
-                }}
-              >
-                <X size={24} weight="regular" />
-              </button>
-            </div>
-
-            {/* Scrollable content */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "8px 24px 24px 24px" }}>
-              <div style={{ display: "grid", gap: 16, maxWidth: 520 }}>
-                <label style={{ fontFamily: "var(--font-fraunces), serif" }}>
-                  <h3 style={{ marginBottom: 4 }}>
-                    Add the location name
-                  </h3>
-                  <span
-                    style={{
-                      display: "block",
-                      fontSize: 13,
-                      color: "#555",
-                      marginTop: 4,
-                      fontFamily: "var(--font-dm-sans), sans-serif",
-                      fontWeight: 400,
-                    }}
-                  >
-                Just type the name as you see it on the map — we'll find the right spot for you.
-                  </span>
-                  <textarea
-                    value={(newSpace as any).locationText ?? ""}
-                    onChange={(e) => {
-                      setNewSpace({
-                        ...newSpace,
-                        locationText: e.target.value,
-                      });
-                      setFormLocationError(false);
-                      setLocationNotFoundError(false);
-                    }}
-                    placeholder="e.g. Greenwich Park, Hampstead Heath"
-                    rows={1}
-                    style={{ minHeight: 40 }}
-                    className={formLocationError || locationNotFoundError ? "error" : ""}
-                  />
-                  {formLocationError && <div className="error-message">Please type in a place name</div>}
-                  {locationNotFoundError && (
-                    <div className="error-message">Sorry - we couldn't find that place name - please try an alternative.</div>
-                  )}
-                </label>
-
-                <label style={{ fontFamily: "var(--font-fraunces), serif" }}>
-                  <h3 style={{ marginBottom: 4 }}>
-                  Give this place a title
-                  </h3>
-                  <input
-                    value={newSpace.name}
-                    onChange={(e) => {
-                      setNewSpace({
-                        ...newSpace,
-                        name: e.target.value,
-                      });
-                      setSpaceNamePrompt(false);
-                    }}
-                    placeholder="e.g. Peckham Rye Park – meadow"
-                    type="text"
-                    className={spaceNamePrompt ? "warning" : ""}
-                  />
-                  {spaceNamePrompt && <div className="warning-message">We will use the location name instead</div>}
-                </label>
-
-                <div style={{ marginTop: 8 }}>
-                  <h3>Facilities</h3>
-
-                  <div style={{ fontSize: 13, color: "#555", marginBottom: 16 }}>
-                    Select the facilities that are available here.
-                  </div>
-
-                  <div
-                    className="facilities-grid"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                      gap: 8,
-                      width: "100%",
-                    }}
-                  >
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.fenced}
-                        onChange={(e) => setNewSpace({ ...newSpace, fenced: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <Barricade size={16} weight="regular" style={{ color: "#006947" }} />
-                        Fenced
-                      </span>
-                    </label>
-
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.unfenced}
-                        onChange={(e) => setNewSpace({ ...newSpace, unfenced: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <ArrowsOut size={16} weight="regular" style={{ color: "#006947" }} />
-                        Unfenced
-                      </span>
-                    </label>
-
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.partFenced}
-                        onChange={(e) => setNewSpace({ ...newSpace, partFenced: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <CircleHalf size={16} weight="regular" style={{ color: "#006947" }} />
-                        Part fenced
-                      </span>
-                    </label>
-
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.bins}
-                        onChange={(e) => setNewSpace({ ...newSpace, bins: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <Trash size={16} weight="regular" style={{ color: "#006947" }} />
-                        Dog bins
-                      </span>
-                    </label>
-
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.toilets}
-                        onChange={(e) => setNewSpace({ ...newSpace, toilets: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <Toilet size={16} weight="regular" style={{ color: "#006947" }} />
-                        Toilets
-                      </span>
-                    </label>
-
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.coffee}
-                        onChange={(e) => setNewSpace({ ...newSpace, coffee: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <Coffee size={16} weight="regular" style={{ color: "#006947" }} />
-                        Coffee
-                      </span>
-                    </label>
-
-                    <label className="facility-option">
-                      <input
-                        type="checkbox"
-                        checked={newSpace.parking}
-                        onChange={(e) => setNewSpace({ ...newSpace, parking: e.target.checked })}
-                        style={{ display: "none" }}
-                      />
-                      <span className="custom-checkbox"></span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <Car size={16} weight="regular" style={{ color: "#006947" }} />
-                        Parking
-                      </span>
-                    </label>
-                  </div>
-                </div>
-                
+        </section>
+{/* ===== GREAT CHOICE PANEL ===== */}
+{showSelectionView && selectedSpaceNames.length > 0 && (
+  <>
+    {/* Great Choice Panel - Fixed at top */}
+<div 
+  style={{
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    background: "rgba(255, 255, 255, 0.85)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    zIndex: 200,
+    padding: "24px",
+    boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+    transform: hideTopDrawer ? "translateY(-100%)" : "translateY(0)",
+    transition: "transform 0.5s ease-in-out", /* ANIMATION_SPEED: Adjust drawer slide duration here */
+    animation: !hideTopDrawer ? "slideDownPanel 0.5s ease-out" : "none"
+  }}
+>
+  <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+    <h1 style={{ fontSize: "32px", margin: "0 0 16px 0" }}>Great choice</h1>
+    
+    {/* Selected space card */}
+    {(() => {
+      const space = filteredSpaces.find(s => s.name === selectedSpaceNames[0]);
+      if (!space) return null;
+      
+      return (
+        <div 
+          className="space-card selected"
+          style={{ marginBottom: "16px" }}
+        >
+          <div className="space-card-header" style={{ marginBottom: "6px" }}>
+            <div className="space-card-content" style={{ flex: 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "19px", marginBottom: "6px" }}>
+                <h3 className="space-card-name" style={{ flex: 1, margin: 0 }}>{space.name}</h3>
                 <button
-                  type="button"
-                  className="btn-primary"
-                  style={{ width: "fit-content", marginTop: 16, display: "inline-flex", alignItems: "center", gap: 6 }}
-                  disabled={!(newSpace as any).locationText || !(newSpace as any).locationText.trim()}
-                  onClick={async () => {
-                    const locationText = (newSpace as any).locationText;
-                    if (!locationText || !locationText.trim()) {
-                      setFormLocationError(true);
-                      return;
-                    }
-
-                    // Look up location first
-                    let extracted = extractLatLngFromText(locationText);
-
-                    if (!extracted) {
-                      const lookedUp = await lookupPlaceName(locationText);
-                      if (lookedUp) extracted = lookedUp;
-                    }
-
-                    if (!extracted) {
-                      setLocationNotFoundError(true);
-                      return;
-                    }
-
-                    // Check space name after location is validated
-                    if (!newSpace.name.trim()) {
-                      if (spaceNamePrompt) {
-                        // proceed with location name
-                      } else {
-                        setSpaceNamePrompt(true);
-                        return;
-                      }
-                    }
-
-                    setSpaces([
-                      ...spaces,
-                      {
-                        name: newSpace.name.trim() || locationText.trim(),
-                        lat: roundCoord(extracted.lat),
-                        lng: roundCoord(extracted.lng),
-                        fenced: newSpace.fenced,
-                        unfenced: newSpace.unfenced,
-                        partFenced: newSpace.partFenced,
-                        bins: newSpace.bins,
-                        toilets: newSpace.toilets,
-                        coffee: newSpace.coffee,
-                        parking: newSpace.parking,
-                      },
-                    ]);
-
-                    // Clear form after successful submission
-                    setNewSpace({
-                      locationText: "",
-                      name: "",
-                      lat: "",
-                      lng: "",
-                      fenced: false,
-                      unfenced: false,
-                      partFenced: false,
-                      bins: false,
-                      toilets: false,
-                      coffee: false,
-                      parking: false,
-                    });
-
-                    setShowAddDrawer(false);
-                    setShowToast(true);
-                    setTimeout(() => setShowToast(false), 3000);
+                  className="heart-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowLoginAlert(space.name);
                   }}
+                  style={{ width: "24px", height: "24px", flexShrink: 0 }}
                 >
-                  <MapPinPlus size={18} weight="regular" />
-                  Add place
+                  <Heart 
+                    size={24} 
+                    weight="regular" 
+                    color="#DDDDDD"
+                  />
                 </button>
               </div>
+              {space.km !== null && (
+                <p className="space-card-distance" style={{ margin: 0 }}>{space.km.toFixed(1)}km away</p>
+              )}
+            </div>
+          </div>
+
+          {/* Facilities - always expanded in Great Choice */}
+          <div className="space-card-facilities" style={{ marginTop: "8px" }}>
+            <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-primary)", margin: "0 0 8px 0" }}>
+              Facilities
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {space.unfenced && <span className="facility-tag">Unfenced</span>}
+              {space.fenced && <span className="facility-tag"><Barricade size={14} weight="bold" />Fenced</span>}
+              {space.bins && <span className="facility-tag"><TrashSimple size={14} weight="bold" />Dog bins</span>}
+              {space.toilets && <span className="facility-tag"><Toilet size={14} weight="bold" />Toilets</span>}
+              {space.parking && <span className="facility-tag"><Car size={14} weight="bold" />Parking</span>}
+              {space.coffee && <span className="facility-tag"><Coffee size={14} weight="bold" />Coffee</span>}
+            </div>
+          </div>
+          
+          {/* Login alert for favorites */}
+          {showLoginAlert === space.name && (
+            <p style={{ 
+              fontSize: "14px", 
+              fontWeight: 400, 
+              lineHeight: 1.3, 
+              color: "#D35603", 
+              margin: "12px 0 0 0" 
+            }}>
+              To add a place to your favourites please <a href="/login" style={{ color: "#D35603", textDecoration: "underline" }}>Login</a> or <a href="/signup" style={{ color: "#D35603", textDecoration: "underline" }}>Sign up</a> - for free!
+            </p>
+          )}
+        </div>
+      );
+    })()}
+    
+    {/* Button row - Back to search and Get directions */}
+    <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+      <button 
+        className="btn-secondary"
+        onClick={handleBackToSearch}
+        style={{ 
+          flex: 1,
+          padding: "14px 24px",
+          fontSize: "16px",
+          fontWeight: 600,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          height: "40px"
+        }}
+      >
+        <CaretLeft size={20} weight="bold" />
+        Back
+      </button>
+      <button 
+        className="btn-primary"
+        onClick={() => setShowDirectionsDrawer(true)}
+        style={{ 
+          flex: 2,
+          padding: "14px 24px",
+          fontSize: "16px",
+          fontWeight: 600,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          height: "40px"
+        }}
+      >
+        <MapPin size={20} weight="bold" />
+        Get directions
+      </button>
+    </div>
+  </div>
+</div>
+</>
+)}
+        {/* Spaces List */}
+<section 
+  style={{ 
+    marginTop: 0, 
+    padding: "0 0 58px",
+    transform: showSelectionView ? "translateY(100vh)" : "translateY(0)",
+    opacity: showSelectionView ? 0 : 1,
+    transition: "transform 0.6s ease-out, opacity 0.5s ease-out 0.1s",
+    pointerEvents: showSelectionView ? "none" : "auto"
+  }}
+>
+<h2 style={{ margin: "0 0 14px 0", fontSize: "22px", lineHeight: "1.25" }}>
+    Nearby places
+  </h2>
+  <p style={{ fontSize: "14px", fontWeight: 500, color: "#333333", margin: 0 }}>
+    Choose a place
+  </p>
+
+  <div style={{ marginTop: 14 }}>
+    {paginatedSpaces.map((space) => {
+              const isSelected = selectedSpaceNames.includes(space.name);
+              const isExpanded = expandedCardNames.includes(space.name);
+              
+              const toggleExpanded = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                setExpandedCardNames((prev) =>
+                  prev.includes(space.name)
+                    ? prev.filter((n) => n !== space.name)
+                    : [...prev, space.name]
+                );
+              };
+              
+              return (
+              <div
+                key={space.name}
+                className={`space-card ${isSelected ? "selected" : ""}`}
+                onClick={() => toggleSpaceSelection(space.name)}
+                style={{ cursor: "pointer", marginBottom: "14px" }}
+              >
+                <div className="space-card-header" style={{ marginBottom: "6px" }}>
+                  <div className="space-card-content" style={{ flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "19px", marginBottom: "6px" }}>
+                      <h3 className="space-card-name" style={{ flex: 1, margin: 0 }}>{space.name}</h3>
+                      <button
+  className="heart-btn"
+  onClick={(e) => {
+    e.stopPropagation();
+    setShowLoginAlert(space.name);
+  }}
+  style={{ width: "24px", height: "24px", flexShrink: 0 }}
+>
+  <Heart 
+    size={24} 
+    weight="regular" 
+    color="#DDDDDD"
+  />
+</button>
+                    </div>
+                    {space.km !== null && (
+                      <p className="space-card-distance" style={{ margin: 0 }}>{space.km.toFixed(1)}km away</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-card-facilities" style={{ marginTop: "8px" }}>
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+       onClick={toggleExpanded}>
+    <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-primary)", margin: 0 }}>
+      {isExpanded ? "Hide facilities" : "Show facilities"}
+    </p>
+    <CaretDown size={20} weight="bold" color="var(--color-primary)" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+  </div>
+  {isExpanded && (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px" }}>
+      {space.unfenced && (
+        <span className="facility-tag">
+          Unfenced
+        </span>
+      )}
+      {space.fenced && (
+        <span className="facility-tag">
+          <Barricade size={14} weight="bold" />
+          Fenced
+        </span>
+      )}
+      {space.bins && (
+        <span className="facility-tag">
+          <TrashSimple size={14} weight="bold" />
+          Dog bins
+        </span>
+      )}
+      {space.toilets && (
+        <span className="facility-tag">
+          <Toilet size={14} weight="bold" />
+          Toilets
+        </span>
+      )}
+      {space.parking && (
+        <span className="facility-tag">
+          <Car size={14} weight="bold" />
+          Parking
+        </span>
+      )}
+      {space.coffee && (
+        <span className="facility-tag">
+          <Coffee size={14} weight="bold" />
+          Coffee
+        </span>
+      )}
+    </div>
+  )}
+</div>
+
+{/* Login alert for favorites */}
+                
+                {/* Login alert for favorites */}
+                {showLoginAlert === space.name && (
+                  <p style={{ 
+                    fontSize: "14px", 
+                    fontWeight: 400, 
+                    lineHeight: 1.3, 
+                    color: "#D35603", 
+                    margin: "12px 0 0 0" 
+                  }}>
+                    To add a place to your favourites please <a href="/login" style={{ color: "#D35603", textDecoration: "underline" }}>Login</a> or <a href="/signup" style={{ color: "#D35603", textDecoration: "underline" }}>Sign up</a> - for free!
+                  </p>
+                )}
+              </div>
+              );
+            })}
+
+            {filteredSpaces.length === 0 && (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: 40,
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                <p>No spaces match your filters</p>
+                <button className="btn-text" onClick={clearFilters}>
+                  Clear filters
+                </button>
+              </div>
+            )}
+          </div>
+
+      {/* Pagination Link */}
+{totalPages > 1 && (
+  <div style={{ marginTop: "0px" }}>
+    {currentPage < totalPages - 1 ? (
+      <div 
+        className="pagination-link"
+        onClick={() => setCurrentPage((p) => p + 1)}
+      >
+        See {filteredSpaces.length - (currentPage + 1) * 3} more
+        <CaretRight size={18} weight="bold" />
+      </div>
+    ) : (
+      <div 
+        className="pagination-link"
+        onClick={() => setCurrentPage(0)}
+      >
+        <CaretLeft size={18} weight="bold" />
+        Go back
+      </div>
+    )}
+  </div>
+)}
+
+{/* ===== ADD PLACE CTA CARD ===== */}
+<div 
+  onClick={() => setShowAddDrawer(true)}
+  style={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    background: "#FFE6D7",
+    border: "1px solid #FFBF96",
+    borderRadius: "var(--radius-lg)",
+    marginTop: "18px",
+    cursor: "pointer",
+    overflow: "hidden",
+    transition: "border-color 0.15s ease"
+  }}
+  onMouseEnter={(e) => e.currentTarget.style.borderColor = "#FB873C"}
+  onMouseLeave={(e) => e.currentTarget.style.borderColor = "#FFBF96"}
+>
+  <p style={{ 
+    fontSize: "14px", 
+    fontWeight: 500, 
+    color: "var(--color-text-primary)", 
+    margin: 0,
+    padding: "12px 16px"
+  }}>
+    Know a great place? Add it for others to enjoy
+  </p>
+  <div style={{
+    display: "flex",
+    alignItems: "center",
+    background: "#FFE6D7",
+    padding: "8px 16px",
+    alignSelf: "stretch"
+  }}>
+    <div style={{
+      width: "28px",
+      height: "28px",
+      borderRadius: "50%",
+      background: "var(--color-terracotta)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center"
+    }}>
+      <Plus size={16} weight="bold" color="white" />
+    </div>
+  </div>
+</div>
+        </section>
+
+        
+      </main>
+
+      {/* ===== FOOTER ===== */}
+      <footer className="footer" style={{ background: "var(--color-footer)", padding: "24px", textAlign: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "56px", alignItems: "center" }}>
+        <div style={{ marginBottom: 24 }}>
+  <img src="/GWTD-LogoWhiteSm.svg" alt="GoWalkTheDog" style={{ height: 24 }} />
+</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "26px", alignItems: "center", fontSize: "16px", lineHeight: "1.2" }}>
+            <div style={{ display: "flex", gap: "29px", alignItems: "center" }}>
+              <a href="#" style={{ color: "var(--color-white)", textDecoration: "none" }}>Privacy Policy</a>
+              <a href="#" style={{ color: "var(--color-white)", textDecoration: "none" }}>Cookie Policy</a>
+              <a href="#" style={{ color: "var(--color-white)", textDecoration: "none" }}>Contact</a>
+            </div>
+            <p style={{ color: "var(--color-white)", margin: 0 }}>© Go Walk The Dog. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
+
+    
+
+      {/* ===== MAP VIEW ===== */}
+{showSelectionView && showMapView && directionsTarget && (
+  <div style={{ 
+    position: "fixed", 
+    top: 0, 
+    left: 0, 
+    right: 0, 
+    bottom: 0, 
+    zIndex: 50,
+    background: "#9DD87D", /* Skeleton color while map loads */
+    
+  }}>
+    <MapboxFullMap
+      space={directionsTarget}
+      userLocation={userLocation}
+      selectedSpaceNames={selectedSpaceNames}
+      allSpaces={filteredSpaces}
+      zoom={mapZoom}
+      onZoomIn={() => setMapZoom((z) => Math.min(18, z + 1))}
+      onZoomOut={() => setMapZoom((z) => Math.max(10, z - 1))}
+      onClose={handleBackToSearch}
+      isNavigating={isNavigating}
+      transportMode={selectedTransportMode}
+    />
+    
+  </div>
+)}
+       
+      {/* ===== PICK SPACE DRAWER (when multiple selected) ===== */}
+      {showPickSpaceDrawer && (
+        <>
+          <div className="drawer-overlay" onClick={() => setShowPickSpaceDrawer(false)} />
+          <div className="drawer">
+            <div className="drawer-handle" />
+            <h3 className="drawer-title">Choose a destination</h3>
+            <p style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 16 }}>
+              You have {selectedSpaceNames.length} spaces selected. Pick one to get directions.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {selectedSpaceNames.map((name) => {
+                const space = filteredSpaces.find((s) => s.name === name);
+                if (!space) return null;
+                return (
+                  <button
+                    key={name}
+                    className="transport-option"
+                    onClick={() => handlePickSpaceForDirections(space)}
+                  >
+                    <div className="transport-option-icon">
+                      <MapPin size={20} weight="fill" />
+                    </div>
+                    <div className="transport-option-content">
+                      <p className="transport-option-title">{space.name}</p>
+                      {space.km !== null && (
+                        <p className="transport-option-subtitle">{space.km.toFixed(1)} km away</p>
+                      )}
+                    </div>
+                    <CaretRight size={20} color="var(--color-text-secondary)" />
+                  </button>
+                );
+              })}
             </div>
           </div>
         </>
       )}
 
-      {/* Toast notification */}
-      {showToast && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 24,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "#111",
-            color: "#fff",
-            padding: "12px 20px",
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 500,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            zIndex: 10000,
-            animation: "slideUp 200ms ease-out",
-          }}
-        >
-          ✓ Space added successfully
-        </div>
-      )}
-
-      {/* Edit modal */}
-      {showEditModal && editingSpace && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-            zIndex: 9999,
-          }}
-          onClick={() => {
-            setShowEditModal(false);
-            setEditingSpace(null);
-          }}
-        >
-          <div
+      {/* ===== TRANSPORT MODE DRAWER ===== */}
+      {showDirectionsDrawer && !isNavigating && (
+  <>
+    <div
+      className="drawer-overlay"
+      onClick={() => setShowDirectionsDrawer(false)}
+      style={{ zIndex: 600 }}
+    />
+    <div className="drawer" style={{ zIndex: 601 }}>
+      <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+        <div className="drawer-handle" />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--spacing-lg)" }}>
+          <h3 className="drawer-title" style={{ margin: 0, fontSize: "22px" }}>Choose how to get there</h3>
+          <button
+            onClick={() => setShowDirectionsDrawer(false)}
             style={{
-              background: "#fff",
-              borderRadius: 14,
-              padding: 24,
-              maxWidth: 520,
-              width: "100%",
-              maxHeight: "80vh",
-              overflowY: "auto",
-              border: "1px solid #e6e6e6",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+              background: "none",
+              border: "none",
+              padding: 8,
+              margin: 0,
+              cursor: "pointer",
+              color: "var(--color-primary)",
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ margin: 0 }}>Edit place</h2>
+            <X size={24} weight="bold" />
+          </button>
+        </div>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {/* Walking option */}
+          <button
+            onClick={() => handleSelectTransportMode("walking")}
+            style={{ 
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+              width: "100%",
+              padding: "16px",
+              background: selectedTransportMode === "walking" ? "var(--color-card-selected)" : "var(--color-card)", 
+              border: selectedTransportMode === "walking" ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
+              borderRadius: "var(--radius-lg)",
+              cursor: "pointer",
+              textAlign: "left"
+            }}
+          >
+            <div style={{
+              width: "48px",
+              height: "48px",
+              borderRadius: "50%",
+              background: selectedTransportMode === "walking" ? "var(--color-primary)" : "var(--color-background)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0
+            }}>
+              <PersonSimpleWalk size={24} weight="bold" color={selectedTransportMode === "walking" ? "white" : "var(--color-primary)"} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-primary)", margin: 0 }}>Walking</p>
+              <p style={{ fontSize: "13px", color: "var(--color-text-primary)", margin: "4px 0 0 0" }}>Best for footpaths, bridleways</p>
+            </div>
+          </button>
+
+          {/* Driving option */}
+          <button
+            onClick={() => handleSelectTransportMode("driving")}
+            style={{ 
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+              width: "100%",
+              padding: "16px",
+              background: selectedTransportMode === "driving" ? "var(--color-card-selected)" : "var(--color-card)", 
+              border: selectedTransportMode === "driving" ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
+              borderRadius: "var(--radius-lg)",
+              cursor: "pointer",
+              textAlign: "left"
+            }}
+          >
+            <div style={{
+              width: "48px",
+              height: "48px",
+              borderRadius: "50%",
+              background: selectedTransportMode === "driving" ? "var(--color-primary)" : "var(--color-background)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0
+            }}>
+              <Car size={24} weight="bold" color={selectedTransportMode === "driving" ? "white" : "var(--color-primary)"} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-primary)", margin: 0 }}>Driving</p>
+              <p style={{ fontSize: "13px", color: "var(--color-text-primary)", margin: "4px 0 0 0" }}>Fastest route by car</p>
+            </div>
+          </button>
+
+          {/* Public transport option */}
+          <button
+            onClick={() => handleSelectTransportMode("transit")}
+            style={{ 
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+              width: "100%",
+              padding: "16px",
+              background: selectedTransportMode === "transit" ? "var(--color-card-selected)" : "var(--color-card)", 
+              border: selectedTransportMode === "transit" ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
+              borderRadius: "var(--radius-lg)",
+              cursor: "pointer",
+              textAlign: "left"
+            }}
+          >
+            <div style={{
+              width: "48px",
+              height: "48px",
+              borderRadius: "50%",
+              background: selectedTransportMode === "transit" ? "var(--color-primary)" : "var(--color-background)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0
+            }}>
+              <Train size={24} weight="bold" color={selectedTransportMode === "transit" ? "white" : "var(--color-primary)"} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-primary)", margin: 0 }}>Public transport</p>
+              <p style={{ fontSize: "13px", color: "var(--color-text-primary)", margin: "4px 0 0 0" }}>Bus, tube and train options</p>
+            </div>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </>
+)}
+
+      {/* ===== ADD SPACE DRAWER ===== */}
+      {showAddDrawer && (
+        <>
+          <div className="drawer-overlay" onClick={() => setShowAddDrawer(false)} />
+          <div className="drawer" style={{ maxHeight: "85vh", maxWidth: "800px", margin: "0 auto" }}> {/* CONTENT_MAX_WIDTH */}
+            <div className="drawer-handle" />
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <h3 className="drawer-title" style={{ margin: 0 }}>
+                Add a new space
+              </h3>
               <button
-                type="button"
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingSpace(null);
-                }}
+                onClick={() => setShowAddDrawer(false)}
                 style={{
-                  background: "transparent",
+                  background: "none",
                   border: "none",
+                  padding: 8,
+                  margin: 0,
                   cursor: "pointer",
-                  padding: 4,
-                  display: "flex",
-                  alignItems: "center",
-                  color: "#555",
                 }}
               >
-                <X size={24} weight="regular" />
+                <X size={24} color="var(--color-text-secondary)" />
               </button>
             </div>
 
-            <div style={{ display: "grid", gap: 16 }}>
-              <label>
-                <span style={{ fontWeight: 700, color: "#006947" }}>Place name</span>
-                <input
-                  value={newSpace.name}
-                  onChange={(e) =>
-                    setNewSpace({
-                      ...newSpace,
-                      name: e.target.value,
-                    })
-                  }
-                  placeholder="e.g. Peckham Rye Park – meadow"
-                  type="text"
-                />
-              </label>
+            <label>
+              Space name
+              <input
+                type="text"
+                placeholder="e.g. Dulwich Park – enclosed field"
+                value={newSpace.name}
+                onChange={(e) => setNewSpace({ ...newSpace, name: e.target.value })}
+              />
+            </label>
 
-              <div>
-                <h3>Facilities</h3>
+            <label>
+              Location (postcode or place name)
+              <input
+                type="text"
+                placeholder="e.g. SE22 9QA or Dulwich Park"
+                value={newSpace.locationText}
+                onChange={(e) => setNewSpace({ ...newSpace, locationText: e.target.value })}
+              />
+            </label>
 
-                <div
-                  className="facilities-grid"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                    gap: 8,
-                  }}
-                >
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.fenced}
-                      onChange={(e) => setNewSpace({ ...newSpace, fenced: e.target.checked })}
-                      style={{ display: "none" }}
-                    />
-                    <span className="custom-checkbox"></span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Barricade size={16} weight="regular" style={{ color: "#006947" }} />
-                      Fenced
-                    </span>
-                  </label>
-
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.unfenced}
-                      onChange={(e) => setNewSpace({ ...newSpace, unfenced: e.target.checked })}
-                      style={{ display: "none" }}
-                    />
-                    <span className="custom-checkbox"></span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <ArrowsOut size={16} weight="regular" style={{ color: "#006947" }} />
-                      Unfenced
-                    </span>
-                  </label>
-
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.partFenced}
-                      onChange={(e) => setNewSpace({ ...newSpace, partFenced: e.target.checked })}
-                      style={{ display: "none" }}
-                    />
-                    <span className="custom-checkbox"></span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <CircleHalf size={16} weight="regular" style={{ color: "#006947" }} />
-                      Part fenced
-                    </span>
-                  </label>
-
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.bins}
-                      onChange={(e) => setNewSpace({ ...newSpace, bins: e.target.checked })}
-                      style={{ display: "none" }}
-                    />
-                    <span className="custom-checkbox"></span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Trash size={16} weight="regular" style={{ color: "#006947" }} />
-                      Dog bins
-                    </span>
-                  </label>
-
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.toilets}
-                      onChange={(e) => setNewSpace({ ...newSpace, toilets: e.target.checked })}
-                      style={{ display: "none" }}
-                    />
-                    <span className="custom-checkbox"></span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Toilet size={16} weight="regular" style={{ color: "#006947" }} />
-                      Toilets
-                    </span>
-                  </label>
-
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.coffee}
-                      onChange={(e) => setNewSpace({ ...newSpace, coffee: e.target.checked })}
-                      style={{ display: "none" }}
-                    />
-                    <span className="custom-checkbox"></span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Coffee size={16} weight="regular" style={{ color: "#006947" }} />
-                      Coffee
-                    </span>
-                  </label>
-
-                  <label className="facility-option">
-                    <input
-                      type="checkbox"
-                      checked={newSpace.parking}
-                      onChange={(e) => setNewSpace({ ...newSpace, parking: e.target.checked })}
-                      style={{ display: "none" }}
-                    />
-                    <span className="custom-checkbox"></span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Car size={16} weight="regular" style={{ color: "#006947" }} />
-                      Parking
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 8 }}>
+            <div style={{ marginTop: 20 }}>
+              <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>Facilities</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setEditingSpace(null);
-                  }}
+                  className={`filter-chip ${newSpace.fenced ? "is-on" : ""}`}
+                  onClick={() => setNewSpace({ ...newSpace, fenced: !newSpace.fenced })}
                 >
-                  Cancel
+                  <Barricade size={16} weight="bold" />
+                  Fenced
                 </button>
-
                 <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() => {
-                    if (!newSpace.name.trim()) {
-                      setSpaceNamePrompt(true);
-                      return;
-                    }
-
-                    setSpaces(
-                      spaces.map((s) =>
-                        s.name === editingSpace!.name
-                          ? {
-                              ...s,
-                              name: newSpace.name.trim(),
-                              fenced: newSpace.fenced,
-                              unfenced: newSpace.unfenced,
-                              bins: newSpace.bins,
-                              toilets: newSpace.toilets,
-                              coffee: newSpace.coffee,
-                              parking: newSpace.parking,
-                            }
-                          : s
-                      )
-                    );
-
-                    setShowEditModal(false);
-                    setEditingSpace(null);
-                    setNewSpace({
-                      locationText: "",
-                      name: "",
-                      lat: "",
-                      lng: "",
-                      fenced: false,
-                      unfenced: false,
-                      partFenced: false,
-                      bins: false,
-                      toilets: false,
-                      coffee: false,
-                      parking: false,
-                    });
-                  }}
+                  className={`filter-chip ${newSpace.unfenced ? "is-on" : ""}`}
+                  onClick={() => setNewSpace({ ...newSpace, unfenced: !newSpace.unfenced })}
                 >
-                  Update space
+                  Unfenced
+                </button>
+                <button
+                  className={`filter-chip ${newSpace.partFenced ? "is-on" : ""}`}
+                  onClick={() => setNewSpace({ ...newSpace, partFenced: !newSpace.partFenced })}
+                >
+                  <CircleHalf size={16} weight="bold" />
+                  Part-fenced
+                </button>
+                <button
+                  className={`filter-chip ${newSpace.bins ? "is-on" : ""}`}
+                  onClick={() => setNewSpace({ ...newSpace, bins: !newSpace.bins })}
+                >
+                  <TrashSimple size={16} weight="bold" />
+                  Bins
+                </button>
+                <button
+                  className={`filter-chip ${newSpace.toilets ? "is-on" : ""}`}
+                  onClick={() => setNewSpace({ ...newSpace, toilets: !newSpace.toilets })}
+                >
+                  <Toilet size={16} weight="bold" />
+                  Toilets
+                </button>
+                <button
+                  className={`filter-chip ${newSpace.coffee ? "is-on" : ""}`}
+                  onClick={() => setNewSpace({ ...newSpace, coffee: !newSpace.coffee })}
+                >
+                  <Coffee size={16} weight="bold" />
+                  Coffee
+                </button>
+                <button
+                  className={`filter-chip ${newSpace.parking ? "is-on" : ""}`}
+                  onClick={() => setNewSpace({ ...newSpace, parking: !newSpace.parking })}
+                >
+                  <Car size={16} weight="bold" />
+                  Parking
                 </button>
               </div>
             </div>
+
+            <button
+              className="btn-primary"
+              onClick={handleAddSpace}
+              disabled={!newSpace.name.trim() || !newSpace.locationText.trim()}
+              style={{ width: "100%", marginTop: 24 }}
+            >
+              Add space
+            </button>
           </div>
-        </div>
+        </>
       )}
 
-      {/* Delete confirmation modal */}
-      {showDeleteModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-            zIndex: 9999,
-          }}
-          onClick={() => setShowDeleteModal(false)}
-        >
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: 14,
-              padding: "20px 24px",
-              maxWidth: 360,
-              width: "100%",
-              border: "1px solid #e6e6e6",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ fontWeight: 600, marginBottom: 16 }}>
-              Are you sure you want to delete {selectedSpaceNames.length === 1 ? "this space" : "these spaces"}?
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-              <button type="button" className="btn-secondary" onClick={() => setShowDeleteModal(false)}>
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => {
-                  const remainingSpaces = spaces.filter((s) => !selectedSpaceNames.includes(s.name));
-
-                  if (remainingSpaces.length === 0 && myLocation) {
-                    const spacesWithDistance = SPACES.map((space) => ({
-                      ...space,
-                      distance: distanceKm(myLocation.lat, myLocation.lng, space.lat, space.lng),
-                    })).sort((a, b) => a.distance - b.distance);
-
-                    setSpaces([spacesWithDistance[0] as any]);
-                  } else {
-                    setSpaces(remainingSpaces);
-                  }
-
-                  setSelectedSpaceNames([]);
-                  setShowDeleteModal(false);
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Full map modal */}
-      {showFullMap && (
-        <MapboxFullMap
-          spaces={filteredSpaces}
-          myLocation={showMyLocation ? myLocation : null}
-          selectedSpaceName={selectedSpaceName}
-          selectedSpaceNames={selectedSpaceNames}
-          onClose={() => {
-            setShowFullMap(false);
-            setRouteData(null);
-          }}
-          onGetDirections={(space) => {
-            setDirectionsSpace(space);
-            setShowDirectionsDrawer(true);
-          }}
-          routeData={routeData}
-          onChangeRoute={() => {
-            setShowFullMap(false);
-            setRouteData(null);
-            setShowDirectionsDrawer(true);
-          }}
-        />
-      )}
-
-      {/* Directions Drawer */}
-      <DirectionsDrawer
-        isOpen={showDirectionsDrawer}
-        onClose={() => setShowDirectionsDrawer(false)}
-        spaceName={directionsSpace?.name || ""}
-        spaceLat={directionsSpace?.lat || 0}
-        spaceLng={directionsSpace?.lng || 0}
-        userLocation={myLocation}
-        onRequestLocation={getMyLocation}
-        onShowRoute={(route) => {
-          setRouteData(route);
-          setShowFullMap(true);
-          setShowDirectionsDrawer(false);
-        }}
-      />
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideInFromRight {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-        @keyframes slideUp {
-          from { transform: translate(-50%, 20px); opacity: 0; }
-          to { transform: translate(-50%, 0); opacity: 1; }
-        }
-      `}</style>
-
-      {/* Floating Action Button (FAB) */}
-      <button
-        type="button"
-        onClick={() => setShowAddDrawer(true)}
-        style={{
-          position: "fixed",
-          bottom: fabBottom,
-          right: 24,
-          width: 56,
-          height: 56,
-          borderRadius: "50%",
-          background: "#DD6616",
-          color: "#fff",
-          border: "none",
-          boxShadow: "0 4px 16px rgba(221, 102, 22, 0.3)",
-          fontSize: 28,
-          fontWeight: 300,
-          lineHeight: 0,
-          paddingTop: 2,
-          cursor: "pointer",
-          zIndex: 100,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          transition: "all 0.2s ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "scale(1.1)";
-          e.currentTarget.style.boxShadow = "0 6px 20px rgba(221, 102, 22, 0.4)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "scale(1)";
-          e.currentTarget.style.boxShadow = "0 4px 16px rgba(221, 102, 22, 0.3)";
-        }}
-        aria-label="Add a new place"
-      >
-        +
-      </button>
-    </main>
-    
-    <Footer />
+      {/* ===== TOAST ===== */}
+      {showToast && <div className="toast">{toastMessage}</div>}
     </div>
   );
 }

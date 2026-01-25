@@ -1,490 +1,974 @@
 @import "mapbox-gl/dist/mapbox-gl.css";
 @import "tailwindcss";
 
-/* Ensure embedded map fills the container with NO gaps */
-#map,
-#map > * {
-  height: 216px !important;
-  display: block !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
+/* =============================================================================
+   GO WALK THE DOG - GLOBAL STYLES
+   =============================================================================
+   
+   TABLE OF CONTENTS:
+   1. CSS Variables (Colors, Typography, Spacing, etc.)
+   2. Base Styles
+   3. Typography
+   4. Buttons
+   5. Filter Chips
+   6. Space Cards
+   7. Form Elements
+   8. Header
+   9. Footer
+   10. FAB (Floating Action Button)
+   11. Modals & Drawers
+   12. Map View
+   13. Utilities & Animations
+   
+   ============================================================================= */
 
-#map .mapboxgl-map,
-#map .mapboxgl-canvas,
-#map .mapboxgl-canvas-container,
-#map iframe {
-  height: 100% !important;
-  width: 100% !important;
-  display: block !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
 
-/* Remove any accidental spacing under the map */
-#map {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
-  line-height: 0 !important;
-}
-
-/* =========================
-   Theme tokens
-   ========================= */
+/* =============================================================================
+   1. CSS VARIABLES
+   ============================================================================= */
 
 :root {
-  /* Font families from Next.js */
-  --font-display: var(--font-fraunces);
-  --font-body: var(--font-outfit);
+  /* -------------------------------------------------------------------------
+     COLORS - Primary
+     ------------------------------------------------------------------------- */
+  --color-primary: #006947;               /* Primary green - buttons, links */
+  --color-primary-dark: #004D33;          /* Darker green - footer, selected heart */
   
-  /* Shadcn-style tokens */
-  --background: 48 50% 98%;
-  --foreground: 160 25% 12%;
-  --card: 0 0% 100%;
-  --card-foreground: 160 25% 12%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 160 25% 12%;
-  --primary: 158 55% 42%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 48 45% 94%;
-  --secondary-foreground: 160 25% 20%;
-  --muted: 48 30% 95%;
-  --muted-foreground: 160 15% 40%;
-  --accent: 28 85% 58%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 72% 55%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 48 30% 88%;
-  --input: 48 30% 88%;
-  --ring: 158 55% 42%;
-  --radius: 0.75rem;
+  /* -------------------------------------------------------------------------
+     COLORS - Text
+     ------------------------------------------------------------------------- */
+  --color-text-primary: #333333;          /* Main body text */
+  --color-text-heading: #004D33;          /* H1, H2 headings */
+  --color-text-label: #02301F;            /* H3, labels */
+  --color-text-link: #006947;             /* Text links on light backgrounds */
+  --color-text-white: #FFFFFF;            /* Text on dark backgrounds */
   
-  /* Custom semantic tokens */
-  --forest: 158 55% 42%;
-  --forest-light: 158 50% 52%;
-  --forest-dark: 158 60% 28%;
-  --cream: 48 50% 98%;
-  --cream-dark: 48 45% 94%;
-  --terracotta: 28 85% 58%;
-  --terracotta-light: 28 90% 72%;
-  --bark: 30 30% 28%;
-  --sky: 200 70% 55%;
+  /* -------------------------------------------------------------------------
+     COLORS - Accent
+     ------------------------------------------------------------------------- */
+  --color-terracotta: #D35603;            /* Orange accent - FAB, selected pins */
+  --color-background: #FDF1EB;            /* Cream page background */
+  --color-card-selected: #F9FFF6;         /* Selected space card background */
   
-  /* Shadows */
-  --shadow-soft: 0 4px 24px -4px hsl(160 25% 12% / 0.06);
-  --shadow-elevated: 0 12px 48px -12px hsl(160 25% 12% / 0.12);
-  --shadow-glow: 0 0 40px hsl(158 55% 42% / 0.15);
+  /* -------------------------------------------------------------------------
+     COLORS - Map Pins
+     ------------------------------------------------------------------------- */
+  --color-pin-user: #31A6FF;              /* Your location pin (blue) */
+  --color-pin-space: #265129;             /* Dog walking space pin (dark green) */
+  --color-pin-selected: #D35603;          /* Selected space pin (orange) */
   
-  /* Gradients */
-  --gradient-hero: linear-gradient(135deg, hsl(158 55% 42%) 0%, hsl(158 50% 52%) 100%);
-  --gradient-warm: linear-gradient(135deg, hsl(48 50% 98%) 0%, hsl(48 45% 94%) 100%);
-  --gradient-sunset: linear-gradient(135deg, hsl(28 85% 58%) 0%, hsl(28 90% 72%) 100%);
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-/* =========================
-   Base page styles
-   ========================= */
-
-   body {
-    background: hsl(48, 71%, 97%);
-    color: #02301F;
-    font-family: var(--font-outfit), sans-serif;
-  }
-
-/* =========================
-   Type hierarchy
-   ========================= */
-
-   h1 {
-    font-family: var(--font-fraunces), serif;
-    font-weight: 600;
-    font-size: 36px;
-    line-height: 1.2;
-    margin: 0 0 8px 0;
-    color: #006947;
-  }
+  /* -------------------------------------------------------------------------
+     COLORS - UI Elements
+     ------------------------------------------------------------------------- */
+  --color-white: #FFFFFF;
+  --color-card: #FFFFFF;
+  --color-border: #DDDDDD;                /* Default borders */
+  --color-border-light: #EEEEEE;
+  --color-footer: #004D33;                /* Footer background */
+  --color-overlay: rgba(0, 0, 0, 0.25);   /* Modal overlay */
   
-  h2 {
-    font-family: var(--font-fraunces), serif;
-    font-weight: 600;
-    font-size: 22px;
-    line-height: 1.25;
-    margin: 20px 0 8px 0;
-    color: #006947;
-  }
-
-  h3 {
-    font-family: var(--font-fraunces), serif;
-    font-weight: 600;
-    font-size: 20px;
-    line-height: 1.3;
-    margin: 8px 0 6px 0;
-    color: #006947;
-  }
-
-/* =========================
-   Form affordance
-   ========================= */
-
-   label {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-family: var(--font-fraunces), serif;
-    font-weight: 200;
-    font-size: 15px;
-    margin-top: 8px;
-    color: #02301F;
-  }
-
-  input[type="text"],
-  input[type="number"],
-  textarea {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 10px;
-    border: 1px solid hsl(var(--border));
-    border-radius: 6px;
-    font-size: 14px;
-    line-height: 1.4;
-    font-family: var(--font-outfit), sans-serif;
-    background: hsl(var(--card));
-    color: #02301F;
-  }
-
-  input[type="text"]:focus,
-  input[type="number"]:focus,
-  textarea:focus {
-    outline: 2px solid #006947;
-    outline-offset: 0;
-    border-color: #006947;
-  }
-
-input[type="text"],
-input[type="number"] {
-  margin-top: 6px;
-}
-
-textarea {
-  resize: vertical;
-}
-
-/* =========================
-   Default button (fallback)
-   ========================= */
-
-   button {
-    display: inline-block;
-    margin-top: 8px;
-    padding: 5px 10px;
-    border-radius: 8px;
-    border: none;
-    background: #006947;
-    color: #fff;
-    font-size: 12px;
-    font-family: var(--font-outfit), sans-serif;
-    cursor: pointer;
-    font-weight: 500;
-  }
-
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* =========================
-   Button system
-   ========================= */
-
-   button.btn-primary {
-    background: #006947;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 6px 14px;
-    font-size: 13px;
-    font-weight: 500;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
-  }
-
-button.btn-primary:disabled {
-    background: #ccc;
-    color: #888;
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
+  /* -------------------------------------------------------------------------
+     COLORS - Filter Chips
+     ------------------------------------------------------------------------- */
+  --color-chip-bg: #FBFBFB;               /* Default chip background */
+  --color-chip-bg-hover: #EBEBEB;         /* Chip hover background */
+  --color-chip-bg-selected: #006947;      /* Selected chip background */
+  --color-chip-border: #DDDDDD;           /* Default chip border */
+  --color-chip-border-hover: #006947;     /* Chip hover/selected border */
   
-  button.btn-primary:hover {
-    background: #004d33;
-  }
-
-button.btn-primary:focus-visible {
-  outline: 2px solid hsl(var(--forest));
-  outline-offset: 2px;
+  /* -------------------------------------------------------------------------
+     TYPOGRAPHY - Font Families
+     ------------------------------------------------------------------------- */
+  --font-display: var(--font-fraunces), Georgia, serif;   /* Headings */
+  --font-body: var(--font-outfit), -apple-system, BlinkMacSystemFont,sans-serif; /* Body text */
+  
+  /* -------------------------------------------------------------------------
+     SPACING
+     ------------------------------------------------------------------------- */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  --spacing-3xl: 32px;
+  --spacing-4xl: 40px;
+  
+  /* -------------------------------------------------------------------------
+     BORDERS & SHADOWS
+     ------------------------------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 999px;
+  
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 12px 48px -12px rgba(0, 77, 51, 0.12);
+  --shadow-header: 0px 4px 12px 0px rgba(11, 105, 71, 0.12);
+  
+  /* -------------------------------------------------------------------------
+     TRANSITIONS
+     ------------------------------------------------------------------------- */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
 }
 
-button.btn-primary:active {
-  transform: scale(0.98);
+
+/* =============================================================================
+   2. BASE STYLES
+   ============================================================================= */
+
+* {
+  box-sizing: border-box;
 }
 
-button.btn-primary:disabled {
-  background: hsl(var(--muted));
-  color: hsl(var(--muted-foreground));
-  cursor: not-allowed;
-  transform: none;
-}
-
-button.btn-secondary {
-  background: #fff;
-  color: #006947;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-size: 13px;
+body {
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-outfit), -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
   font-weight: 500;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
-}
-
-
-button.btn-secondary:hover {
-  background: hsl(var(--secondary));
-  border-color: #006947;
-}
-
-button.btn-secondary:focus-visible {
-  outline: 2px solid #006947;
-  outline-offset: 2px;
-}
-
-button.btn-secondary:active {
-  transform: scale(0.98);
-}
-
-button.btn-secondary:disabled {
-  background: hsl(var(--muted));
-  color: hsl(var(--muted-foreground));
-  border-color: hsl(var(--border));
-  cursor: not-allowed;
-  transform: none;
-}
-
-button.btn-text {
-  background: none;
-  color: hsl(var(--muted-foreground));
-  border: none;
+  line-height: 1.3;
+  margin: 0;
   padding: 0;
-  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+
+/* =============================================================================
+   3. TYPOGRAPHY
+   ============================================================================= */
+
+/* H1 - Main page heading (e.g., "Find great places to walk your dog")
+   Fraunces SemiBold 38px/120%, TERRACOTTA/ORANGE */
+   h1 {
+    font-family: var(--font-fraunces), Georgia, serif;
+    font-size: 38px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #D35603;
+    margin: 0 0 var(--spacing-sm) 0;
+  }
+  
+  /* H2 - Section headings (e.g., "Nearby places")
+     Fraunces SemiBold 22px/125%, GREEN */
+  h2 {
+    font-family: var(--font-fraunces), Georgia, serif;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #004D33;
+    margin: var(--spacing-xl) 0 var(--spacing-sm) 0;
+  }
+  
+  /* H3 - Card titles, modal headings
+     Fraunces SemiBold 20px/130%, GREEN */
+  h3 {
+    font-family: var(--font-fraunces), Georgia, serif;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--color-primary);
+    margin: 0;
+  }
+
+/* Body text - Default paragraph style
+   Outfit Medium 14px/130% */
+p {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+/* Label text - Form labels, space card names
+   Fraunces SemiBold 16px/140% */
+.label {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text-label);
+}
+
+/* Text links on light backgrounds
+   Outfit Medium 14px/140%, underlined */
+a,
+.text-link {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--color-text-link);
   text-decoration: underline;
   text-underline-offset: 3px;
-  transition: color 0.15s ease;
+  cursor: pointer;
+  transition: color var(--transition-fast);
 }
 
-button.btn-text:hover {
-  color: #02301F;
+a:hover,
+.text-link:hover {
+  color: var(--color-primary-dark);
 }
 
-button.btn-text:focus-visible {
-  outline: 2px solid hsl(var(--forest));
-  outline-offset: 2px;
-  border-radius: 2px;
+
+/* =============================================================================
+   4. BUTTONS
+   ============================================================================= */
+
+/* Base button reset */
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
 }
 
-button.btn-text:disabled {
-  color: hsl(var(--muted-foreground));
+/* Primary Button (e.g., "Get directions", "Sign up")
+   Outfit Medium 14px/140%, green background */
+button.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  height: 40px; /* DESIGN SYSTEM: Standard button height */
+  justify-content: center;
+  gap: var(--spacing-sm);
+  background: var(--color-primary);
+  color: var(--color-text-white);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+button.btn-primary:hover {
+  background: var(--color-primary-dark);
+}
+
+button.btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* =========================
-   Filter chips
-   ========================= */
+/* Secondary Button (e.g., "Log in")
+   Outfit Medium 14px/140%, white background with border */
+button.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  height: 40px; /* DESIGN SYSTEM: Standard button height */
+  justify-content: center;
+  gap: var(--spacing-sm);
+  background: var(--color-white);
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: var(--spacing-md) var(--spacing-xl);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
 
-.filter-row {
+button.btn-secondary:hover {
+  border-color: var(--color-primary);
+  background: var(--color-card-selected);
+}
+
+/* Text Button (e.g., "Skip", "Cancel")
+   Outfit Medium 14px, no background */
+button.btn-text {
+  color: var(--color-text-link);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+button.btn-text:hover {
+  color: var(--color-primary-dark);
+}
+
+/* Back Button (e.g., "Back to search")
+   With left arrow icon */
+button.btn-back {
+  display: inline-flex;
+  align-items: center;
+  height: 40px; /* DESIGN SYSTEM: Standard button height */
+  gap: var(--spacing-xs);
+  background: var(--color-white);
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 500;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+button.btn-back:hover {
+  background: var(--color-card-selected);
+}
+
+
+/* =============================================================================
+   5. FILTER CHIPS
+   ============================================================================= */
+
+/* Filter chips container */
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+/* Individual filter chip
+   Outfit Medium 13px/140% */
+button.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--color-chip-bg);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 5px 10px;
+  border: 1px solid var(--color-chip-border);
+  border-radius: var(--radius-xl);
+  transition: all var(--transition-fast);
+}
+
+/* Filter chip - Hover state */
+button.filter-chip:hover {
+  background: var(--color-chip-bg-hover);
+  border-color: var(--color-chip-border-hover);
+}
+
+/* Filter chip - Selected state */
+button.filter-chip.is-on {
+  background: var(--color-chip-bg-selected);
+  border-color: var(--color-chip-bg-selected);
+  color: var(--color-text-white);
+}
+
+button.filter-chip.is-on svg {
+  color: var(--color-text-white);
+}
+
+
+/* =============================================================================
+   6. SPACE CARDS
+   ============================================================================= */
+
+/* Space card container */
+.space-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.space-card:hover {
+  border-color: var(--color-primary);
+}
+
+/* Space card - Selected state */
+.space-card.selected {
+  background: var(--color-card-selected);
+  border: 2px solid var(--color-primary);
+}
+
+/* Space card header (name + heart) */
+.space-card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 12px;
+  gap: var(--spacing-md);
 }
 
-.filter-chips {
-  flex: 1;
+/* Space card name
+   Fraunces SemiBold 16px/140% */
+.space-card-name {
+  font-family: var(--font-fraunces), Georgia, serif !important;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-primary);
+  margin: 0 0 6px 0;
+}
+
+/* Space card distance
+   Outfit Medium 14px/130% */
+.space-card-distance {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+/* Heart icon button */
+.heart-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-border);
+  transition: color var(--transition-fast);
+}
+
+.heart-btn:hover {
+  color: var(--color-primary);
+}
+
+.heart-btn.favorited {
+  color: var(--color-primary-dark);
+}
+
+/* Facilities toggle link */
+.facilities-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-link);
+  cursor: pointer;
+  margin-top: var(--spacing-sm);
+}
+
+.facilities-toggle svg {
+  color: var(--color-text-link);
+}
+
+/* Facilities tags container */
+.space-card-facilities {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-start;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs); /* Tighter spacing above facilities */
 }
 
-button.filter-chip {
-  margin-top: 0;
-  background: #F5F5F5;
-  color: #333;
-  border: 1px solid #E5E5E5;
-  border-radius: 999px;
-  padding: 5px 10px;
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
+/* Individual facility tag */
+.facility-tag {
   display: inline-flex;
-  flex-direction: row;
   align-items: center;
-  gap: 5px;
-  white-space: nowrap;
+  gap: 4px;
+  font-size: 13px;
   font-weight: 500;
+  color: var(--color-text-primary);
+  background: var(--color-chip-bg);
+  padding: 5px 10px;
+  border: 1px solid var(--color-chip-border);
+  border-radius: var(--radius-xl);
 }
 
-button.filter-chip svg {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
+.facility-tag svg {
+  color: var(--color-primary);
 }
 
-button.filter-chip:hover {
-  background: #EBEBEB;
-  border-color: #006947;
+
+/* =============================================================================
+   7. FORM ELEMENTS
+   ============================================================================= */
+
+/* Form labels
+   Fraunces Regular 15px */
+label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--color-text-label);
 }
 
-button.filter-chip.is-on {
-  background: #006947;
-  color: #fff;
-  border-color: #006947;
+/* Text inputs
+   Outfit Medium 14px/130% */
+input[type="text"],
+input[type="number"],
+textarea {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--color-text-label);
+  background: var(--color-card);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition-fast);
 }
 
-button.filter-chip:focus-visible {
-  outline: 2px solid #006947;
-  outline-offset: 2px;
+input[type="text"]:focus,
+input[type="number"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
 }
-/* =========================
-   Facilities grid
-   ========================= */
 
-   .custom-checkbox {
-    width: 20px;
-    height: 20px;
-    border: 2px solid #ddd;
-    border-radius: 50%;
-    background: #fff;
-    flex-shrink: 0;
-    position: relative;
-    transition: all 0.2s ease;
-  }
-  
-  .facility-option input[type="checkbox"]:checked + .custom-checkbox {
-    background: #006947;
-    border-color: #006947;
-  }
-  
-  .facility-option input[type="checkbox"]:checked + .custom-checkbox::after {
-    content: "";
-    position: absolute;
-    left: 6px;
-    top: 2px;
-    width: 5px;
-    height: 10px;
-    border: solid white;
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-  }
-  
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-primary);
+  opacity: 0.6;
+}
 
-/* =========================
-   Utility buttons
-   ========================= */
 
-   button.btn-location {
-    margin-top: 0;
-    display: inline-flex;
+/* =============================================================================
+   8. HEADER
+   ============================================================================= */
+
+.header {
+  background: var(--color-white);
+  padding: 20px 0;
+  box-shadow: var(--shadow-header);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-content {
+  max-width: 848px;
+  padding: 0 24px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+
+/* =============================================================================
+   9. FOOTER
+   ============================================================================= */
+
+.footer {
+  background: var(--color-footer);
+  padding: var(--spacing-3xl) var(--spacing-2xl);
+  text-align: center;
+}
+
+.footer-content {
+  max-width: 800px; /* CONTENT_MAX_WIDTH */
+  margin: 0 auto;
+}
+
+/* Footer links
+   Outfit Medium 14px/140%, white, underlined */
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-2xl);
+  margin-top: var(--spacing-2xl);
+}
+
+.footer-links a {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--color-text-white);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.footer-links a:hover {
+  opacity: 0.8;
+}
+
+/* Footer copyright */
+.footer-copyright {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-white);
+  opacity: 0.8;
+  margin-top: var(--spacing-xl);
+}
+
+
+/* =============================================================================
+   10. FAB (FLOATING ACTION BUTTON)
+   ============================================================================= */
+
+/* FAB - "Add Place" button
+   Positioned above footer, never overlaps */
+   .fab {
+    position: sticky;
+    bottom: 48px;
+    margin-left: auto;
+    margin-right: 0;
+    margin-top: -100px;
+    margin-bottom: 24px;
+    width: fit-content;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 6px;
-    background: transparent;
-    color: #02301F;
-  border: none;
-  padding: 4px 6px;
-  font-size: 13px;
-  line-height: 1;
+    gap: var(--spacing-xs);
+    z-index: 100;
+    cursor: pointer;
+  }
+
+/* FAB circle with plus icon */
+.fab-circle {
+  width: 48px;
+  height: 48px;
+  background: var(--color-terracotta);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-elevated);
+  transition: transform var(--transition-fast);
+}
+
+.fab-circle:hover {
+  transform: scale(1.05);
+}
+
+.fab-circle svg {
+  color: var(--color-text-white);
+}
+
+/* FAB label
+   Outfit SemiBold 10px, all caps, GREEN text */
+   .fab-label {
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--color-primary);
+    letter-spacing: 0.5px;
+  }
+
+
+/* =============================================================================
+   11. MODALS & DRAWERS
+   ============================================================================= */
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn var(--transition-normal) ease;
+}
+
+/* Modal content box */
+.modal-content {
+  background: var(--color-card);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-3xl) var(--spacing-2xl);
+  max-width: 400px;
+  width: calc(100% - 48px);
+  box-shadow: var(--shadow-elevated);
+  animation: slideUp var(--transition-normal) ease;
+}
+
+/* Modal title
+   Fraunces SemiBold 20px, terracotta */
+.modal-title {
+  font-family: var(--font-fraunces), Georgia, serif !important;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-primary);
+  margin: 0 0 var(--spacing-lg) 0;
+}
+
+/* Modal body text */
+.modal-text {
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-xl) 0;
+}
+
+/* Modal actions (buttons) */
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.modal-actions button {
+  width: 100%;
+}
+
+/* Bottom drawer */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  z-index: 1000;
+  animation: fadeIn var(--transition-normal) ease;
+}
+
+.drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-card);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: var(--spacing-xl) var(--spacing-2xl) var(--spacing-3xl);
+  max-height: 70vh;
+  overflow-y: auto;
+  z-index: 1001;
+  animation: slideUpDrawer 0.6s cubic-bezier(0.16, 1, 0.3, 1); /* Smooth glide animation */
+}
+
+.drawer-handle {
+  width: 40px;
+  height: 4px;
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  margin: 0 auto var(--spacing-xl);
+}
+
+/* Drawer title
+   Fraunces SemiBold 22px */
+.drawer-title {
+  font-family: var(--font-fraunces), Georgia, serif !important;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-primary);
+  margin: 0 0 var(--spacing-lg) 0;
+}
+
+
+/* =============================================================================
+   12. MAP VIEW
+   ============================================================================= */
+
+.map-view {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: var(--color-background);
+}
+
+.map-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* Map header overlay */
+.map-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: var(--spacing-lg) var(--spacing-2xl);
+  z-index: 10;
+  box-shadow: var(--shadow-header);
+}
+
+.map-header.compact {
+  padding: var(--spacing-md) var(--spacing-2xl);
+}
+
+.map-header-content {
+  max-width: 800px; /* CONTENT_MAX_WIDTH */
+  margin: 0 auto;
+}
+
+/* Map zoom controls */
+.map-controls {
+  position: absolute;
+  top: 120px;
+  right: var(--spacing-2xl);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.map-control-btn {
+  width: 44px;
+  height: 44px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+  transition: all var(--transition-fast);
 }
 
-button.btn-location:hover {
-  background: hsl(var(--secondary));
+.map-control-btn:hover {
+  border-color: var(--color-primary);
+  background: var(--color-card-selected);
 }
 
-button.btn-location:before {
-  content: "ðŸ“";
-  font-size: 18px;
-  line-height: 1;
-  display: inline-block;
+/* Back button on map */
+.map-back-btn {
+  position: absolute;
+  top: 120px;
+  left: var(--spacing-2xl);
+  z-index: 10;
 }
 
-button.btn-delete {
-  margin-top: 0;
+/* Directions steps */
+.directions-step {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.directions-step:last-child {
+  border-bottom: none;
+}
+
+.step-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--color-background);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.step-instruction {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.step-distance {
+  font-size: 12px;
+  color: var(--color-text-primary);
+  opacity: 0.7;
+  margin: var(--spacing-xs) 0 0 0;
+}
+
+
+/* =============================================================================
+   13. UTILITIES & ANIMATIONS
+   ============================================================================= */
+
+/* Page layout */
+.page-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  padding: 24px;
+  max-width: 848px;
+  padding: 0 24px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Pagination - "See X more" link */
+.pagination-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: transparent;
-  color: #02301F;
+  gap: var(--spacing-xs);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  margin-top: var(--spacing-lg);
+}
+
+.pagination-link:hover {
+  color: var(--color-primary-dark);
+}
+/* Pagination controls (arrows and page info) */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+}
+
+.pagination-btn {
+  background: none;
   border: none;
-  padding: 4px 6px;
-  font-size: 13px;
-  line-height: 1;
+  padding: 4px;
   cursor: pointer;
-  border-radius: 8px;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast);
 }
 
-button.btn-delete:hover {
-  background: hsl(var(--secondary));
+.pagination-btn:hover:not(:disabled) {
+  color: var(--color-primary);
 }
 
-button.btn-delete:before {
-  content: "ðŸ—‘";
-  font-size: 16px;
-  line-height: 1;
-  display: inline-block;
+.pagination-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
-/* =========================
-   Add control
-   ========================= */
-
-   button.btn-add-circle {
-    width: 36px;
-    height: 36px;
-    border-radius: 999px;
-    border: 1px solid hsl(var(--border));
-    background: hsl(var(--card));
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding-top: 2px;
-    color: #02301F;
-  font-weight: 700;
-  font-size: 22px;
-  line-height: 0.7;
-  cursor: pointer;
-  user-select: none;
+.pagination-info {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
 }
 
-button.btn-add-circle.is-open {
-  border-color: #006947;
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-button.btn-add-circle:hover {
-  border-color: #006947;
-  background: hsl(var(--secondary));
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* =========================
-   Map marker animations
-   ========================= */
+@keyframes slideUpDrawer {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
 
 @keyframes pulse {
   0%, 100% {
@@ -500,163 +984,58 @@ button.btn-add-circle:hover {
 .marker-pulse {
   animation: pulse 2s ease-in-out infinite;
 }
-@keyframes pinBounce {
-  0%, 100% { transform: scale(1); }
-  25% { transform: scale(1.15); }
-  50% { transform: scale(1); }
-  75% { transform: scale(1.08); }
-}
 
-
-@keyframes bounceWiggle {
-  0% {
-    transform: translateY(-20px) scale(0.8);
+@keyframes slideDownPanel {
+  from {
     opacity: 0;
+    transform: translateY(-100%);
   }
-  40% {
-    transform: translateY(0) scale(1.05);
+  to {
     opacity: 1;
-  }
-  60% {
-    transform: translateY(-5px) scale(1) rotate(-3deg);
-  }
-  75% {
-    transform: translateY(0) scale(1) rotate(3deg);
-  }
-  85% {
-    transform: rotate(-2deg);
-  }
-  95% {
-    transform: rotate(1deg);
-  }
-  100% {
-    transform: translateY(0) scale(1) rotate(0);
+    transform: translateY(0);
   }
 }
 
-.marker-bounce {
-  animation: bounceWiggle 0.8s ease-out forwards;
-}
-/* Facility option labels - match filter chip styling */
-.facility-option {
-  font-family: var(--font-outfit), sans-serif;
-  display: inline-flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border: 1px solid #E5E5E5;
-  background: #F5F5F5;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 12px;
-  line-height: 1;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.facility-option:hover {
-  background: #EBEBEB;
-  border-color: #006947;
-}
-
-.facility-option svg {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-}
-
-.facility-option span {
-  line-height: 1;
-}
-/* Custom round checkboxes */
-input[type="checkbox"] {
-  appearance: none !important;
-  -webkit-appearance: none !important;
-  -moz-appearance: none !important;
-  width: 20px !important;
-  height: 20px !important;
-  border: 2px solid #ddd !important;
-  border-radius: 50% !important;
-  cursor: pointer;
-  position: relative;
-  background: white !important;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-input[type="checkbox"]:checked {
-  background: #006947 !important;
-  border-color: #006947 !important;
-}
-
-/* Hide default checkmark, we'll use Phosphor icon instead */
-input[type="checkbox"]::after {
-  display: none;
-}
-/* Custom popup styling - fill entire flag with color */
+/* Mapbox overrides */
 .mapboxgl-popup-content {
   padding: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
 }
 
-.mapboxgl-popup-tip {
-  border-top-color: #dcfce7 !important;
-}
 
-.custom-popup.selected-popup .mapboxgl-popup-tip {
-  border-top-color: #dcfce7 !important;
-}
+/* =============================================================================
+   RESPONSIVE
+   ============================================================================= */
 
-.custom-popup.unselected-popup .mapboxgl-popup-tip {
-  border-top-color: #f3f4f6 !important;
-}
-/* Form validation error states */
-label input.error,
-label textarea.error {
-  border: 2px solid #A71111 !important;
-  border-color: #A71111 !important;
-  outline: none !important;
-}
+@media (max-width: 640px) {
+  /* RESPONSIVE: Max-width becomes 100% on mobile */
+  .header-content,
+  .main-content,
+  .footer-content {
+    max-width: 100%;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 
-label input.error:focus,
-label textarea.error:focus {
-  border-color: #A71111 !important;
-}
-
-div.error-message {
-  color: #A71111 !important;
-  font-size: 13px;
-  margin-top: 4px;
-  font-family: var(--font-outfit), sans-serif !important;
-  display: block;
-  font-weight: 400;
-}
-
-input.warning,
-textarea.warning {
-  border: 2px solid #D78203 !important;
-}
-
-.warning-message {
-  color: #D78203;
-  font-size: 13px;
-  margin-top: 4px;
-  font-family: var(--font-outfit), sans-serif;
-}
-/* Input and placeholder text styling */
-label input,
-label textarea,
-input[type="text"],
-textarea {
-  font-family: var(--font-outfit), sans-serif !important;
-  font-weight: 400 !important;
-}
-
-input::placeholder,
-textarea::placeholder {
-  font-family: var(--font-outfit), sans-serif !important;
-  font-weight: 400;
+  h1 {
+    font-size: 32px;
+  }
+  
+  .main-content {
+    padding: var(--spacing-lg);
+  }
+  
+  .fab {
+    bottom: 100px;
+    right: var(--spacing-lg);
+  }
+  
+  .map-controls {
+    right: var(--spacing-lg);
+  }
+  
+  .map-back-btn {
+    left: var(--spacing-lg);
+  }
 }

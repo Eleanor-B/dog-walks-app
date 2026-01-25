@@ -1,22 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Fraunces, Outfit } from "next/font/google";
-import "leaflet/dist/leaflet.css";
+import { Fraunces, Outfit } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin"],
-  weight: ["200", "600", "700"],
+  weight: ["400", "600", "700"],
 });
 
 const outfit = Outfit({
@@ -26,8 +15,8 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "GoWalkTheDog",
-  description: "Find great places to walk your dog",
+  title: "GoWalk - Find Dog-Friendly Spaces",
+  description: "Discover the best dog walking spots near you",
 };
 
 export default function RootLayout({
@@ -37,9 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} ${outfit.variable} antialiased`}
-      >
+      <body className={`${fraunces.variable} ${outfit.variable}`}>
         {children}
       </body>
     </html>
