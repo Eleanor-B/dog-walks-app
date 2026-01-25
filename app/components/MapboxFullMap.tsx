@@ -140,12 +140,12 @@ export default function MapboxFullMap({
             color: #006947;
             white-space: nowrap;
           ">
-            ${space.name}
+            ${space?.name || "Selected place"}
           </div>
         `);
 
         const marker = new mapboxgl.Marker({ element: pinEl })
-          .setLngLat([space.lng, space.lat])
+          .setLngLat([space!.lng, space!.lat])
           .setPopup(popup)
           .addTo(map);
 
