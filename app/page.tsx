@@ -712,10 +712,10 @@ export default function Home() {
                 <>
                   <span style={{ fontSize: "13px", color: "#666" }}>{user.email}</span>
                   <button
-                    className="btn-text"
+                    className="btn-header-text"
                     onClick={async () => {
                       await supabase.auth.signOut();
-                      window.location.reload();
+                      window.location.href = "/";
                     }}
                   >
                     Log out
@@ -950,10 +950,10 @@ export default function Home() {
         <div className="header-actions">
           {user ? (
             <button
-              className="btn-text"
+              className="btn-header-text"
               onClick={async () => {
                 await supabase.auth.signOut();
-                window.location.reload();
+                window.location.href = "/";
               }}
               style={{ margin: 0, color: "#006947" }}
             >
@@ -1275,8 +1275,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Footer */}
-      <AppFooter />
+     
       {/* Cookie Consent */}
       <CookieBanner />
       {/* Toast */}

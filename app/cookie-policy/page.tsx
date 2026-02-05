@@ -41,7 +41,7 @@ export default function CookiePolicy() {
             Back to home
           </button>
 
-          <h1>Cookie Policy</h1>
+          <h1 style={{ marginBottom: 16 }}>Cookie Policy</h1>
 
           <p
             style={{

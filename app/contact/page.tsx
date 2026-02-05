@@ -41,7 +41,7 @@ export default function Contact() {
             Back to home
           </button>
 
-          <h1>Contact</h1>
+          <h1 style={{ marginBottom: 16 }}>Contact</h1>
 
           <p
             style={{

@@ -41,7 +41,7 @@ export default function PrivacyPolicy() {
             Back to home
           </button>
 
-          <h1>Privacy Policy</h1>
+          <h1 style={{ marginBottom: 16 }}>Privacy Policy</h1>
 
           <p
             style={{

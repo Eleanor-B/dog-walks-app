@@ -6,16 +6,13 @@ export default function CookieBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Check if user already made a choice
     try {
       const consent = localStorage.getItem("gwtd-cookie-consent");
       if (!consent) {
-        // Small delay so banner doesn't flash on load
         const timer = setTimeout(() => setVisible(true), 800);
         return () => clearTimeout(timer);
       }
     } catch {
-      // localStorage unavailable - show banner
       setVisible(true);
     }
   }, []);
@@ -37,16 +34,16 @@ export default function CookieBanner() {
   if (!visible) return null;
 
   return (
-    <div className="cookie-banner" role="dialog" aria-label="Cookie consent">
-      <p>
+    <div className={`cookie-banner ${visible ? "is-visible" : ""}`} role="dialog" aria-label="Cookie consent">
+      <p className="cookie-text">
         We use cookies to improve your experience and for analytics.{" "}
-        <a href="/privacy-policy">Learn more</a>
+        <a href="/privacy-policy" className="cookie-link">Learn more</a>
       </p>
-      <div className="cookie-banner-actions">
-        <button className="cookie-decline-btn" onClick={handleDecline}>
+      <div className="cookie-actions">
+        <button className="cookie-decline" onClick={handleDecline}>
           Decline
         </button>
-        <button className="cookie-accept-btn" onClick={handleAccept}>
+        <button className="cookie-accept" onClick={handleAccept}>
           Accept
         </button>
       </div>
