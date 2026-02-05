@@ -1,0 +1,190 @@
+"use client";
+
+import {
+  Heart,
+  Pencil,
+  NavigationArrow,
+  X,
+  Barricade,
+  TrashSimple,
+  Toilet,
+  Coffee,
+  Car,
+  CircleHalf,
+  MapPin,
+  Info,
+  ArrowsOut,
+  Crosshair,
+} from "@phosphor-icons/react";
+import type { Park } from "../page";
+
+type Location = {
+  lat: number;
+  lng: number;
+};
+
+type Props = {
+  park: Park;
+  userLocation: Location | null;
+  isFavourite: boolean;
+  canEdit: boolean;
+  onClose: () => void;
+  onToggleFavourite: () => void;
+  onEdit: () => void;
+  onGetDirections: () => void;
+  onRequestLocation: () => void;
+};
+
+function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371;
+  const toRad = (n: number) => (n * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const lat1 = toRad(aLat);
+  const lat2 = toRad(bLat);
+  const x =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2);
+  const c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  return R * c;
+}
+
+export default function ParkBottomSheet({
+  park,
+  userLocation,
+  isFavourite,
+  canEdit,
+  onClose,
+  onToggleFavourite,
+  onEdit,
+  onGetDirections,
+  onRequestLocation,
+}: Props) {
+  const distance = userLocation
+    ? distanceKm(userLocation.lat, userLocation.lng, park.lat, park.lng)
+    : null;
+
+  const hasUserData = !park.isAutoDiscovered || park.fenced || park.unfenced ||
+                      park.partFenced || park.bins || park.toilets ||
+                      park.coffee || park.parking;
+
+  // Collect facilities to display
+  const facilities: { icon: React.ReactNode; label: string }[] = [];
+  
+  if (park.fenced) facilities.push({ icon: <Barricade size={16} weight="bold" />, label: "Fenced" });
+  if (park.unfenced) facilities.push({ icon: <ArrowsOut size={16} weight="bold" />, label: "Unfenced" });
+  if (park.partFenced) facilities.push({ icon: <CircleHalf size={16} weight="bold" />, label: "Part-fenced" });
+  if (park.bins) facilities.push({ icon: <TrashSimple size={16} weight="bold" />, label: "Dog bins" });
+  if (park.toilets) facilities.push({ icon: <Toilet size={16} weight="bold" />, label: "Toilets" });
+  if (park.coffee) facilities.push({ icon: <Coffee size={16} weight="bold" />, label: "Coffee nearby" });
+  if (park.parking) facilities.push({ icon: <Car size={16} weight="bold" />, label: "Parking" });
+
+  // Auto-detected amenities
+  if (park.isAutoDiscovered && park.nearbyAmenities) {
+    if (park.nearbyAmenities.cafes > 0 && !park.coffee) {
+      facilities.push({ icon: <Coffee size={16} weight="bold" />, label: `${park.nearbyAmenities.cafes} cafe${park.nearbyAmenities.cafes > 1 ? "s" : ""} nearby` });
+    }
+    if (park.nearbyAmenities.parking > 0 && !park.parking) {
+      facilities.push({ icon: <Car size={16} weight="bold" />, label: `Parking nearby` });
+    }
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="bottom-sheet-backdrop" onClick={onClose} />
+      
+      {/* Sheet */}
+      <div className="bottom-sheet">
+        {/* Handle */}
+        <div className="sheet-handle" />
+
+        {/* Header */}
+        <div className="sheet-header">
+          <div className="sheet-title-row">
+            <h2 className="sheet-title">{park.name}</h2>
+            <div className="sheet-actions">
+              <button
+                className="icon-btn"
+                onClick={onToggleFavourite}
+                title={isFavourite ? "Remove from favourites" : "Add to favourites"}
+              >
+                <Heart
+                  size={24}
+                  weight={isFavourite ? "fill" : "regular"}
+                  color={isFavourite ? "#DD6616" : "#888"}
+                />
+              </button>
+              {canEdit && (
+                <button
+                  className="icon-btn edit-btn"
+                  onClick={onEdit}
+                  title="Edit this place"
+                >
+                  <Pencil size={20} weight="regular" color="#006947" />
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {distance !== null && (
+            <p className="sheet-distance">
+              <MapPin size={14} weight="bold" color="#006947" />
+              {distance.toFixed(1)} km away
+            </p>
+          )}
+        </div>
+
+        {/* Facilities */}
+        <div className="sheet-section">
+          {hasUserData ? (
+            <div className="facilities-list">
+              {facilities.map((f, i) => (
+                <span key={i} className="facility-tag">
+                  {f.icon}
+                  {f.label}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="no-data-message">
+              <Info size={18} color="#888" />
+              <span>No dog-friendly info yet</span>
+            </div>
+          )}
+        </div>
+
+        {/* Added by info */}
+        {park.addedBy && (
+          <p className="added-by">
+            Added by {park.addedBy}
+            {park.addedAt && ` · ${new Date(park.addedAt).toLocaleDateString()}`}
+          </p>
+        )}
+
+        {/* Actions */}
+        <div className="sheet-footer">
+          {userLocation ? (
+            <button
+              className="btn-primary"
+              onClick={onGetDirections}
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            >
+              <NavigationArrow size={18} weight="bold" />
+              Get directions
+            </button>
+          ) : (
+            <button
+              className="btn-secondary"
+              onClick={onRequestLocation}
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            >
+              <Crosshair size={18} weight="bold" />
+              Share location to get directions
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}

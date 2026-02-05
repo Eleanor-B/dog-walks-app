@@ -1,121 +1,972 @@
 "use client";
 
-import { useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../lib/useAuth";
+import { supabase } from "../lib/supabase";
+import { getPlaces, addPlace, updatePlace, deletePlace } from "../lib/places";
+import { getFavourites, addFavourite, removeFavourite } from "../lib/favourites";
+import MainMap from "./components/MainMap";
+import ParkBottomSheet from "./components/ParkBottomSheet";
+import AddPlaceDrawer from "./components/AddPlaceDrawer";
+import EditPlaceDrawer from "./components/EditPlaceDrawer";
 
-export default function SignUpPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    firstName: "",
-    email: "",
-    password: "",
+import {
+  MapPin,
+  NavigationArrow,
+  Barricade,
+  TrashSimple,
+  Toilet,
+  Coffee,
+  Car,
+  Plus,
+  X,
+  CaretLeft,
+  MagnifyingGlass,
+  Crosshair,
+  Heart,
+  CircleHalf,
+  Pencil,
+  Warning,
+} from "@phosphor-icons/react";
+
+// ===== TYPES =====
+export type Park = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  isAutoDiscovered: boolean;
+  // User-added info (optional for auto-discovered)
+  fenced?: boolean;
+  unfenced?: boolean;
+  partFenced?: boolean;
+  bins?: boolean;
+  toilets?: boolean;
+  coffee?: boolean;
+  parking?: boolean;
+  user_id?: string;
+  addedBy?: string; // Nickname
+  addedAt?: string;
+  // Auto-detected nearby amenities
+  nearbyAmenities?: {
+    cafes: number;
+    toilets: number;
+    parking: number;
+  };
+};
+
+type Location = {
+  lat: number;
+  lng: number;
+};
+
+type ViewState = "landing" | "map";
+
+// ===== UTILITIES =====
+function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371;
+  const toRad = (n: number) => (n * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const lat1 = toRad(aLat);
+  const lat2 = toRad(bLat);
+  const x =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2);
+  const c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  return R * c;
+}
+
+async function lookupLocation(query: string): Promise<Location | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=gb`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return null;
+    const lat = Number(data[0].lat);
+    const lng = Number(data[0].lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { lat, lng };
+  } catch {
+    return null;
+  }
+}
+
+// Fetch parks from Mapbox (green spaces within radius)
+async function fetchNearbyParks(center: Location, radiusKm: number = 3): Promise<Park[]> {
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  if (!mapboxToken) return [];
+
+  try {
+    // Use Mapbox Geocoding API to find parks
+    const res = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/park.json?proximity=${center.lng},${center.lat}&limit=10&types=poi&access_token=${mapboxToken}`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    
+    if (!data.features) return [];
+
+    const parks: Park[] = data.features
+      .filter((f: any) => {
+        // Filter by distance
+        const dist = distanceKm(center.lat, center.lng, f.center[1], f.center[0]);
+        return dist <= radiusKm;
+      })
+      .map((f: any) => ({
+        id: `mapbox-${f.id}`,
+        name: f.text || f.place_name?.split(",")[0] || "Unknown Park",
+        lat: f.center[1],
+        lng: f.center[0],
+        isAutoDiscovered: true,
+        nearbyAmenities: { cafes: 0, toilets: 0, parking: 0 },
+      }));
+
+    // Fetch nearby amenities for each park
+    for (const park of parks) {
+      park.nearbyAmenities = await fetchNearbyAmenities(park);
+    }
+
+    return parks;
+  } catch (error) {
+    console.error("Error fetching parks:", error);
+    return [];
+  }
+}
+
+// Fetch nearby amenities (cafes, toilets, parking) within 200m
+async function fetchNearbyAmenities(park: Park): Promise<{ cafes: number; toilets: number; parking: number }> {
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  if (!mapboxToken) return { cafes: 0, toilets: 0, parking: 0 };
+
+  const amenities = { cafes: 0, toilets: 0, parking: 0 };
+
+  try {
+    // Fetch cafes
+    const cafeRes = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/cafe.json?proximity=${park.lng},${park.lat}&limit=5&types=poi&access_token=${mapboxToken}`
+    );
+    if (cafeRes.ok) {
+      const cafeData = await cafeRes.json();
+      amenities.cafes = (cafeData.features || []).filter((f: any) => {
+        const dist = distanceKm(park.lat, park.lng, f.center[1], f.center[0]);
+        return dist <= 0.2; // 200m
+      }).length;
+    }
+
+    // Fetch parking
+    const parkingRes = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/parking.json?proximity=${park.lng},${park.lat}&limit=5&types=poi&access_token=${mapboxToken}`
+    );
+    if (parkingRes.ok) {
+      const parkingData = await parkingRes.json();
+      amenities.parking = (parkingData.features || []).filter((f: any) => {
+        const dist = distanceKm(park.lat, park.lng, f.center[1], f.center[0]);
+        return dist <= 0.2;
+      }).length;
+    }
+
+    // Note: Toilets are harder to find via Mapbox - would need OpenStreetMap Overpass API
+    // For now, we'll set to 0 and rely on user data
+    amenities.toilets = 0;
+  } catch (error) {
+    console.error("Error fetching amenities:", error);
+  }
+
+  return amenities;
+}
+
+// ===== MAIN COMPONENT =====
+export default function Home() {
+  // Auth
+  const { user } = useAuth();
+  const [favouriteIds, setFavouriteIds] = useState<string[]>([]);
+
+  // View state
+  const [viewState, setViewState] = useState<ViewState>("landing");
+  
+  // Location state
+  const [userLocation, setUserLocation] = useState<Location | null>(null);
+  const [locationInput, setLocationInput] = useState("");
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [showPinDropMap, setShowPinDropMap] = useState(false);
+
+  // Parks state
+  const [parks, setParks] = useState<Park[]>([]);
+  const [userAddedPlaces, setUserAddedPlaces] = useState<Park[]>([]);
+  const [isLoadingParks, setIsLoadingParks] = useState(false);
+  const [selectedPark, setSelectedPark] = useState<Park | null>(null);
+
+  // Filters
+  const [filters, setFilters] = useState({
+    fenced: false,
+    unfenced: false,
+    partFenced: false,
+    bins: false,
+    toilets: false,
+    coffee: false,
+    parking: false,
   });
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+  // Drawers & Modals
+  const [showAddDrawer, setShowAddDrawer] = useState(false);
+  const [showEditDrawer, setShowEditDrawer] = useState(false);
+  const [editingPark, setEditingPark] = useState<Park | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-    const { data, error } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-      options: {
-        data: {
-          first_name: formData.firstName,
-        },
-      },
-    });
+  // Toast
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
+  // Map state
+  const [mapCenter, setMapCenter] = useState<Location | null>(null);
+  const [mapZoom, setMapZoom] = useState(14);
+
+  // ===== EFFECTS =====
+
+  // Load user-added places from Supabase
+  useEffect(() => {
+    async function loadPlaces() {
+      const dbPlaces = await getPlaces();
+      if (dbPlaces.length > 0) {
+        const mappedPlaces: Park[] = dbPlaces.map((p) => ({
+          id: p.id,
+          name: p.name,
+          lat: p.lat,
+          lng: p.lng,
+          isAutoDiscovered: false,
+          fenced: p.fenced,
+          unfenced: p.unfenced,
+          partFenced: p.part_fenced,
+          bins: p.bins,
+          toilets: p.toilets,
+          coffee: p.coffee,
+          parking: p.parking,
+          user_id: p.user_id,
+        }));
+        setUserAddedPlaces(mappedPlaces);
+      }
+    }
+    loadPlaces();
+  }, []);
+
+  // Load favourites when user logs in
+  useEffect(() => {
+    async function loadFavourites() {
+      if (user) {
+        const favs = await getFavourites(user.id);
+        setFavouriteIds(favs);
+      } else {
+        setFavouriteIds([]);
+      }
+    }
+    loadFavourites();
+  }, [user]);
+
+  // Fetch parks when location changes
+  useEffect(() => {
+    async function loadParks() {
+      if (!userLocation) return;
+      
+      setIsLoadingParks(true);
+      const nearbyParks = await fetchNearbyParks(userLocation, 3);
+      setParks(nearbyParks);
+      setIsLoadingParks(false);
+    }
+    loadParks();
+  }, [userLocation]);
+
+  // ===== HANDLERS =====
+
+  const showToastMessage = (message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const handleLocationSearch = async () => {
+    if (!locationInput.trim()) return;
+
+    setIsLoadingLocation(true);
+    setLocationError(null);
+
+    const location = await lookupLocation(locationInput);
+
+    if (location) {
+      setUserLocation(location);
+      setMapCenter(location);
+      setViewState("map");
     } else {
-      // Success - redirect to check email message
-      router.push("/signup/check-email");
+      setLocationError("Sorry, we couldn't find that location. Please try again or drop a pin on the map.");
+    }
+
+    setIsLoadingLocation(false);
+  };
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError("Your browser doesn't support location services.");
+      return;
+    }
+
+    setIsLoadingLocation(true);
+    setLocationError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
+        setUserLocation(loc);
+        setMapCenter(loc);
+        setViewState("map");
+        setIsLoadingLocation(false);
+      },
+      (err) => {
+        setIsLoadingLocation(false);
+        if (err.code === 1) {
+          setLocationError("Location access was denied. Please enter a location or drop a pin.");
+        } else {
+          setLocationError("Couldn't get your location. Please try again or enter manually.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handlePinDrop = (location: Location) => {
+    setUserLocation(location);
+    setMapCenter(location);
+    setShowPinDropMap(false);
+    setViewState("map");
+  };
+
+  const handleParkClick = (park: Park) => {
+    setSelectedPark(park);
+  };
+
+  const handleCloseBottomSheet = () => {
+    setSelectedPark(null);
+  };
+
+  const toggleFavorite = async (parkId: string) => {
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
+
+    if (favouriteIds.includes(parkId)) {
+      const success = await removeFavourite(user.id, parkId);
+      if (success) {
+        setFavouriteIds((prev) => prev.filter((id) => id !== parkId));
+      }
+    } else {
+      const success = await addFavourite(user.id, parkId);
+      if (success) {
+        setFavouriteIds((prev) => [...prev, parkId]);
+      }
     }
   };
 
-  return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "hsl(48, 71%, 97%)", padding: 24 }}>
-      <div style={{ width: "100%", maxWidth: 400, background: "#fff", padding: 32, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
-        <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8, color: "#006947", fontFamily: "var(--font-fraunces), serif" }}>
-          Sign Up
-        </h1>
-        <p style={{ fontSize: 14, color: "#555", marginBottom: 24 }}>
-          Create your GoWalkTheDog account
-        </p>
+  const handleAddPlace = async (placeData: any) => {
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
 
-        <form onSubmit={handleSignUp}>
-          <label style={{ display: "block", marginBottom: 16 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: "#02301F", display: "block", marginBottom: 6 }}>
-              First Name
-            </span>
-            <input
-              type="text"
-              required
-              value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 14 }}
-            />
-          </label>
+    // Check at least one facility is selected
+    const hasFacility = placeData.fenced || placeData.unfenced || placeData.partFenced || 
+                        placeData.bins || placeData.toilets || placeData.coffee || placeData.parking;
+    if (!hasFacility) {
+      showToastMessage("Please add at least one facility to this place");
+      return;
+    }
 
-          <label style={{ display: "block", marginBottom: 16 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: "#02301F", display: "block", marginBottom: 6 }}>
-              Email
-            </span>
-            <input
-              type="email"
-              required
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 14 }}
-            />
-          </label>
+    const dbPlace = await addPlace({
+      name: placeData.name,
+      lat: placeData.lat,
+      lng: placeData.lng,
+      fenced: placeData.fenced,
+      unfenced: placeData.unfenced,
+      part_fenced: placeData.partFenced,
+      bins: placeData.bins,
+      toilets: placeData.toilets,
+      coffee: placeData.coffee,
+      parking: placeData.parking,
+      user_id: user.id,
+    });
 
-          <label style={{ display: "block", marginBottom: 24 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: "#02301F", display: "block", marginBottom: 6 }}>
-              Password
-            </span>
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 14 }}
-            />
-            <span style={{ fontSize: 12, color: "#666", marginTop: 4, display: "block" }}>
-              At least 8 characters
-            </span>
-          </label>
+    if (dbPlace) {
+      const newPark: Park = {
+        id: dbPlace.id,
+        name: placeData.name,
+        lat: placeData.lat,
+        lng: placeData.lng,
+        isAutoDiscovered: false,
+        fenced: placeData.fenced,
+        unfenced: placeData.unfenced,
+        partFenced: placeData.partFenced,
+        bins: placeData.bins,
+        toilets: placeData.toilets,
+        coffee: placeData.coffee,
+        parking: placeData.parking,
+        user_id: user.id,
+      };
+      setUserAddedPlaces([...userAddedPlaces, newPark]);
+      showToastMessage("Place added!");
+      setShowAddDrawer(false);
+    } else {
+      showToastMessage("Failed to save place");
+    }
+  };
 
-          {error && (
-            <div style={{ padding: 12, background: "#fee", border: "1px solid #fcc", borderRadius: 8, marginBottom: 16, fontSize: 13, color: "#c00" }}>
-              {error}
+  const handleEditPlace = async (placeData: any) => {
+    if (!editingPark?.id) return;
+
+    const hasFacility = placeData.fenced || placeData.unfenced || placeData.partFenced ||
+                        placeData.bins || placeData.toilets || placeData.coffee || placeData.parking;
+    if (!hasFacility) {
+      showToastMessage("Please add at least one facility to this place");
+      return;
+    }
+
+    const success = await updatePlace(editingPark.id, {
+      name: placeData.name,
+      lat: placeData.lat,
+      lng: placeData.lng,
+      fenced: placeData.fenced,
+      unfenced: placeData.unfenced,
+      part_fenced: placeData.partFenced,
+      bins: placeData.bins,
+      toilets: placeData.toilets,
+      coffee: placeData.coffee,
+      parking: placeData.parking,
+    });
+
+    if (success) {
+      setUserAddedPlaces(userAddedPlaces.map(p => 
+        p.id === editingPark.id ? { ...p, ...placeData } : p
+      ));
+      showToastMessage("Place updated!");
+      setShowEditDrawer(false);
+      setEditingPark(null);
+      if (selectedPark?.id === editingPark.id) {
+        setSelectedPark({ ...selectedPark, ...placeData });
+      }
+    } else {
+      showToastMessage("Failed to update place");
+    }
+  };
+
+  const handleDeletePlace = async () => {
+    if (!editingPark?.id) return;
+
+    const success = await deletePlace(editingPark.id);
+
+    if (success) {
+      setUserAddedPlaces(userAddedPlaces.filter(p => p.id !== editingPark.id));
+      showToastMessage("Place deleted");
+      setShowDeleteConfirm(false);
+      setShowEditDrawer(false);
+      setEditingPark(null);
+      if (selectedPark?.id === editingPark.id) {
+        setSelectedPark(null);
+      }
+    } else {
+      showToastMessage("Failed to delete place");
+    }
+  };
+
+  const handleBackToLanding = () => {
+    setViewState("landing");
+    setSelectedPark(null);
+    setLocationInput("");
+  };
+
+  // Combine auto-discovered and user-added places
+  const allParks = [...parks, ...userAddedPlaces];
+
+  // Filter parks based on selected filters
+  const filteredParks = allParks.filter((park) => {
+    // Auto-discovered parks without user data pass through unless specific dog filters are on
+    if (park.isAutoDiscovered && !park.fenced && !park.unfenced && !park.partFenced && 
+        !park.bins && !park.toilets && !park.coffee && !park.parking) {
+      // Only filter out if user is specifically filtering for dog-specific features
+      if (filters.fenced || filters.unfenced || filters.partFenced || filters.bins) {
+        return false;
+      }
+      // For amenity filters, use auto-detected data
+      if (filters.coffee && (!park.nearbyAmenities || park.nearbyAmenities.cafes === 0)) return false;
+      if (filters.parking && (!park.nearbyAmenities || park.nearbyAmenities.parking === 0)) return false;
+      if (filters.toilets && (!park.nearbyAmenities || park.nearbyAmenities.toilets === 0)) return false;
+      return true;
+    }
+
+    // User-added data - use explicit values
+    if (filters.fenced && !park.fenced) return false;
+    if (filters.unfenced && !park.unfenced) return false;
+    if (filters.partFenced && !park.partFenced) return false;
+    if (filters.bins && !park.bins) return false;
+    if (filters.toilets && !park.toilets) return false;
+    if (filters.coffee && !park.coffee) return false;
+    if (filters.parking && !park.parking) return false;
+    return true;
+  });
+
+  const hasActiveFilters = Object.values(filters).some(Boolean);
+
+  // ===== RENDER =====
+
+  // Count active filters
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
+
+  // Landing view
+  if (viewState === "landing") {
+    return (
+      <div className="app-container landing-page">
+        {/* Header */}
+        <header className="header">
+          <div className="header-content">
+            <div className="header-logo">
+              <img src="/GWTD-logov2.svg" alt="GoWalkTheDog" style={{ height: 24 }} />
             </div>
-          )}
+            <div className="header-buttons">
+              {user ? (
+                <>
+                  <span style={{ fontSize: "13px", color: "#666" }}>{user.email}</span>
+                  <button
+                    className="btn-text"
+                    onClick={async () => {
+                      await supabase.auth.signOut();
+                      window.location.reload();
+                    }}
+                  >
+                    Log out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    className="btn-header-primary"
+                    onClick={() => (window.location.href = "/signup")}
+                  >
+                    Sign up
+                  </button>
+                  <button
+                    className="btn-header-text"
+                    onClick={() => (window.location.href = "/login")}
+                  >
+                    Log in
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </header>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary"
-            style={{ width: "100%", padding: "12px", fontSize: 14, fontWeight: 600 }}
-          >
-            {loading ? "Creating account..." : "Sign Up"}
-          </button>
-        </form>
+        {/* Main Content */}
+        <main className="landing-main">
+          {/* Hero Section */}
+          <div className="hero-section">
+            <div className="hero-image">
+              <img
+                src="/dog-hero.png"
+                alt="Happy dog"
+                className="dog-illustration"
+              />
+            </div>
+            <div className="hero-content">
+              <h1>
+                <span className="h1-orange">Find great places</span>
+                <br />
+                <span className="h1-green">to walk your dog</span>
+              </h1>
+              <p className="hero-subtitle">
+                Discover parks, green spaces and the facilities you need
+              </p>
+            </div>
+          </div>
 
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "#666" }}>
-          Already have an account?{" "}
-          <Link href="/login" style={{ color: "#006947", fontWeight: 600, textDecoration: "underline" }}>
-            Log in
-          </Link>
-        </p>
+          {/* Filter Section */}
+          <div className="filter-section">
+            <p className="filter-label">
+              Select facilities {activeFilterCount > 0 && `(${activeFilterCount})`}
+            </p>
+            <div className="filter-chips-landing">
+              <button
+                className={`filter-chip ${filters.parking ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, parking: !filters.parking })}
+              >
+                <Car size={16} weight="bold" />
+                Parking
+              </button>
+              <button
+                className={`filter-chip ${filters.bins ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, bins: !filters.bins })}
+              >
+                <TrashSimple size={16} weight="bold" />
+                Dog bins
+              </button>
+              <button
+                className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, fenced: !filters.fenced })}
+              >
+                <Barricade size={16} weight="bold" />
+                Fenced
+              </button>
+              <button
+                className={`filter-chip ${filters.unfenced ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, unfenced: !filters.unfenced })}
+              >
+                Unfenced
+              </button>
+              <button
+                className={`filter-chip ${filters.partFenced ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, partFenced: !filters.partFenced })}
+              >
+                <CircleHalf size={16} weight="bold" />
+                Part-fenced
+              </button>
+              <button
+                className={`filter-chip ${filters.toilets ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, toilets: !filters.toilets })}
+              >
+                <Toilet size={16} weight="bold" />
+                Toilets
+              </button>
+              <button
+                className={`filter-chip ${filters.coffee ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, coffee: !filters.coffee })}
+              >
+                <Coffee size={16} weight="bold" />
+                Coffee
+              </button>
+            </div>
+          </div>
+
+          {/* Location Search */}
+          <div className="location-search-section">
+            <div className="search-input-wrapper">
+              <MagnifyingGlass size={20} color="#666" />
+              <input
+                type="text"
+                placeholder="Enter postcode or area name"
+                value={locationInput}
+                onChange={(e) => setLocationInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLocationSearch()}
+                className="search-input"
+              />
+            </div>
+
+            <button
+              className="btn-primary"
+              onClick={handleLocationSearch}
+              disabled={isLoadingLocation || !locationInput.trim()}
+              style={{ width: "100%", marginTop: 12 }}
+            >
+              {isLoadingLocation ? "Finding..." : "Find parks nearby"}
+            </button>
+
+            <div className="divider-with-text">
+              <span>or</span>
+            </div>
+
+            <button
+              className="btn-secondary"
+              onClick={handleUseMyLocation}
+              disabled={isLoadingLocation}
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            >
+              <Crosshair size={18} weight="bold" />
+              Use my current location
+            </button>
+
+            {locationError && (
+              <div className="location-error">
+                <Warning size={18} color="#c53030" />
+                <span>{locationError}</span>
+                <button
+                  className="btn-text"
+                  onClick={() => setShowPinDropMap(true)}
+                  style={{ marginLeft: 8 }}
+                >
+                  Drop a pin instead
+                </button>
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* Pin Drop Map Modal */}
+        {showPinDropMap && (
+          <div className="modal-overlay">
+            <div className="pin-drop-modal">
+              <div className="modal-header">
+                <h2>Drop a pin</h2>
+                <button
+                  onClick={() => setShowPinDropMap(false)}
+                  className="close-btn"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <p style={{ color: "#666", marginBottom: 16 }}>
+                Tap the map to set your location
+              </p>
+              <div className="pin-drop-map-container">
+                <MainMap
+                  center={{ lat: 51.5074, lng: -0.1278 }}
+                  zoom={12}
+                  parks={[]}
+                  userLocation={null}
+                  onPinDrop={handlePinDrop}
+                  isPinDropMode={true}
+                  filters={filters}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Toast */}
+        {showToast && <div className="toast">{toastMessage}</div>}
       </div>
+    );
+  }
+
+  // Map view
+  return (
+    <div className="app-container map-view">
+      {/* Floating Header */}
+      <header className="map-header">
+        <button onClick={handleBackToLanding} className="back-btn">
+          <CaretLeft size={20} weight="bold" />
+          <span>Back</span>
+        </button>
+        
+        <div className="header-actions">
+          {user ? (
+            <button
+              className="btn-text"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.reload();
+              }}
+              style={{ margin: 0, color: "#006947" }}
+            >
+              Log out
+            </button>
+          ) : (
+            <button
+              className="btn-text"
+              onClick={() => (window.location.href = "/login")}
+              style={{ margin: 0, color: "#006947" }}
+            >
+              Log in
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* Floating Filter Bar */}
+      <div className="filter-bar">
+        <div className="filter-chips">
+          <button
+            className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
+            onClick={() => setFilters({ ...filters, fenced: !filters.fenced })}
+          >
+            <Barricade size={16} weight="bold" />
+            Fenced
+          </button>
+          <button
+            className={`filter-chip ${filters.unfenced ? "is-on" : ""}`}
+            onClick={() => setFilters({ ...filters, unfenced: !filters.unfenced })}
+          >
+            Unfenced
+          </button>
+          <button
+            className={`filter-chip ${filters.partFenced ? "is-on" : ""}`}
+            onClick={() => setFilters({ ...filters, partFenced: !filters.partFenced })}
+          >
+            <CircleHalf size={16} weight="bold" />
+            Part-fenced
+          </button>
+          <button
+            className={`filter-chip ${filters.bins ? "is-on" : ""}`}
+            onClick={() => setFilters({ ...filters, bins: !filters.bins })}
+          >
+            <TrashSimple size={16} weight="bold" />
+            Dog bins
+          </button>
+          <button
+            className={`filter-chip ${filters.toilets ? "is-on" : ""}`}
+            onClick={() => setFilters({ ...filters, toilets: !filters.toilets })}
+          >
+            <Toilet size={16} weight="bold" />
+            Toilets
+          </button>
+          <button
+            className={`filter-chip ${filters.coffee ? "is-on" : ""}`}
+            onClick={() => setFilters({ ...filters, coffee: !filters.coffee })}
+          >
+            <Coffee size={16} weight="bold" />
+            Coffee
+          </button>
+          <button
+            className={`filter-chip ${filters.parking ? "is-on" : ""}`}
+            onClick={() => setFilters({ ...filters, parking: !filters.parking })}
+          >
+            <Car size={16} weight="bold" />
+            Parking
+          </button>
+        </div>
+
+        {/* Add Place Button */}
+        <button
+          className="add-place-fab"
+          onClick={() => {
+            if (!user) {
+              setShowLoginPrompt(true);
+            } else {
+              setShowAddDrawer(true);
+            }
+          }}
+          title="Add a place"
+        >
+          <Plus size={24} weight="bold" />
+        </button>
+      </div>
+
+      {/* Main Map */}
+      <MainMap
+        center={mapCenter || { lat: 51.5074, lng: -0.1278 }}
+        zoom={mapZoom}
+        parks={filteredParks}
+        userLocation={userLocation}
+        selectedPark={selectedPark}
+        onParkClick={handleParkClick}
+        onMapMove={(center, zoom) => {
+          setMapCenter(center);
+          setMapZoom(zoom);
+        }}
+        filters={filters}
+      />
+
+      {/* Loading Indicator */}
+      {isLoadingParks && (
+        <div className="loading-indicator">
+          Finding parks nearby...
+        </div>
+      )}
+
+      {/* Park Bottom Sheet */}
+      {selectedPark && (
+        <ParkBottomSheet
+          park={selectedPark}
+          userLocation={userLocation}
+          isFavourite={favouriteIds.includes(selectedPark.id)}
+          canEdit={user?.id === selectedPark.user_id}
+          onClose={handleCloseBottomSheet}
+          onToggleFavourite={() => toggleFavorite(selectedPark.id)}
+          onEdit={() => {
+            setEditingPark(selectedPark);
+            setShowEditDrawer(true);
+          }}
+          onGetDirections={() => {
+            // Open in Google Maps or Apple Maps
+            const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedPark.lat},${selectedPark.lng}`;
+            window.open(url, "_blank");
+          }}
+        />
+      )}
+
+      {/* Add Place Drawer */}
+      {showAddDrawer && (
+        <AddPlaceDrawer
+          onClose={() => setShowAddDrawer(false)}
+          onSave={handleAddPlace}
+          userLocation={userLocation}
+        />
+      )}
+
+      {/* Edit Place Drawer */}
+      {showEditDrawer && editingPark && (
+        <EditPlaceDrawer
+          park={editingPark}
+          onClose={() => {
+            setShowEditDrawer(false);
+            setEditingPark(null);
+          }}
+          onSave={handleEditPlace}
+          onDelete={() => setShowDeleteConfirm(true)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <>
+          <div className="drawer-overlay" onClick={() => setShowDeleteConfirm(false)} />
+          <div className="delete-modal">
+            <h3>Delete this space?</h3>
+            <p>Are you sure you want to delete this space? This cannot be undone.</p>
+            <div className="modal-actions">
+              <button
+                className="btn-secondary"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary btn-danger"
+                onClick={handleDeletePlace}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Login Prompt Modal */}
+      {showLoginPrompt && (
+        <>
+          <div className="drawer-overlay" onClick={() => setShowLoginPrompt(false)} />
+          <div className="login-prompt-modal">
+            <h3>Sign in to continue</h3>
+            <p>You need to be signed in to add places or save favourites.</p>
+            <div className="modal-actions">
+              <button
+                className="btn-secondary"
+                onClick={() => setShowLoginPrompt(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => (window.location.href = "/signup")}
+              >
+                Sign up free
+              </button>
+            </div>
+            <button
+              className="btn-text"
+              onClick={() => (window.location.href = "/login")}
+              style={{ marginTop: 12 }}
+            >
+              Already have an account? Log in
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Toast */}
+      {showToast && <div className="toast">{toastMessage}</div>}
     </div>
   );
 }
