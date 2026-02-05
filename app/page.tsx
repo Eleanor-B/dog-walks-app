@@ -8,6 +8,9 @@ import { getFavourites, addFavourite, removeFavourite } from "../lib/favourites"
 import MainMap from "./components/MainMap";
 import ParkBottomSheet from "./components/ParkBottomSheet";
 import AddPlaceDrawer from "./components/AddPlaceDrawer";
+import CookieBanner from "./components/CookieBanner";
+import AppFooter from "./components/AppFooter";
+import AccountSettings from "./components/AccountSettings";
 import EditPlaceDrawer from "./components/EditPlaceDrawer";
 
 import {
@@ -924,6 +927,10 @@ export default function Home() {
           </div>
         )}
 
+        {/* Footer */}
+        <AppFooter />
+        {/* Cookie Consent */}
+        <CookieBanner />
         {/* Toast */}
         {showToast && <div className="toast">{toastMessage}</div>}
       </div>
@@ -1268,6 +1275,10 @@ export default function Home() {
         </div>
       )}
 
+      {/* Footer */}
+      <AppFooter />
+      {/* Cookie Consent */}
+      <CookieBanner />
       {/* Toast */}
       {showToast && <div className="toast">{toastMessage}</div>}
     </div>
