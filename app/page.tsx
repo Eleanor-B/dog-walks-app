@@ -12,6 +12,7 @@ import CookieBanner from "./components/CookieBanner";
 import AppFooter from "./components/AppFooter";
 import AccountSettings from "./components/AccountSettings";
 import EditPlaceDrawer from "./components/EditPlaceDrawer";
+import TransportModeModal from "./components/TransportModeModal";
 
 import {
   MapPin,
@@ -710,7 +711,6 @@ export default function Home() {
             <div className="header-buttons">
               {user ? (
                 <>
-                  <span style={{ fontSize: "13px", color: "#666" }}>{user.email}</span>
                   <button
                     className="btn-header-text"
                     onClick={async () => {
@@ -844,31 +844,43 @@ export default function Home() {
 
             {/* Location Search */}
             <div className="location-inputs">
-              <div className="search-input-wrapper">
-                <MagnifyingGlass size={20} color="#666" />
-                <input
-                  type="text"
-                  placeholder="Enter postcode or area name"
-                  value={locationInput}
-                  onChange={(e) => setLocationInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleLocationSearch()}
-                  className="search-input"
-                />
+              <div className="location-search-row">
+                <div className="search-input-with-icon">
+                  <div className="search-input-icon-container" aria-hidden>
+                    <MagnifyingGlass size={20} />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Enter postcode or area name"
+                    value={locationInput}
+                    onChange={(e) => setLocationInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleLocationSearch()}
+                    className="search-input"
+                  />
+                </div>
+                <div className="location-or-row">
+                  <span className="location-or" aria-hidden="true">or</span>
+                  <button
+                    className="btn-secondary location-use-current"
+                    onClick={handleUseMyLocation}
+                    disabled={isLoadingLocation}
+                  >
+                    <Crosshair size={18} weight="bold" />
+                    Use my location
+                  </button>
+                </div>
               </div>
 
-              <div className="divider-with-text">
-                <span>or</span>
+              <div className="location-find-row">
+                <button
+                  className="btn-primary"
+                  onClick={handleLocationSearch}
+                  disabled={isLoadingLocation || !locationInput.trim()}
+                  style={{ width: "100%" }}
+                >
+                  {isLoadingLocation ? "Finding..." : "Find parks nearby"}
+                </button>
               </div>
-
-              <button
-                className="btn-secondary"
-                onClick={handleUseMyLocation}
-                disabled={isLoadingLocation}
-                style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-              >
-                <Crosshair size={18} weight="bold" />
-                Use my current location
-              </button>
 
               {locationError && (
                 <div className="location-error">
@@ -883,15 +895,6 @@ export default function Home() {
                   </button>
                 </div>
               )}
-
-              <button
-                className="btn-primary"
-                onClick={handleLocationSearch}
-                disabled={isLoadingLocation || !locationInput.trim()}
-                style={{ width: "100%", marginTop: 12 }}
-              >
-                {isLoadingLocation ? "Finding..." : "Find parks nearby"}
-              </button>
             </div>
           </div>
         </main>
@@ -1198,43 +1201,10 @@ export default function Home() {
 
       {/* Transport Mode Modal */}
       {showTransportModal && (
-        <>
-          <div className="drawer-overlay" onClick={() => setShowTransportModal(false)} />
-          <div className="transport-modal">
-            <div className="transport-modal-header">
-              <h3>How are you getting there?</h3>
-              <button
-                className="close-btn"
-                onClick={() => setShowTransportModal(false)}
-              >
-                <X size={24} />
-              </button>
-            </div>
-            <div className="transport-options">
-              <button
-                className="transport-option"
-                onClick={() => handleSelectTransportMode("walking")}
-              >
-                <PersonSimpleWalk size={32} weight="regular" />
-                <span>Walking</span>
-              </button>
-              <button
-                className="transport-option"
-                onClick={() => handleSelectTransportMode("driving")}
-              >
-                <Car size={32} weight="regular" />
-                <span>Driving</span>
-              </button>
-              <button
-                className="transport-option"
-                onClick={() => handleSelectTransportMode("transit")}
-              >
-                <Train size={32} weight="regular" />
-                <span>Public transport</span>
-              </button>
-            </div>
-          </div>
-        </>
+        <TransportModeModal
+          onSelect={handleSelectTransportMode}
+          onClose={() => setShowTransportModal(false)}
+        />
       )}
 
       {/* Directions Info Bar */}
