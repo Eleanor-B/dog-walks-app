@@ -9,19 +9,6 @@ type Props = {
   onClose: () => void;
 };
 
-// Figma design tokens from Design-playground
-const tokens = {
-  textPrimary: "#105A42",
-  primaryForest: "#036908",
-  white: "#FFFFFF",
-  chipBg: "#FBFBFB",
-  secondaryBorderAcc: "#CDE0D9",
-  borderRadiusMd: 8,
-  spacing7: 16,
-  spacing8: 20,
-  spacing9: 24,
-};
-
 export default function TransportModeModal({ onSelect, onClose }: Props) {
   return (
     <>

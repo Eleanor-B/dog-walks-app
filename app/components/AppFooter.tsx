@@ -28,7 +28,7 @@ export default function AppFooter() {
           rel="noopener noreferrer"
           className="footer-donate"
         >
-          <Heart size={14} weight="fill" color="#209326" />
+          <Heart size={14} weight="fill" className="footer-donate-icon" />
           Support Dogs Trust
         </a>
 

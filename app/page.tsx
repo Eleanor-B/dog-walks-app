@@ -1150,7 +1150,7 @@ export default function Home() {
             <button
               className="btn-text"
               onClick={() => (window.location.href = "/login")}
-              style={{ margin: 0, color: "#006947" }}
+              style={{ margin: 0, color: "var(--color-primary)" }}
             >
               Log in
             </button>
