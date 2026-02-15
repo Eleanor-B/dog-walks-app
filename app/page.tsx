@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useAuth } from "../lib/useAuth";
 import { supabase } from "../lib/supabase";
 import { getPlaces, addPlace, updatePlace, deletePlace } from "../lib/places";
-import { getFavourites, addFavourite, removeFavourite } from "../lib/favourites";
+import { getFavourites, addFavourite, removeFavourite, removeAllFavourites } from "../lib/favourites";
 import MainMap from "./components/MainMap";
 import ParkBottomSheet from "./components/ParkBottomSheet";
 import AddPlaceDrawer from "./components/AddPlaceDrawer";
@@ -37,6 +37,7 @@ import {
   ArrowsOut,
   PersonSimpleWalk,
   Train,
+  PawPrint,
 } from "@phosphor-icons/react";
 
 // ===== TYPES =====
@@ -283,6 +284,7 @@ export default function Home() {
 
   // Carousel ref
   const carouselRef = useRef<HTMLDivElement>(null);
+  const avatarDropdownRef = useRef<HTMLDivElement>(null);
 
   const scrollCarousel = (direction: "left" | "right") => {
     if (carouselRef.current) {
@@ -308,7 +310,11 @@ export default function Home() {
   // Map state
   const [mapCenter, setMapCenter] = useState<Location | null>(null);
   const [mapZoom, setMapZoom] = useState(14);
+  const [fitBoundsRequestId, setFitBoundsRequestId] = useState(0);
   const [filterBarCollapsed, setFilterBarCollapsed] = useState(true);
+  const [showAvatarDropdown, setShowAvatarDropdown] = useState(false);
+  const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
+  const [showOnlyMyPlaces, setShowOnlyMyPlaces] = useState(false);
 
   // Directions state
   const [showTransportModal, setShowTransportModal] = useState(false);
@@ -358,6 +364,18 @@ export default function Home() {
     loadFavourites();
   }, [user]);
 
+  // Close avatar dropdown when clicking outside
+  useEffect(() => {
+    if (!showAvatarDropdown) return;
+    function handleClick(e: MouseEvent) {
+      if (avatarDropdownRef.current && !avatarDropdownRef.current.contains(e.target as Node)) {
+        setShowAvatarDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showAvatarDropdown]);
+
   // Fetch parks when location changes
   useEffect(() => {
     async function loadParks() {
@@ -391,6 +409,7 @@ export default function Home() {
       setUserLocation(location);
       setMapCenter(location);
       setViewState("map");
+      setFitBoundsRequestId((i) => i + 1);
     } else {
       setLocationError("Sorry, we couldn't find that location. Please try again or drop a pin on the map.");
     }
@@ -416,6 +435,7 @@ export default function Home() {
         setUserLocation(loc);
         setMapCenter(loc);
         setViewState("map");
+        setFitBoundsRequestId((i) => i + 1);
         setIsLoadingLocation(false);
       },
       (err) => {
@@ -435,6 +455,7 @@ export default function Home() {
     setMapCenter(location);
     setShowPinDropMap(false);
     setViewState("map");
+    setFitBoundsRequestId((i) => i + 1);
   };
 
   const handleParkClick = (park: Park) => {
@@ -661,11 +682,14 @@ export default function Home() {
     return `${hours} hr ${remainingMins} min`;
   };
 
-  // Combine auto-discovered and user-added places
-  const allParks = [...parks, ...userAddedPlaces];
+  // Combine auto-discovered and user-added places (or only current user's places when "My places" toggle is on)
+  const allParks =
+    showOnlyMyPlaces && user
+      ? userAddedPlaces.filter((p) => p.user_id === user.id)
+      : [...parks, ...userAddedPlaces];
 
   // Filter parks based on selected filters
-  const filteredParks = allParks.filter((park) => {
+  let filteredParks = allParks.filter((park) => {
     // Auto-discovered parks without user data pass through unless specific dog filters are on
     if (park.isAutoDiscovered && !park.fenced && !park.unfenced && !park.partFenced && 
         !park.bins && !park.toilets && !park.coffee && !park.parking) {
@@ -690,6 +714,27 @@ export default function Home() {
     if (filters.parking && !park.parking) return false;
     return true;
   });
+
+  // When "View my favourites" is on, show only favourited parks
+  if (showOnlyFavourites && user) {
+    filteredParks = filteredParks.filter((p) => favouriteIds.includes(p.id));
+  }
+
+  // Nearest park to user (for fitting map viewport)
+  const nearestPark = useMemo(() => {
+    if (!userLocation || filteredParks.length === 0) return null;
+    const sorted = [...filteredParks].sort(
+      (a, b) =>
+        distanceKm(userLocation.lat, userLocation.lng, a.lat, a.lng) -
+        distanceKm(userLocation.lat, userLocation.lng, b.lat, b.lng)
+    );
+    return sorted[0];
+  }, [userLocation, filteredParks]);
+
+  const boundsToFit = useMemo((): [Location, Location] | undefined => {
+    if (!userLocation || !nearestPark) return undefined;
+    return [userLocation, { lat: nearestPark.lat, lng: nearestPark.lng }];
+  }, [userLocation?.lat, userLocation?.lng, nearestPark?.lat, nearestPark?.lng]);
 
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
@@ -743,8 +788,9 @@ export default function Home() {
 
         {/* Main Content */}
         <main className="landing-main">
-          {/* Hero Section */}
+          {/* Hero Section - Figma 435:2604 (mobile) & 435:2816 (desktop) */}
           <div className="hero-section">
+            <div className="hero-ellipse" aria-hidden="true" />
             <div className="hero-image">
               <img
                 src="/dog-hero.png"
@@ -753,10 +799,8 @@ export default function Home() {
               />
             </div>
             <div className="hero-content">
-              <h1>
-                <span className="h1-orange">Find great places</span>
-                <br />
-                <span className="h1-green">to walk your dog</span>
+              <h1 className="hero-title">
+                Find great places to walk your dog
               </h1>
               <p className="hero-subtitle">
                 Discover parks, green spaces and the facilities you need
@@ -768,9 +812,25 @@ export default function Home() {
           <div className="search-card">
             {/* Filter Section */}
             <div className="filter-section-card">
-              <h3 className="filter-label">
-                Select facilities {activeFilterCount > 0 && `(${activeFilterCount})`}
-              </h3>
+              <div className="filter-section-header-row">
+                <h3 className="filter-label">
+                  Select facilities {activeFilterCount > 0 && `(${activeFilterCount})`}
+                </h3>
+                {user && (
+                  <label className="my-favourites-toggle">
+                    <Heart size={18} weight="fill" className="my-favourites-toggle-icon" />
+                    <span className="my-favourites-toggle-label">My favourites</span>
+                    <input
+                      type="checkbox"
+                      checked={showOnlyMyPlaces}
+                      onChange={(e) => setShowOnlyMyPlaces(e.target.checked)}
+                      className="my-favourites-toggle-input"
+                      aria-label="Show only my added places"
+                    />
+                    <span className="my-favourites-toggle-slider" />
+                  </label>
+                )}
+              </div>
               <div className="carousel-container">
                 <button 
                   className="carousel-caret"
@@ -847,7 +907,7 @@ export default function Home() {
               <div className="location-search-row">
                 <div className="search-input-with-icon">
                   <div className="search-input-icon-container" aria-hidden>
-                    <MagnifyingGlass size={20} />
+                    <MagnifyingGlass size={20} weight="bold" />
                   </div>
                   <input
                     type="text"
@@ -866,7 +926,7 @@ export default function Home() {
                     disabled={isLoadingLocation}
                   >
                     <Crosshair size={18} weight="bold" />
-                    Use my location
+                    {isLoadingLocation ? "Finding..." : "Use my location"}
                   </button>
                 </div>
               </div>
@@ -949,20 +1009,144 @@ export default function Home() {
           <CaretLeft size={20} weight="bold" />
           <span>Back</span>
         </button>
-        
-        <div className="header-actions">
-          {user ? (
+
+        <div className="filter-bar-in-header">
+          <div className={`filter-bar filter-bar-pill ${filterBarCollapsed ? "is-collapsed" : "is-open"}`}>
+        <div className="filter-bar-pill-row">
+          <button
+            className="filter-bar-toggle"
+            onClick={() => setFilterBarCollapsed(!filterBarCollapsed)}
+            aria-label={filterBarCollapsed ? "Expand filters" : "Collapse filters"}
+            aria-expanded={!filterBarCollapsed}
+          >
+            <span className="filter-bar-toggle-text">
+              Search by facility {activeFilterCount > 0 && `(${activeFilterCount})`}
+            </span>
+            <CaretDown size={18} weight="bold" className="filter-bar-chevron" />
+          </button>
+          {activeFilterCount > 0 && (
             <button
-              className="btn-header-text"
-              onClick={async () => {
-                await supabase.auth.signOut();
-                window.location.href = "/";
+              className="btn-text filter-clear-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setFilters({
+                  fenced: false,
+                  unfenced: false,
+                  partFenced: false,
+                  bins: false,
+                  toilets: false,
+                  coffee: false,
+                  parking: false,
+                });
               }}
-              style={{ margin: 0, color: "#006947" }}
             >
-              Log out
+              Clear
             </button>
-          ) : (
+          )}
+        </div>
+        <div className="filter-bar-dropdown">
+          <div className="filter-bar-chips-inner">
+            <div className="filter-chips">
+              <button
+                className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, fenced: !filters.fenced })}
+              >
+                <Barricade size={16} weight="bold" />
+                Fenced
+              </button>
+              <button
+                className={`filter-chip ${filters.unfenced ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, unfenced: !filters.unfenced })}
+              >
+                <ArrowsOut size={16} weight="bold" />
+                Unfenced
+              </button>
+              <button
+                className={`filter-chip ${filters.partFenced ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, partFenced: !filters.partFenced })}
+              >
+                <CircleHalf size={16} weight="bold" />
+                Part-fenced
+              </button>
+              <button
+                className={`filter-chip ${filters.bins ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, bins: !filters.bins })}
+              >
+                <TrashSimple size={16} weight="bold" />
+                Dog bins
+              </button>
+              <button
+                className={`filter-chip ${filters.parking ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, parking: !filters.parking })}
+              >
+                <Car size={16} weight="bold" />
+                Parking
+              </button>
+              <button
+                className={`filter-chip ${filters.toilets ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, toilets: !filters.toilets })}
+              >
+                <Toilet size={16} weight="bold" />
+                Toilets
+              </button>
+              <button
+                className={`filter-chip ${filters.coffee ? "is-on" : ""}`}
+                onClick={() => setFilters({ ...filters, coffee: !filters.coffee })}
+              >
+                <Coffee size={16} weight="bold" />
+                Coffee
+              </button>
+            </div>
+          </div>
+        </div>
+        </div>
+        </div>
+
+        {user ? (
+          <div className="avatar-dropdown-wrap" ref={avatarDropdownRef}>
+            <button
+              type="button"
+              className="avatar-btn"
+              onClick={() => setShowAvatarDropdown((v) => !v)}
+              aria-label="Favourites menu"
+              aria-expanded={showAvatarDropdown}
+              aria-haspopup="true"
+            >
+              <PawPrint size={22} weight="fill" />
+            </button>
+            {showAvatarDropdown && (
+              <div className="avatar-dropdown">
+                <button
+                  type="button"
+                  className="avatar-dropdown-item"
+                  onClick={() => {
+                    setShowOnlyFavourites((v) => !v);
+                    setShowAvatarDropdown(false);
+                  }}
+                >
+                  {showOnlyFavourites ? "Show all places" : "View my favourites"}
+                </button>
+                <button
+                  type="button"
+                  className="avatar-dropdown-item"
+                  onClick={async () => {
+                    if (!user) return;
+                    const ok = await removeAllFavourites(user.id);
+                    if (ok) {
+                      setFavouriteIds([]);
+                      setShowOnlyFavourites(false);
+                      showToastMessage("All favourites cleared");
+                    }
+                    setShowAvatarDropdown(false);
+                  }}
+                >
+                  Clear all favourites
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="header-actions">
             <button
               className="btn-text"
               onClick={() => (window.location.href = "/login")}
@@ -970,99 +1154,9 @@ export default function Home() {
             >
               Log in
             </button>
-          )}
-        </div>
-      </header>
-
-      {/* Floating Filter Bar */}
-      <div className={`filter-bar ${filterBarCollapsed ? "is-collapsed" : ""}`}>
-        <div className="filter-bar-header">
-          <button
-            className="filter-bar-toggle"
-            onClick={() => setFilterBarCollapsed(!filterBarCollapsed)}
-            aria-label={filterBarCollapsed ? "Expand filters" : "Collapse filters"}
-          >
-            <span className="filter-bar-toggle-text">
-              Search by facility {activeFilterCount > 0 && `(${activeFilterCount})`}
-            </span>
-            {filterBarCollapsed ? (
-              <CaretDown size={18} weight="bold" />
-            ) : (
-              <CaretUp size={18} weight="bold" />
-            )}
-          </button>
-          {!filterBarCollapsed && activeFilterCount > 0 && (
-            <button
-              className="btn-text filter-clear-btn"
-              onClick={() => setFilters({
-                fenced: false,
-                unfenced: false,
-                partFenced: false,
-                bins: false,
-                toilets: false,
-                coffee: false,
-                parking: false,
-              })}
-            >
-              Clear
-            </button>
-          )}
-        </div>
-        
-        {!filterBarCollapsed && (
-          <div className="filter-chips">
-            <button
-              className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
-              onClick={() => setFilters({ ...filters, fenced: !filters.fenced })}
-            >
-              <Barricade size={16} weight="bold" />
-              Fenced
-            </button>
-            <button
-              className={`filter-chip ${filters.unfenced ? "is-on" : ""}`}
-              onClick={() => setFilters({ ...filters, unfenced: !filters.unfenced })}
-            >
-              <ArrowsOut size={16} weight="bold" />
-              Unfenced
-            </button>
-            <button
-              className={`filter-chip ${filters.partFenced ? "is-on" : ""}`}
-              onClick={() => setFilters({ ...filters, partFenced: !filters.partFenced })}
-            >
-              <CircleHalf size={16} weight="bold" />
-              Part-fenced
-            </button>
-            <button
-              className={`filter-chip ${filters.bins ? "is-on" : ""}`}
-              onClick={() => setFilters({ ...filters, bins: !filters.bins })}
-            >
-              <TrashSimple size={16} weight="bold" />
-              Dog bins
-            </button>
-            <button
-              className={`filter-chip ${filters.parking ? "is-on" : ""}`}
-              onClick={() => setFilters({ ...filters, parking: !filters.parking })}
-            >
-              <Car size={16} weight="bold" />
-              Parking
-            </button>
-            <button
-              className={`filter-chip ${filters.toilets ? "is-on" : ""}`}
-              onClick={() => setFilters({ ...filters, toilets: !filters.toilets })}
-            >
-              <Toilet size={16} weight="bold" />
-              Toilets
-            </button>
-            <button
-              className={`filter-chip ${filters.coffee ? "is-on" : ""}`}
-              onClick={() => setFilters({ ...filters, coffee: !filters.coffee })}
-            >
-              <Coffee size={16} weight="bold" />
-              Coffee
-            </button>
           </div>
         )}
-      </div>
+      </header>
 
       {/* Add Place Button */}
       <button
@@ -1093,6 +1187,8 @@ export default function Home() {
         }}
         filters={filters}
         route={currentRoute}
+        boundsToFit={boundsToFit}
+        fitBoundsRequestId={fitBoundsRequestId}
       />
 
       {/* Loading Indicator */}

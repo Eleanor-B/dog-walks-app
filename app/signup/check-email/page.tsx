@@ -8,7 +8,7 @@ export default function CheckEmailPage() {
       <div style={{ width: "100%", maxWidth: 400, background: "#fff", padding: 32, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", textAlign: "center" }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>📧</div>
         
-        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8, color: "#006947", fontFamily: "var(--font-fraunces), serif" }}>
+        <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 8, color: "#006947", fontFamily: "var(--font-fraunces), serif" }}>
           Check Your Email
         </h1>
         

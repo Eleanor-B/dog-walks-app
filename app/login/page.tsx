@@ -37,7 +37,7 @@ export default function LoginPage() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "hsl(48, 71%, 97%)", padding: 24 }}>
       <div style={{ width: "100%", maxWidth: 400, background: "#fff", padding: 32, borderRadius: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
-        <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8, color: "#006947", fontFamily: "var(--font-fraunces), serif" }}>
+        <h1 style={{ fontSize: 32, fontWeight: 600, marginBottom: 8, color: "#006947", fontFamily: "var(--font-fraunces), serif" }}>
           Log In
         </h1>
         <p style={{ fontSize: 14, color: "#555", marginBottom: 24 }}>

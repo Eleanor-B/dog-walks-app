@@ -205,7 +205,7 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation }: Props)
               Where is the new place?
             </label>
             <div className="search-input-wrapper" style={{ marginTop: 6 }}>
-              <MagnifyingGlass size={18} color="#888" />
+              <MagnifyingGlass size={18} color="#209326" />
               <input
                 type="text"
                 placeholder="Enter postcode or place name"
@@ -240,7 +240,7 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation }: Props)
                     className="location-result-item"
                     onClick={() => handleSelectLocation(result)}
                   >
-                    <MapPinLine size={18} color="#006947" />
+                    <MapPinLine size={18} color="#209326" />
                     <div className="result-details">
                       <span className="result-name">{result.name}</span>
                       {result.distance !== undefined && (
@@ -249,7 +249,7 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation }: Props)
                         </span>
                       )}
                     </div>
-                    <CaretRight size={16} color="#888" />
+                    <CaretRight size={16} color="#209326" />
                   </button>
                 ))}
                 
@@ -281,7 +281,7 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation }: Props)
 
             {location && !showResults && (
               <div className="location-confirmed">
-                <MapPin size={18} color="#006947" weight="fill" />
+                <MapPin size={18} color="#209326" weight="fill" />
                 <span>Location pin added to map</span>
               </div>
             )}

@@ -112,7 +112,7 @@ export default function ParkBottomSheet({
                 <Heart
                   size={24}
                   weight={isFavourite ? "fill" : "regular"}
-                  color={isFavourite ? "#DD6616" : "#888"}
+                  color={isFavourite ? "#DD6616" : "#209326"}
                 />
               </button>
               {canEdit && (
@@ -121,7 +121,7 @@ export default function ParkBottomSheet({
                   onClick={onEdit}
                   title="Edit this place"
                 >
-                  <Pencil size={20} weight="regular" color="#006947" />
+                  <Pencil size={20} weight="regular" color="#209326" />
                 </button>
               )}
             </div>
@@ -129,7 +129,7 @@ export default function ParkBottomSheet({
           
           {distance !== null && (
             <p className="sheet-distance">
-              <MapPin size={14} weight="bold" color="#006947" />
+              <MapPin size={14} weight="bold" color="#209326" />
               {distance.toFixed(1)} km away
             </p>
           )}
@@ -148,7 +148,7 @@ export default function ParkBottomSheet({
             </div>
           ) : (
             <div className="no-data-message">
-              <Info size={18} color="#888" />
+              <Info size={18} color="#209326" />
               <span>No dog-friendly info yet</span>
             </div>
           )}

@@ -92,7 +92,7 @@ export default function Contact() {
                 flexShrink: 0,
               }}
             >
-              <EnvelopeSimple size={22} weight="regular" style={{ color: "#006947" }} />
+              <EnvelopeSimple size={22} weight="regular" style={{ color: "#209326" }} />
             </div>
             <div>
               <div

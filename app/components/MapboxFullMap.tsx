@@ -293,7 +293,7 @@ export default function MapboxFullMap({
             boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
           }}
         >
-          <Plus size={20} weight="bold" color="#006947" />
+          <Plus size={20} weight="bold" color="#209326" />
         </button>
         <button
           onClick={() => mapRef.current?.zoomOut()}
@@ -310,7 +310,7 @@ export default function MapboxFullMap({
             boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
           }}
         >
-          <Minus size={20} weight="bold" color="#006947" />
+          <Minus size={20} weight="bold" color="#209326" />
         </button>
         <button
           onClick={handleRecentre}
@@ -328,7 +328,7 @@ export default function MapboxFullMap({
             marginTop: 8,
           }}
         >
-          <Crosshair size={20} weight="bold" color="#006947" />
+          <Crosshair size={20} weight="bold" color="#209326" />
         </button>
       </div>
 

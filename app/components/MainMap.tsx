@@ -38,6 +38,8 @@ type Props = {
     parking: boolean;
   };
   route?: RouteInfo | null;
+  boundsToFit?: [Location, Location] | undefined;
+  fitBoundsRequestId?: number;
 };
 
 export default function MainMap({
@@ -52,6 +54,8 @@ export default function MainMap({
   isPinDropMode = false,
   filters,
   route,
+  boundsToFit,
+  fitBoundsRequestId = 0,
 }: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -173,6 +177,30 @@ export default function MainMap({
       });
     }
   }, [route, mapLoaded]);
+
+  // Fit viewport to user location + nearest park when requested (e.g. after search / Use my location).
+  // Only fit once per fitBoundsRequestId to avoid loop: fitBounds → moveend → onMapMove → re-render → fit again.
+  const lastFitRequestIdRef = useRef(0);
+  useEffect(() => {
+    if (
+      !mapRef.current ||
+      !mapLoaded ||
+      route ||
+      fitBoundsRequestId <= lastFitRequestIdRef.current ||
+      !boundsToFit ||
+      boundsToFit.length < 2
+    )
+      return;
+    lastFitRequestIdRef.current = fitBoundsRequestId;
+    const bounds = new mapboxgl.LngLatBounds()
+      .extend([boundsToFit[0].lng, boundsToFit[0].lat])
+      .extend([boundsToFit[1].lng, boundsToFit[1].lat]);
+    mapRef.current.fitBounds(bounds, {
+      padding: { top: 80, bottom: 80, left: 50, right: 50 },
+      maxZoom: 14,
+      duration: 1000,
+    });
+  }, [fitBoundsRequestId, boundsToFit, mapLoaded, route]);
 
   // Update center
   useEffect(() => {

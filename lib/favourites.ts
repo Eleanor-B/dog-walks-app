@@ -41,3 +41,17 @@ export async function removeFavourite(userId: string, placeId: string): Promise<
   }
   return true;
 }
+
+// Clear all favourites for a user
+export async function removeAllFavourites(userId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from("favourites")
+    .delete()
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("Error clearing favourites:", error);
+    return false;
+  }
+  return true;
+}

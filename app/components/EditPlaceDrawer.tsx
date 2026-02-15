@@ -133,7 +133,7 @@ export default function EditPlaceDrawer({ park, onClose, onSave, onDelete }: Pro
             <label className="form-label">
               Update location (optional)
               <div className="search-input-wrapper" style={{ marginTop: 8 }}>
-                <MagnifyingGlass size={18} color="#888" />
+                <MagnifyingGlass size={18} color="#209326" />
                 <input
                   type="text"
                   placeholder="Enter new postcode or place name"
@@ -235,7 +235,7 @@ export default function EditPlaceDrawer({ park, onClose, onSave, onDelete }: Pro
             onClick={onDelete}
             className="delete-btn"
           >
-            <TrashSimple size={18} color="#666" />
+            <TrashSimple size={18} color="#209326" />
             Delete this place
           </button>
           <button

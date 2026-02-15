@@ -1,0 +1,79 @@
+# GoWalkTheDog — Project Rules for Cursor AI
+
+## What this project is
+A Next.js web app for finding dog-friendly parks and green spaces in London. Users browse a map, filter by facilities (fenced, bins, toilets, coffee, parking), get directions, add their own places, favourite them, and log in with email. Live at gowalkthedog.com, deployed on Vercel, backend on Supabase.
+
+## Tech stack
+- Framework: Next.js (TypeScript)
+- Maps: Mapbox GL JS
+- Backend/Auth: Supabase (email auth, PostgreSQL)
+- Icons: Phosphor Icons (@phosphor-icons/react)
+- Fonts: Fraunces (headings), Outfit (body)
+- Hosting: Vercel (auto-deploys from GitHub main branch)
+- Styling: Plain CSS in globals.css (no Tailwind utility classes in components)
+
+## Design system — use these exact values
+- Primary green: #006947
+- Primary dark: #004d33
+- Body text: #02301F
+- Accent/orange: #DD6616
+- Landing background: #9EFF77
+- Card background: #FFFFFF
+- Icon colour: #209326
+- Border colour: #E5E2DD
+- Error red: #c53030
+- Font headings: var(--font-fraunces) / "Fraunces"
+- Font body: var(--font-outfit) / "Outfit"
+- Border radius small: 6px, medium: 10px, large: 16px, full: 999px
+
+## Key files — know where things live
+- `app/page.tsx` — Main app component (landing page + map view, ~1400 lines)
+- `app/globals.css` — ALL styles and design tokens
+- `app/layout.tsx` — Root layout (fonts)
+- `app/components/MainMap.tsx` — Map with markers and route drawing
+- `app/components/MapboxFullMap.tsx` — Expanded map modal
+- `app/components/ParkBottomSheet.tsx` — Park detail bottom sheet
+- `app/components/AddPlaceDrawer.tsx` — Add new place drawer
+- `app/components/EditPlaceDrawer.tsx` — Edit place drawer
+- `app/components/AccountSettings.tsx` — Account settings modal
+- `app/components/CookieBanner.tsx` — Cookie consent banner
+- `app/components/AppFooter.tsx` — Dark green footer
+- `lib/places.ts` — Supabase CRUD for places
+- `lib/favourites.ts` — Supabase CRUD for favourites
+- `lib/notes.ts` — Supabase CRUD for notes (backend ready, UI not built yet)
+- `lib/useAuth.ts` — Auth hook
+- `lib/supabase.ts` — Supabase client
+
+## What's built and working
+- Landing page with green background, dog hero, filter carousel, location search
+- Map view with Mapbox, auto-discovered parks + user-added places
+- Collapsible filter bar (fenced, unfenced, part-fenced, bins, toilets, coffee, parking)
+- Add/edit/delete places (saved to Supabase)
+- Favourites (heart icon, saved to Supabase per user)
+- Directions (walking/driving/transit, route drawn on map)
+- Auth (sign up with first name, log in, email verification, log out)
+- Account settings (logout, delete account)
+- Cookie banner, footer, legal pages
+
+## Current roadmap — what we're building next
+Batch 1 (current): Map pin popup fix, filter bar → white bg, FAB positioning, user avatar in header, favourites toggle, dividers → green, location input icon, map viewport sizing
+Batch 2: Account settings via avatar tap, edit details page, forgotten password
+Batch 3: Personalised welcome, notes UI, place count, empty states, responsive polish, accessibility
+Batch 4: Dog profiles, multiple dogs, photo upload, hero image swap
+
+## Rules for making changes
+1. Always tell me which file you're editing before making the change
+2. One change at a time unless I say otherwise
+3. Explain what the change does in plain English
+4. After changes, remind me: Cmd + Shift + R to see it in the browser
+5. If a change touches multiple files, list them all upfront
+6. Don't refactor or reorganise code unless I specifically ask
+7. Don't add new packages/libraries without asking me first
+8. Keep styles in globals.css — don't add inline styles unless matching existing patterns
+9. Use Phosphor Icons for any new icons (already installed)
+10. Use the existing design tokens from globals.css (don't invent new colours or spacing)
+
+## When deploying
+- Remind me to commit: git add . && git commit -m "description" && git push
+- Vercel auto-deploys from the main branch
+- Dev server runs on port 3000 or 3001
