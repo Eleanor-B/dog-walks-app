@@ -38,6 +38,7 @@ import {
   PersonSimpleWalk,
   Train,
   PawPrint,
+  House,
 } from "@phosphor-icons/react";
 
 // ===== TYPES =====
@@ -305,6 +306,10 @@ export default function Home() {
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [showAdjustPlaceMap, setShowAdjustPlaceMap] = useState(false);
+  const [editDrawerMode, setEditDrawerMode] = useState<"full" | "confirmPin">("full");
+  const [showAddPlacePinMap, setShowAddPlacePinMap] = useState(false);
+  const [addPlacePinMapPin, setAddPlacePinMapPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [addPlacePinResult, setAddPlacePinResult] = useState<{ lat: number; lng: number } | null>(null);
 
   // Toast
   const [showToast, setShowToast] = useState(false);
@@ -540,14 +545,14 @@ export default function Home() {
     }
   };
 
-  const handleEditPlace = async (placeData: any) => {
-    if (!editingPark?.id) return;
+  const handleEditPlace = async (placeData: any): Promise<boolean> => {
+    if (!editingPark?.id) return false;
 
     const hasFacility = placeData.fenced || placeData.unfenced || placeData.partFenced ||
                         placeData.bins || placeData.toilets || placeData.coffee || placeData.parking;
     if (!hasFacility) {
       showToastMessage("Please add at least one facility to this place");
-      return;
+      return false;
     }
 
     const success = await updatePlace(editingPark.id, {
@@ -573,8 +578,10 @@ export default function Home() {
       if (selectedPark?.id === editingPark.id) {
         setSelectedPark({ ...selectedPark, ...placeData });
       }
+      return true;
     } else {
       showToastMessage("Failed to update place");
+      return false;
     }
   };
 
@@ -1297,31 +1304,106 @@ export default function Home() {
         </div>
       )}
 
-      {/* Park Bottom Sheet */}
+      {/* Park Bottom Sheet – slides down when adjusting pin, slides back up after Save */}
       {selectedPark && !directionsMode && (
         <ParkBottomSheet
           park={selectedPark}
           userLocation={userLocation}
           isFavourite={favouriteIds.includes(selectedPark.id)}
-          canEdit={user?.id === selectedPark.user_id}
+          canEdit={!!user}
           onClose={handleCloseBottomSheet}
           onToggleFavourite={() => toggleFavorite(selectedPark.id)}
           onEdit={() => {
             setEditingPark(selectedPark);
+            setEditDrawerMode("full");
             setShowEditDrawer(true);
           }}
           onGetDirections={handleGetDirections}
           onRequestLocation={handleRequestLocation}
+          slideOut={showAdjustPlaceMap}
         />
       )}
 
-      {/* Add Place Drawer */}
+      {/* Add Place Drawer – slides down when dropping pin on map, slides back up after Use this location */}
       {showAddDrawer && (
         <AddPlaceDrawer
-          onClose={() => setShowAddDrawer(false)}
+          onClose={() => {
+            setShowAddDrawer(false);
+            setAddPlacePinResult(null);
+          }}
           onSave={handleAddPlace}
           userLocation={userLocation}
+          onOpenPinDropMap={(center) => {
+            const c = center || userLocation || { lat: 51.5074, lng: -0.1278 };
+            setAddPlacePinMapPin(c);
+            setShowAddPlacePinMap(true);
+          }}
+          pinLocationFromMap={addPlacePinResult}
+          slideOut={showAddPlacePinMap}
         />
+      )}
+
+      {/* Add place – drop pin full-screen map (above drawer so modal disappears) */}
+      {showAddPlacePinMap && (
+        <div className="adjust-pin-fullscreen add-place-pin-fullscreen">
+          <div className="adjust-pin-floating-bar">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddPlacePinMap(false);
+                setShowAddDrawer(false);
+                setAddPlacePinMapPin(null);
+                setAddPlacePinResult(null);
+              }}
+              className="adjust-pin-pill adjust-pin-pill-home"
+              aria-label="Back to home"
+            >
+              <House size={20} weight="fill" />
+              <span>Home</span>
+            </button>
+            <div className="adjust-pin-floating-actions">
+              <button
+                type="button"
+                className="adjust-pin-pill btn-primary adjust-pin-save-btn"
+                disabled={!addPlacePinMapPin}
+                onClick={() => {
+                  if (addPlacePinMapPin) {
+                    setAddPlacePinResult(addPlacePinMapPin);
+                    setShowAddPlacePinMap(false);
+                    setAddPlacePinMapPin(null);
+                  }
+                }}
+              >
+                Use this location
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddPlacePinMap(false);
+                  setAddPlacePinMapPin(null);
+                }}
+                className="adjust-pin-pill adjust-pin-pill-close"
+                aria-label="Close"
+              >
+                <X size={22} />
+              </button>
+            </div>
+          </div>
+          <div className="adjust-pin-map-wrap">
+            <MainMap
+              center={addPlacePinMapPin || userLocation || { lat: 51.5074, lng: -0.1278 }}
+              zoom={addPlacePinMapPin ? 16 : 12}
+              parks={[]}
+              userLocation={null}
+              onPinDrop={(loc) => setAddPlacePinMapPin(loc)}
+              isPinDropMode={true}
+              initialPinDropLocation={addPlacePinMapPin}
+              pinDropColor="#DD6616"
+              hideConfirmPinButton
+              filters={filters}
+            />
+          </div>
+        </div>
       )}
 
       {/* Edit Place Drawer */}
@@ -1331,6 +1413,7 @@ export default function Home() {
           onClose={() => {
             setShowEditDrawer(false);
             setEditingPark(null);
+            setEditDrawerMode("full");
           }}
           onSave={handleEditPlace}
           onDelete={() => setShowDeleteConfirm(true)}
@@ -1338,25 +1421,55 @@ export default function Home() {
             setShowEditDrawer(false);
             setShowAdjustPlaceMap(true);
           }}
+          mode={editDrawerMode}
+          isFavourite={favouriteIds.includes(editingPark.id)}
+          onToggleFavourite={() => toggleFavorite(editingPark.id)}
+          onShowFullEdit={() => setEditDrawerMode("full")}
         />
       )}
 
-      {/* Adjust pin location – full-screen map with orange pin */}
+      {/* Adjust pin location – full-screen map; drawer slides down; floating controls */}
       {showAdjustPlaceMap && editingPark && (
         <div className="adjust-pin-fullscreen">
-          <div className="adjust-pin-header">
-            <h2 className="adjust-pin-title">Adjust pin location</h2>
+          <div className="adjust-pin-floating-bar">
             <button
               type="button"
               onClick={() => {
                 setShowAdjustPlaceMap(false);
-                setShowEditDrawer(true);
+                setShowEditDrawer(false);
+                setEditingPark(null);
+                setSelectedPark(null);
               }}
-              className="close-btn"
-              aria-label="Cancel"
+              className="adjust-pin-pill adjust-pin-pill-home"
+              aria-label="Back to home"
             >
-              <X size={24} />
+              <House size={20} weight="fill" />
+              <span>Home</span>
             </button>
+            <div className="adjust-pin-floating-actions">
+              <button
+                type="button"
+                className="adjust-pin-pill btn-primary adjust-pin-save-btn"
+                onClick={async () => {
+                  const ok = await handleEditPlace(editingPark);
+                  if (ok) setShowAdjustPlaceMap(false);
+                }}
+              >
+                Save location
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAdjustPlaceMap(false);
+                  setEditDrawerMode("full");
+                  setShowEditDrawer(true);
+                }}
+                className="adjust-pin-pill adjust-pin-pill-close"
+                aria-label="Close"
+              >
+                <X size={22} />
+              </button>
+            </div>
           </div>
           <div className="adjust-pin-map-wrap">
             <MainMap
@@ -1365,13 +1478,12 @@ export default function Home() {
               parks={[]}
               userLocation={null}
               onPinDrop={(loc) => {
-                setEditingPark({ ...editingPark, lat: loc.lat, lng: loc.lng });
-                setShowAdjustPlaceMap(false);
-                setShowEditDrawer(true);
+                setEditingPark((prev) => prev ? { ...prev, lat: loc.lat, lng: loc.lng } : null);
               }}
               isPinDropMode={true}
               initialPinDropLocation={{ lat: editingPark.lat, lng: editingPark.lng }}
               pinDropColor="#DD6616"
+              hideConfirmPinButton
               filters={filters}
             />
           </div>

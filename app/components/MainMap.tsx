@@ -30,6 +30,8 @@ type Props = {
   isPinDropMode?: boolean;
   initialPinDropLocation?: Location | null;
   pinDropColor?: string;
+  /** When true, hide the bottom "Confirm this location" button (e.g. adjust-pin uses "Save location" at top) */
+  hideConfirmPinButton?: boolean;
   filters: {
     fenced: boolean;
     unfenced: boolean;
@@ -56,6 +58,7 @@ export default function MainMap({
   isPinDropMode = false,
   initialPinDropLocation = null,
   pinDropColor = "#006947",
+  hideConfirmPinButton = false,
   filters,
   route,
   boundsToFit,
@@ -152,7 +155,9 @@ export default function MainMap({
 
     if (isPinDropMode) {
       map.on("click", (e) => {
-        setPinDropLocation({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+        const loc = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+        setPinDropLocation(loc);
+        if (onPinDrop) onPinDrop(loc);
       });
     }
 
@@ -215,27 +220,38 @@ export default function MainMap({
     });
   }, [fitBoundsRequestId, boundsToFit, mapLoaded, route]);
 
-  // Update center
+  // Update center (skip in pin-drop mode so the map doesn’t jump when the user moves the pin)
   useEffect(() => {
-    if (mapRef.current && center && !route) {
-      mapRef.current.flyTo({ center: [center.lng, center.lat], zoom, duration: 1000 });
-    }
-  }, [center.lat, center.lng]);
+    if (!mapRef.current || !center || route || isPinDropMode) return;
+    mapRef.current.flyTo({ center: [center.lng, center.lat], zoom, duration: 1000 });
+  }, [center.lat, center.lng, zoom, route, isPinDropMode]);
 
   // Pin drop marker (colour: green default, orange for adjust-place mode)
+  // Update position in place when possible to avoid flash (remove/re-add could briefly show at 0,0)
+  // Wait for map load so pin is visible in fullscreen view (container has dimensions)
   useEffect(() => {
     if (!mapRef.current || !isPinDropMode) return;
-    if (pinDropMarkerRef.current) pinDropMarkerRef.current.remove();
-    if (pinDropLocation) {
-      const el = document.createElement("div");
-      el.className = "pin-drop-marker";
-      const fill = pinDropColor.replace("#", "%23");
-      el.innerHTML = `<svg width="32" height="40" viewBox="0 0 32 40" fill="none"><path d="M16 0C7.164 0 0 7.164 0 16c0 12 16 24 16 24s16-12 16-24C32 7.164 24.836 0 16 0z" fill="${pinDropColor}"/><circle cx="16" cy="16" r="6" fill="white"/></svg>`;
-      pinDropMarkerRef.current = new mapboxgl.Marker(el)
-        .setLngLat([pinDropLocation.lng, pinDropLocation.lat])
-        .addTo(mapRef.current);
+    if (!mapLoaded && !pinDropMarkerRef.current) return;
+    if (!pinDropLocation) {
+      if (pinDropMarkerRef.current) {
+        pinDropMarkerRef.current.remove();
+        pinDropMarkerRef.current = null;
+      }
+      return;
     }
-  }, [pinDropLocation, isPinDropMode, pinDropColor]);
+    const lngLat = [pinDropLocation.lng, pinDropLocation.lat] as [number, number];
+    if (pinDropMarkerRef.current) {
+      pinDropMarkerRef.current.setLngLat(lngLat);
+      return;
+    }
+    const el = document.createElement("div");
+    el.className = "pin-drop-marker";
+    const fill = pinDropColor.replace("#", "%23");
+    el.innerHTML = `<svg width="32" height="40" viewBox="0 0 32 40" fill="none"><path d="M16 0C7.164 0 0 7.164 0 16c0 12 16 24 16 24s16-12 16-24C32 7.164 24.836 0 16 0z" fill="${pinDropColor}"/><circle cx="16" cy="16" r="6" fill="white"/></svg>`;
+    pinDropMarkerRef.current = new mapboxgl.Marker(el)
+      .setLngLat(lngLat)
+      .addTo(mapRef.current);
+  }, [pinDropLocation, isPinDropMode, pinDropColor, mapLoaded]);
 
   // User location marker
   useEffect(() => {
@@ -324,7 +340,7 @@ export default function MainMap({
   return (
     <div className="map-container">
       <div ref={mapContainerRef} className="map" />
-      {isPinDropMode && pinDropLocation && (
+      {isPinDropMode && pinDropLocation && !hideConfirmPinButton && (
         <button className="btn-primary confirm-pin-btn" onClick={handleConfirmPinDrop}>
           Confirm this location
         </button>

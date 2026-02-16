@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X,
   Barricade,
@@ -34,6 +34,12 @@ type Props = {
   onClose: () => void;
   onSave: (data: any) => void;
   userLocation: Location | null;
+  /** Open full-screen map to drop a pin; pass current location or null for map center */
+  onOpenPinDropMap?: (currentLocation: Location | null) => void;
+  /** Location chosen from the drop-pin map (parent sets then clears) */
+  pinLocationFromMap?: Location | null;
+  /** When true, drawer and overlay animate down off screen (e.g. while dropping pin on map) */
+  slideOut?: boolean;
 };
 
 // Calculate distance between two points
@@ -88,7 +94,7 @@ async function searchLocations(
   }
 }
 
-export default function AddPlaceDrawer({ onClose, onSave, userLocation }: Props) {
+export default function AddPlaceDrawer({ onClose, onSave, userLocation, onOpenPinDropMap, pinLocationFromMap, slideOut = false }: Props) {
   const [locationInput, setLocationInput] = useState("");
   const [placeName, setPlaceName] = useState("");
   const [location, setLocation] = useState<Location | null>(null);
@@ -101,6 +107,14 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation }: Props)
   const [searchResults, setSearchResults] = useState<LocationResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [showAllResults, setShowAllResults] = useState(false);
+
+  // Sync location when user picks from drop-pin map
+  useEffect(() => {
+    if (!pinLocationFromMap) return;
+    setLocation(pinLocationFromMap);
+    setLocationName("");
+    setLocationError(null);
+  }, [pinLocationFromMap?.lat, pinLocationFromMap?.lng]);
 
   const [facilities, setFacilities] = useState({
     fenced: false,
@@ -149,8 +163,7 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation }: Props)
   };
 
   const handleDropPin = () => {
-    // This would open a pin drop map - for now show message
-    setLocationError("Pin drop coming soon. Please try entering a postcode instead.");
+    if (onOpenPinDropMap) onOpenPinDropMap(location || userLocation);
   };
 
   const handleSave = () => {
@@ -188,24 +201,24 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation }: Props)
 
   return (
     <>
-      <div className="drawer-overlay" onClick={onClose} />
-      <div className="drawer add-place-drawer">
-        {/* Header - no divider, tighter spacing */}
-        <div className="drawer-header-compact">
+      <div className={`drawer-overlay ${slideOut ? "drawer-overlay-slide-out" : ""}`} onClick={onClose} />
+      <div className={`drawer add-place-drawer ${slideOut ? "drawer-slide-out" : ""}`}>
+        {/* Header – same as Edit: no divider, tighter spacing */}
+        <div className="drawer-header add-place-drawer-header">
           <h2>Add a place</h2>
           <button onClick={onClose} className="close-btn">
             <X size={24} />
           </button>
         </div>
 
-        <div className="drawer-content-compact">
+        <div className="drawer-content add-place-drawer-content">
           {/* Location Search */}
-          <div className="form-section-compact">
-            <label className="form-label-green">
+          <div className="form-section">
+            <label className="form-label add-place-label">
               Where is the new place?
             </label>
-            <div className="search-input-wrapper" style={{ marginTop: 6 }}>
-              <MagnifyingGlass size={18} color="#209326" />
+            <div className="search-input-wrapper add-place-search-wrapper">
+              <MagnifyingGlass size={18} className="add-place-search-icon" />
               <input
                 type="text"
                 placeholder="Enter postcode or place name"
@@ -227,6 +240,22 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation }: Props)
             >
               {isSearching ? "Searching..." : "Find location"}
             </button>
+
+            {onOpenPinDropMap && (
+              <button
+                type="button"
+                className="btn-secondary add-place-drop-pin-btn"
+                onClick={handleDropPin}
+                style={{ marginTop: 8, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                <MapPin size={18} weight="fill" className="add-place-drop-pin-icon" />
+                Drop pin on map
+              </button>
+            )}
+
+            <span className="form-hint" style={{ marginTop: 6, display: "block" }}>
+              Search by postcode or place name, or drop a pin on the map for the exact spot.
+            </span>
 
             {/* Multiple Results List */}
             {showResults && searchResults.length > 0 && (
@@ -288,8 +317,8 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation }: Props)
           </div>
 
           {/* Place Name */}
-          <div className="form-section-compact">
-            <label className="form-label-green">
+          <div className="form-section">
+            <label className="form-label add-place-label">
               Give your new place a name
             </label>
             <input
@@ -297,14 +326,14 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation }: Props)
               placeholder="e.g. Dulwich Park - dog field"
               value={placeName}
               onChange={(e) => setPlaceName(e.target.value)}
-              style={{ marginTop: 6 }}
+              className="add-place-input"
             />
-            <span className="form-hint-green">Or leave blank to use location name</span>
+            <span className="form-hint form-hint-green">Or leave blank to use location name</span>
           </div>
 
           {/* Facilities */}
-          <div className="form-section-compact">
-            <p className="form-label-green" style={{ marginBottom: 8 }}>What's here?</p>
+          <div className="form-section">
+            <p className="form-label add-place-label" style={{ marginBottom: 8 }}>What's here?</p>
             
             {facilityError && (
               <div className="error-message" style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>

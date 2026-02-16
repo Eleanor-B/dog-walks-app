@@ -33,6 +33,8 @@ type Props = {
   onEdit: () => void;
   onGetDirections: () => void;
   onRequestLocation: () => void;
+  /** When true, sheet and backdrop animate down out of view (e.g. during adjust pin) */
+  slideOut?: boolean;
 };
 
 function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
@@ -59,6 +61,7 @@ export default function ParkBottomSheet({
   onEdit,
   onGetDirections,
   onRequestLocation,
+  slideOut = false,
 }: Props) {
   const distance = userLocation
     ? distanceKm(userLocation.lat, userLocation.lng, park.lat, park.lng)
@@ -92,10 +95,13 @@ export default function ParkBottomSheet({
   return (
     <>
       {/* Backdrop */}
-      <div className="bottom-sheet-backdrop" onClick={onClose} />
+      <div
+        className={`bottom-sheet-backdrop ${slideOut ? "bottom-sheet-backdrop-slide-out" : ""}`}
+        onClick={onClose}
+      />
       
       {/* Sheet */}
-      <div className="bottom-sheet">
+      <div className={`bottom-sheet ${slideOut ? "bottom-sheet-slide-out" : ""}`}>
         {/* Handle */}
         <div className="sheet-handle" />
 

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import {
   X,
+  Heart,
+  Pencil,
   Barricade,
   TrashSimple,
   Toilet,
@@ -21,6 +23,11 @@ type Props = {
   onSave: (data: any) => void;
   onDelete: () => void;
   onAdjustPinLocation?: () => void;
+  /** When set, drawer shows compact "confirm pin" view (title, heart, edit, Save only) */
+  mode?: "full" | "confirmPin";
+  isFavourite?: boolean;
+  onToggleFavourite?: () => void;
+  onShowFullEdit?: () => void;
 };
 
 async function lookupLocation(query: string): Promise<{ lat: number; lng: number; name: string } | null> {
@@ -42,7 +49,17 @@ async function lookupLocation(query: string): Promise<{ lat: number; lng: number
   }
 }
 
-export default function EditPlaceDrawer({ park, onClose, onSave, onDelete, onAdjustPinLocation }: Props) {
+export default function EditPlaceDrawer({
+  park,
+  onClose,
+  onSave,
+  onDelete,
+  onAdjustPinLocation,
+  mode = "full",
+  isFavourite = false,
+  onToggleFavourite,
+  onShowFullEdit,
+}: Props) {
   const [placeName, setPlaceName] = useState(park.name);
   const [locationInput, setLocationInput] = useState("");
   const [location, setLocation] = useState<{ lat: number; lng: number }>({ lat: park.lat, lng: park.lng });
@@ -107,6 +124,73 @@ export default function EditPlaceDrawer({ park, onClose, onSave, onDelete, onAdj
     setFacilityError(false);
   };
 
+  const handleConfirmPinSave = () => {
+    onSave({
+      name: park.name,
+      lat: park.lat,
+      lng: park.lng,
+      fenced: park.fenced,
+      unfenced: park.unfenced,
+      partFenced: park.partFenced,
+      bins: park.bins,
+      toilets: park.toilets,
+      coffee: park.coffee,
+      parking: park.parking,
+    });
+  };
+
+  if (mode === "confirmPin") {
+    return (
+      <>
+        <div className="drawer-overlay" onClick={onClose} />
+        <div className="drawer edit-place-drawer edit-place-drawer-confirm">
+          <div className="drawer-header drawer-header-compact">
+            <h2 className="edit-place-confirm-title">{park.name}</h2>
+            <div className="edit-place-confirm-actions">
+              {onToggleFavourite && (
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={onToggleFavourite}
+                  title={isFavourite ? "Remove from favourites" : "Add to favourites"}
+                >
+                  <Heart
+                    size={24}
+                    weight={isFavourite ? "fill" : "regular"}
+                    color={isFavourite ? "#DD6616" : "#209326"}
+                  />
+                </button>
+              )}
+              {onShowFullEdit && (
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={onShowFullEdit}
+                  title="Edit details"
+                >
+                  <Pencil size={20} weight="regular" color="#209326" />
+                </button>
+              )}
+              <button onClick={onClose} className="close-btn" aria-label="Close">
+                <X size={24} />
+              </button>
+            </div>
+          </div>
+          <div className="drawer-content drawer-content-compact edit-place-confirm-content">
+            <p className="form-hint" style={{ margin: 0 }}>
+              Pin location updated. Save to confirm.
+            </p>
+          </div>
+          <div className="drawer-footer drawer-footer-compact">
+            <button className="btn-primary" onClick={handleConfirmPinSave} style={{ width: "100%", maxWidth: 280 }}>
+              Save
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="drawer-overlay" onClick={onClose} />
@@ -122,24 +206,24 @@ export default function EditPlaceDrawer({ park, onClose, onSave, onDelete, onAdj
         <div className="drawer-content">
           {/* Name */}
           <div className="form-section">
-            <label className="form-label">
+            <label className="form-label edit-place-label">
               Place name
               <input
                 type="text"
                 value={placeName}
                 onChange={(e) => setPlaceName(e.target.value)}
                 placeholder="e.g. Dulwich Park - dog field"
-                style={{ marginTop: 8 }}
+                className="edit-place-input"
               />
             </label>
           </div>
 
           {/* Location */}
           <div className="form-section">
-            <label className="form-label">
+            <label className="form-label edit-place-label">
               Update location (optional)
-              <div className="search-input-wrapper" style={{ marginTop: 8 }}>
-                <MagnifyingGlass size={18} color="#209326" />
+              <div className="search-input-wrapper edit-place-search-wrapper">
+                <MagnifyingGlass size={18} className="edit-place-search-icon" />
                 <input
                   type="text"
                   placeholder="Enter new postcode or place name"
@@ -160,11 +244,11 @@ export default function EditPlaceDrawer({ park, onClose, onSave, onDelete, onAdj
             {onAdjustPinLocation && (
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-secondary adjust-pin-btn"
                 onClick={onAdjustPinLocation}
-                style={{ marginTop: 8, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
               >
-                <MapPin size={18} weight="fill" />
+                <MapPin size={18} weight="fill" className="adjust-pin-icon" />
                 Adjust pin location
               </button>
             )}
@@ -190,7 +274,7 @@ export default function EditPlaceDrawer({ park, onClose, onSave, onDelete, onAdj
 
           {/* Facilities */}
           <div className="form-section">
-            <p className="form-label" style={{ marginBottom: 12 }}>Facilities</p>
+            <p className="form-label edit-place-label" style={{ marginBottom: 8 }}>Facilities</p>
             
             {facilityError && (
               <div className="error-message" style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>

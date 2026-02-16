@@ -4,8 +4,15 @@ import { CaretLeft, EnvelopeSimple } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import AppFooter from "../components/AppFooter";
 
+const CONTACT_EMAIL = "hello@gowalkthedog.com";
+const MAILTO_URL = `mailto:${CONTACT_EMAIL}?subject=Go%20Walk%20The%20Dog%20-%20Contact`;
+
 export default function Contact() {
   const router = useRouter();
+
+  const openMailClient = () => {
+    window.location.href = MAILTO_URL;
+  };
 
   return (
     <div className="content-page">
@@ -27,16 +34,20 @@ export default function Contact() {
           </p>
 
           <a
-  href="mailto:hello@gowalkthedog.com?subject=Go%20Walk%20The%20Dog%20-%20Contact"
-  className="email-card-link"
->
-
+            href={MAILTO_URL}
+            className="email-card-link"
+            onClick={(e) => {
+              e.preventDefault();
+              openMailClient();
+            }}
+            rel="noopener noreferrer"
+          >
             <div className="email-card-icon-wrap">
               <EnvelopeSimple size={22} weight="regular" style={{ color: "var(--color-icon)" }} />
             </div>
             <div>
               <div className="email-card-title">Email us</div>
-              <div className="email-card-value">hello@gowalkthedog.com</div>
+              <div className="email-card-value">{CONTACT_EMAIL}</div>
             </div>
           </a>
 

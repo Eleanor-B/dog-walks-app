@@ -1257,6 +1257,12 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   background: rgba(0, 0, 0, 0.3);
   z-index: 600;
   animation: fadeIn 0.2s ease;
+  transition: opacity 0.35s ease-out;
+}
+
+.bottom-sheet-backdrop-slide-out {
+  opacity: 0;
+  pointer-events: none;
 }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -1275,6 +1281,11 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   margin: 0 auto;
   overflow-y: auto;
   animation: slideUp 0.3s ease-out;
+  transition: transform 0.35s ease-out;
+}
+
+.bottom-sheet-slide-out {
+  transform: translateY(100%);
 }
 
 @keyframes slideUp {
@@ -1375,6 +1386,12 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   background: rgba(0, 0, 0, 0.5);
   z-index: 800;
   animation: fadeIn 0.2s ease;
+  transition: opacity 0.35s ease-out;
+}
+
+.drawer-overlay-slide-out {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .drawer {
@@ -1390,6 +1407,15 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   animation: slideUp 0.3s ease-out;
 }
 
+/* Add-place drawer: slide down off screen when dropping pin (same UX as adjust pin) */
+.add-place-drawer {
+  transition: transform 0.35s ease-out;
+}
+
+.add-place-drawer.drawer-slide-out {
+  transform: translateY(100vh);
+}
+
 @media (min-width: 600px) {
   .drawer {
     left: 50%;
@@ -1399,6 +1425,16 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
     border-radius: var(--radius-xl);
     animation: fadeInScale 0.3s ease-out forwards;
     transform: translate(-50%, -50%);
+  }
+
+  .add-place-drawer.drawer-slide-out {
+    transform: translate(-50%, 100vh);
+  }
+}
+
+@media (max-width: 599px) {
+  .add-place-drawer.drawer-slide-out {
+    transform: translateY(100%);
   }
 }
 
@@ -1462,13 +1498,181 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   justify-content: center;
 }
 
+/* Edit place drawer: tighter spacing, no divider, consistent inputs */
+.edit-place-drawer .drawer-header {
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
+  border-bottom: none;
+}
+
+.edit-place-drawer .drawer-content {
+  padding: var(--spacing-md) var(--spacing-lg);
+}
+
+.edit-place-drawer .form-section {
+  margin-bottom: var(--spacing-md);
+}
+
+.edit-place-drawer .form-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.edit-place-drawer .edit-place-label {
+  color: var(--color-primary);
+}
+
+.edit-place-drawer .edit-place-input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  min-height: 44px;
+  font-family: var(--font-outfit), "Outfit", sans-serif;
+  font-size: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+
+.edit-place-drawer .edit-place-search-wrapper {
+  margin-top: 6px;
+  padding: 0 12px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.edit-place-drawer .edit-place-search-wrapper .search-input {
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: 24px;
+}
+
+.edit-place-drawer .edit-place-search-wrapper .edit-place-search-icon,
+.edit-place-drawer .edit-place-search-wrapper svg {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.edit-place-drawer .adjust-pin-btn {
+  margin-top: 8px;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.edit-place-drawer .adjust-pin-btn .adjust-pin-icon,
+.edit-place-drawer .adjust-pin-btn svg {
+  color: var(--color-primary);
+}
+
+/* Add place drawer – same visual language as Edit place */
+.add-place-drawer .add-place-drawer-header {
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
+  border-bottom: none;
+}
+
+.add-place-drawer .add-place-drawer-content {
+  padding: var(--spacing-md) var(--spacing-lg);
+}
+
+.add-place-drawer .form-section {
+  margin-bottom: var(--spacing-md);
+}
+
+.add-place-drawer .form-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.add-place-drawer .add-place-label {
+  color: var(--color-primary);
+}
+
+.add-place-drawer .add-place-input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  min-height: 44px;
+  font-family: var(--font-outfit), "Outfit", sans-serif;
+  font-size: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+
+.add-place-drawer .add-place-search-wrapper {
+  margin-top: 6px;
+  padding: 0 12px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.add-place-drawer .add-place-search-wrapper .search-input {
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: 24px;
+}
+
+.add-place-drawer .add-place-search-wrapper .add-place-search-icon,
+.add-place-drawer .add-place-search-wrapper svg {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.add-place-drawer .add-place-drop-pin-btn {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.add-place-drawer .add-place-drop-pin-btn .add-place-drop-pin-icon,
+.add-place-drawer .add-place-drop-pin-btn svg {
+  color: var(--color-primary);
+}
+
+.add-place-drawer .drawer-footer-compact {
+  padding: var(--spacing-md);
+}
+
+/* Edit place drawer – confirm pin (compact) */
+.edit-place-drawer-confirm .edit-place-confirm-title {
+  margin: 0;
+  font-size: 20px;
+  color: var(--color-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edit-place-drawer-confirm .drawer-header-compact {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.edit-place-drawer-confirm .edit-place-confirm-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.edit-place-confirm-content {
+  text-align: center;
+}
+
 /* Forms */
 .form-section { margin-bottom: var(--spacing-lg); }
 .form-section-compact { margin-bottom: var(--spacing-md); }
 
 .form-label {
   display: block;
-  font-family: var(--font-fraunces), "Fraunces", serif;
+  font-family: var(--font-outfit), "Outfit", sans-serif;
   font-size: 14px;
   font-weight: 500;
   color: var(--color-text);
@@ -1702,32 +1906,96 @@ textarea:focus {
   overflow: hidden;
 }
 
-/* Full-screen adjust pin (from Edit place) – orange pin = editing */
+/* Full-screen adjust pin (from Edit place) – orange pin = editing; drawer slides down */
 .adjust-pin-fullscreen {
   position: fixed;
   inset: 0;
-  z-index: 600;
+  z-index: 750;
   background: var(--color-background);
   display: flex;
   flex-direction: column;
 }
 
-.adjust-pin-header {
-  flex-shrink: 0;
+/* Add-place drop pin: above drawer (900) so modal slides down and user sees full map */
+.add-place-pin-fullscreen {
+  z-index: 950;
+}
+
+/* Floating bar – no solid white bar; pills over the map */
+.adjust-pin-floating-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: var(--spacing-md) var(--spacing-lg);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--spacing-md) var(--spacing-lg);
-  background: var(--color-card);
-  border-bottom: 1px solid var(--color-border);
+  gap: var(--spacing-lg);
+  z-index: 1;
+  pointer-events: none;
 }
 
-.adjust-pin-title {
-  margin: 0;
-  font-family: var(--font-fraunces), "Fraunces", serif;
-  font-size: 18px;
-  font-weight: 600;
+.adjust-pin-floating-bar > * {
+  pointer-events: auto;
+}
+
+.adjust-pin-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: none;
+  font-family: var(--font-outfit), "Outfit", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--color-text);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.adjust-pin-pill:hover {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.adjust-pin-pill-home {
   color: var(--color-primary);
+}
+
+.adjust-pin-pill-title {
+  flex: 1;
+  justify-content: center;
+  font-family: var(--font-fraunces), "Fraunces", serif;
+  color: var(--color-primary);
+  font-weight: 600;
+  cursor: default;
+  min-width: 0;
+}
+
+.adjust-pin-floating-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.adjust-pin-pill.btn-primary.adjust-pin-save-btn {
+  background: var(--color-primary);
+  color: white;
+  padding: 10px 18px;
+}
+
+.adjust-pin-pill.btn-primary.adjust-pin-save-btn:hover {
+  background: var(--color-primary);
+  filter: brightness(1.08);
+  box-shadow: 0 4px 16px rgba(0, 105, 71, 0.35);
+}
+
+.adjust-pin-pill-close {
+  padding: 10px;
 }
 
 .adjust-pin-map-wrap {
