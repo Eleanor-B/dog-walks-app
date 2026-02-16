@@ -28,6 +28,8 @@ type Props = {
   onMapMove?: (center: Location, zoom: number) => void;
   onPinDrop?: (location: Location) => void;
   isPinDropMode?: boolean;
+  initialPinDropLocation?: Location | null;
+  pinDropColor?: string;
   filters: {
     fenced: boolean;
     unfenced: boolean;
@@ -52,6 +54,8 @@ export default function MainMap({
   onMapMove,
   onPinDrop,
   isPinDropMode = false,
+  initialPinDropLocation = null,
+  pinDropColor = "#006947",
   filters,
   route,
   boundsToFit,
@@ -78,8 +82,17 @@ export default function MainMap({
     return R * c;
   };
 
-  const [pinDropLocation, setPinDropLocation] = useState<Location | null>(null);
+  const [pinDropLocation, setPinDropLocation] = useState<Location | null>(initialPinDropLocation ?? null);
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // When opening adjust-place modal, pre-set pin to current place location
+  useEffect(() => {
+    if (isPinDropMode && initialPinDropLocation) {
+      setPinDropLocation(initialPinDropLocation);
+    } else if (isPinDropMode && !initialPinDropLocation) {
+      setPinDropLocation(null);
+    }
+  }, [isPinDropMode, initialPinDropLocation?.lat, initialPinDropLocation?.lng]);
 
   // Initialize map - runs once
   useEffect(() => {
@@ -209,19 +222,20 @@ export default function MainMap({
     }
   }, [center.lat, center.lng]);
 
-  // Pin drop marker
+  // Pin drop marker (colour: green default, orange for adjust-place mode)
   useEffect(() => {
     if (!mapRef.current || !isPinDropMode) return;
     if (pinDropMarkerRef.current) pinDropMarkerRef.current.remove();
     if (pinDropLocation) {
       const el = document.createElement("div");
       el.className = "pin-drop-marker";
-      el.innerHTML = `<svg width="32" height="40" viewBox="0 0 32 40" fill="none"><path d="M16 0C7.164 0 0 7.164 0 16c0 12 16 24 16 24s16-12 16-24C32 7.164 24.836 0 16 0z" fill="#006947"/><circle cx="16" cy="16" r="6" fill="white"/></svg>`;
+      const fill = pinDropColor.replace("#", "%23");
+      el.innerHTML = `<svg width="32" height="40" viewBox="0 0 32 40" fill="none"><path d="M16 0C7.164 0 0 7.164 0 16c0 12 16 24 16 24s16-12 16-24C32 7.164 24.836 0 16 0z" fill="${pinDropColor}"/><circle cx="16" cy="16" r="6" fill="white"/></svg>`;
       pinDropMarkerRef.current = new mapboxgl.Marker(el)
         .setLngLat([pinDropLocation.lng, pinDropLocation.lat])
         .addTo(mapRef.current);
     }
-  }, [pinDropLocation, isPinDropMode]);
+  }, [pinDropLocation, isPinDropMode, pinDropColor]);
 
   // User location marker
   useEffect(() => {

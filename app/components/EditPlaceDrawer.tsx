@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X,
   Barricade,
@@ -20,6 +20,7 @@ type Props = {
   onClose: () => void;
   onSave: (data: any) => void;
   onDelete: () => void;
+  onAdjustPinLocation?: () => void;
 };
 
 async function lookupLocation(query: string): Promise<{ lat: number; lng: number; name: string } | null> {
@@ -41,10 +42,15 @@ async function lookupLocation(query: string): Promise<{ lat: number; lng: number
   }
 }
 
-export default function EditPlaceDrawer({ park, onClose, onSave, onDelete }: Props) {
+export default function EditPlaceDrawer({ park, onClose, onSave, onDelete, onAdjustPinLocation }: Props) {
   const [placeName, setPlaceName] = useState(park.name);
   const [locationInput, setLocationInput] = useState("");
   const [location, setLocation] = useState<{ lat: number; lng: number }>({ lat: park.lat, lng: park.lng });
+
+  // Sync location when parent updates it (e.g. after "Adjust pin location")
+  useEffect(() => {
+    setLocation({ lat: park.lat, lng: park.lng });
+  }, [park.lat, park.lng]);
   const [isSearching, setIsSearching] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [facilityError, setFacilityError] = useState(false);
@@ -143,8 +149,25 @@ export default function EditPlaceDrawer({ park, onClose, onSave, onDelete }: Pro
                   className="search-input"
                 />
               </div>
-              <span className="form-hint">To change the location, just type in a new place name or postcode</span>
+              <span className="form-hint">To change the location, search for a new place or adjust the pin on the map.</span>
             </label>
+            {onAdjustPinLocation && (
+              <p className="form-hint" style={{ marginTop: 8, marginBottom: 0 }}>
+                Tap the map to set the exact spot for this place.
+              </p>
+            )}
+
+            {onAdjustPinLocation && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={onAdjustPinLocation}
+                style={{ marginTop: 8, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                <MapPin size={18} weight="fill" />
+                Adjust pin location
+              </button>
+            )}
 
             {locationInput.trim() && (
               <button

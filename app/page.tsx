@@ -302,6 +302,9 @@ export default function Home() {
   const [editingPark, setEditingPark] = useState<Park | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showAdjustPlaceMap, setShowAdjustPlaceMap] = useState(false);
 
   // Toast
   const [showToast, setShowToast] = useState(false);
@@ -602,6 +605,24 @@ export default function Home() {
     setCurrentRoute(null);
   };
 
+  const handleDeleteAccountConfirm = async () => {
+    if (!user) return;
+    setIsDeletingAccount(true);
+    try {
+      await removeAllFavourites(user.id);
+      await supabase.from("places").delete().eq("user_id", user.id);
+      await supabase.auth.signOut();
+      setShowDeleteAccountConfirm(false);
+      setFavouriteIds([]);
+      setShowOnlyFavourites(false);
+      setShowAvatarDropdown(false);
+      window.location.href = "/";
+    } catch {
+      setIsDeletingAccount(false);
+      showToastMessage("Something went wrong. Please try again.");
+    }
+  };
+
   // Directions handlers
   const handleGetDirections = () => {
     if (!selectedPark) return;
@@ -755,17 +776,59 @@ export default function Home() {
             </div>
             <div className="header-buttons">
               {user ? (
-                <>
+                <div className="avatar-dropdown-wrap" ref={avatarDropdownRef}>
                   <button
-                    className="btn-header-text"
-                    onClick={async () => {
-                      await supabase.auth.signOut();
-                      window.location.href = "/";
-                    }}
+                    type="button"
+                    className="avatar-btn"
+                    onClick={() => setShowAvatarDropdown((v) => !v)}
+                    aria-label="Favourites menu"
+                    aria-expanded={showAvatarDropdown}
+                    aria-haspopup="true"
                   >
-                    Log out
+                    <PawPrint size={22} weight="fill" />
                   </button>
-                </>
+                  {showAvatarDropdown && (
+                    <div className="avatar-dropdown">
+                      <button
+                        type="button"
+                        className="avatar-dropdown-item"
+                        onClick={() => {
+                          setViewState("map");
+                          setShowOnlyFavourites(true);
+                          setShowAvatarDropdown(false);
+                        }}
+                      >
+                        View my favourites
+                      </button>
+                      <button
+                        type="button"
+                        className="avatar-dropdown-item"
+                        onClick={async () => {
+                          if (!user) return;
+                          const ok = await removeAllFavourites(user.id);
+                          if (ok) {
+                            setFavouriteIds([]);
+                            setShowOnlyFavourites(false);
+                            showToastMessage("All favourites cleared");
+                          }
+                          setShowAvatarDropdown(false);
+                        }}
+                      >
+                        Clear my favourites
+                      </button>
+                      <button
+                        type="button"
+                        className="avatar-dropdown-item"
+                        onClick={() => {
+                          setShowDeleteAccountConfirm(true);
+                          setShowAvatarDropdown(false);
+                        }}
+                      >
+                        Delete my account
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <>
                   <button
@@ -992,6 +1055,32 @@ export default function Home() {
 
         {/* Footer */}
         <AppFooter />
+        {/* Delete account confirmation modal */}
+        {showDeleteAccountConfirm && (
+          <>
+            <div className="drawer-overlay" onClick={() => !isDeletingAccount && setShowDeleteAccountConfirm(false)} />
+            <div className="login-prompt-modal">
+              <h3>Delete your account?</h3>
+              <p>Are you sure you want to delete your account? Your favourites will be deleted and this can&apos;t be undone.</p>
+              <div className="modal-actions">
+                <button
+                  className="btn-secondary"
+                  onClick={() => !isDeletingAccount && setShowDeleteAccountConfirm(false)}
+                  disabled={isDeletingAccount}
+                >
+                  No
+                </button>
+                <button
+                  className="btn-primary btn-danger"
+                  onClick={handleDeleteAccountConfirm}
+                  disabled={isDeletingAccount}
+                >
+                  {isDeletingAccount ? "Deleting..." : "Yes"}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
         {/* Cookie Consent */}
         <CookieBanner />
         {/* Toast */}
@@ -1140,7 +1229,17 @@ export default function Home() {
                     setShowAvatarDropdown(false);
                   }}
                 >
-                  Clear all favourites
+                  Clear my favourites
+                </button>
+                <button
+                  type="button"
+                  className="avatar-dropdown-item"
+                  onClick={() => {
+                    setShowDeleteAccountConfirm(true);
+                    setShowAvatarDropdown(false);
+                  }}
+                >
+                  Delete my account
                 </button>
               </div>
             )}
@@ -1235,7 +1334,48 @@ export default function Home() {
           }}
           onSave={handleEditPlace}
           onDelete={() => setShowDeleteConfirm(true)}
+          onAdjustPinLocation={() => {
+            setShowEditDrawer(false);
+            setShowAdjustPlaceMap(true);
+          }}
         />
+      )}
+
+      {/* Adjust pin location – full-screen map with orange pin */}
+      {showAdjustPlaceMap && editingPark && (
+        <div className="adjust-pin-fullscreen">
+          <div className="adjust-pin-header">
+            <h2 className="adjust-pin-title">Adjust pin location</h2>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAdjustPlaceMap(false);
+                setShowEditDrawer(true);
+              }}
+              className="close-btn"
+              aria-label="Cancel"
+            >
+              <X size={24} />
+            </button>
+          </div>
+          <div className="adjust-pin-map-wrap">
+            <MainMap
+              center={{ lat: editingPark.lat, lng: editingPark.lng }}
+              zoom={16}
+              parks={[]}
+              userLocation={null}
+              onPinDrop={(loc) => {
+                setEditingPark({ ...editingPark, lat: loc.lat, lng: loc.lng });
+                setShowAdjustPlaceMap(false);
+                setShowEditDrawer(true);
+              }}
+              isPinDropMode={true}
+              initialPinDropLocation={{ lat: editingPark.lat, lng: editingPark.lng }}
+              pinDropColor="#DD6616"
+              filters={filters}
+            />
+          </div>
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}
@@ -1291,6 +1431,33 @@ export default function Home() {
             >
               Already have an account? Log in
             </button>
+          </div>
+        </>
+      )}
+
+      {/* Delete account confirmation modal */}
+      {showDeleteAccountConfirm && (
+        <>
+          <div className="drawer-overlay" onClick={() => !isDeletingAccount && setShowDeleteAccountConfirm(false)} />
+          <div className="login-prompt-modal">
+            <h3>Delete your account?</h3>
+            <p>Are you sure you want to delete your account? Your favourites will be deleted and this can&apos;t be undone.</p>
+            <div className="modal-actions">
+              <button
+                className="btn-secondary"
+                onClick={() => !isDeletingAccount && setShowDeleteAccountConfirm(false)}
+                disabled={isDeletingAccount}
+              >
+                No
+              </button>
+              <button
+                className="btn-primary btn-danger"
+                onClick={handleDeleteAccountConfirm}
+                disabled={isDeletingAccount}
+              >
+                {isDeletingAccount ? "Deleting..." : "Yes"}
+              </button>
+            </div>
           </div>
         </>
       )}

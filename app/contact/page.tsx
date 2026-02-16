@@ -26,7 +26,11 @@ export default function Contact() {
             Got a question, spotted a problem, or just want to say hello? We&apos;d love to hear from you.
           </p>
 
-          <a href="mailto:hello@gowalkthedog.com" className="email-card-link">
+          <a
+  href="mailto:hello@gowalkthedog.com?subject=Go%20Walk%20The%20Dog%20-%20Contact"
+  className="email-card-link"
+>
+
             <div className="email-card-icon-wrap">
               <EnvelopeSimple size={22} weight="regular" style={{ color: "var(--color-icon)" }} />
             </div>
