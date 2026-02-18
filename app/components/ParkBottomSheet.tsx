@@ -35,6 +35,10 @@ type Props = {
   onRequestLocation: () => void;
   /** When true, sheet and backdrop animate down out of view (e.g. during adjust pin) */
   slideOut?: boolean;
+  /** When provided, show "Add this place" to open add form with this park pre-filled */
+  onAddThisPlace?: () => void;
+  /** When true, user must sign in to save to favourites (show prompt) */
+  requireLoginForFavourite?: boolean;
 };
 
 function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
@@ -62,6 +66,8 @@ export default function ParkBottomSheet({
   onGetDirections,
   onRequestLocation,
   slideOut = false,
+  onAddThisPlace,
+  requireLoginForFavourite = false,
 }: Props) {
   const distance = userLocation
     ? distanceKm(userLocation.lat, userLocation.lng, park.lat, park.lng)
@@ -152,6 +158,20 @@ export default function ParkBottomSheet({
                 </span>
               ))}
             </div>
+          ) : park.isAutoDiscovered ? (
+            <div className="sheet-suggestion-block">
+              <p className="sheet-suggestion-title">What we guess from the map</p>
+              <ul className="sheet-suggestion-guesses">
+                {(park.nearbyAmenities?.cafes ?? 0) > 0 && (
+                  <li>Coffee / cafes nearby</li>
+                )}
+                {(park.nearbyAmenities?.parking ?? 0) > 0 && (
+                  <li>Parking nearby</li>
+                )}
+                <li>Fenced? We don&apos;t know yet – have you been? Add what you know below.</li>
+              </ul>
+              <p className="sheet-suggestion-cta">Save to your favourites for later, or add facilities so others can see.</p>
+            </div>
           ) : (
             <div className="no-data-message">
               <Info size={18} color="#209326" />
@@ -159,6 +179,45 @@ export default function ParkBottomSheet({
             </div>
           )}
         </div>
+
+        {/* Save to favourites / Add this place – for suggested green spaces */}
+        {park.isAutoDiscovered && (
+          <div className="sheet-section sheet-actions-row">
+            {onAddThisPlace && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={onAddThisPlace}
+                style={{ flex: 1 }}
+              >
+                Add facilities &amp; save place
+              </button>
+            )}
+            {requireLoginForFavourite ? (
+              <a
+                href="/login"
+                className="btn-primary"
+                style={{ flex: 1, textAlign: "center", textDecoration: "none" }}
+              >
+                Sign in to save to favourites
+              </a>
+            ) : (
+              <button
+                type="button"
+                className="sheet-fav-btn"
+                onClick={onToggleFavourite}
+                title={isFavourite ? "Remove from favourites" : "Save to favourites for later"}
+              >
+                <Heart
+                  size={22}
+                  weight={isFavourite ? "fill" : "regular"}
+                  color={isFavourite ? "#DD6616" : "#209326"}
+                />
+                <span>{isFavourite ? "Saved to favourites" : "Save to favourites"}</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Added by info */}
         {park.addedBy && (

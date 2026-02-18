@@ -2,41 +2,48 @@
 
 import { Heart } from "@phosphor-icons/react";
 
-export default function AppFooter() {
-  return (
-    <footer className="app-footer">
-      <div className="footer-inner">
-        {/* White Logo */}
-        <div className="footer-logo">
-          <img
-            src="/GWTD-LogoWhiteSm.svg"
-            alt="Go Walk The Dog"
-          />
-        </div>
+type AppFooterProps = { showDonateStrip?: boolean };
 
-        {/* Footer Links */}
+export default function AppFooter({ showDonateStrip = true }: AppFooterProps) {
+  return (
+    <>
+      {showDonateStrip && (
+        <div className="footer-donate-strip">
+          <div className="footer-donate-strip-inner">
+            <p className="footer-donate-intro">
+              Love dogs? Donate to Dogs Trust.*
+            </p>
+            <a
+              href="https://www.dogstrust.org.uk/support-us/ways-to-give"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="footer-donate"
+            >
+              <Heart size={14} weight="fill" className="footer-donate-icon" />
+              Support Dogs Trust
+            </a>
+          </div>
+        </div>
+      )}
+
+      <footer className="app-footer">
+        <div className="footer-inner">
+          {/* Footer Links */}
         <nav aria-label="Footer navigation" className="footer-nav">
           <a href="/privacy-policy">Privacy Policy</a>
           <a href="/cookie-policy">Cookie Policy</a>
           <a href="/contact">Contact</a>
         </nav>
 
-        {/* Dogs Trust Donation Link */}
-        <a
-          href="https://www.dogstrust.org.uk/support-us/ways-to-give"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="footer-donate"
-        >
-          <Heart size={14} weight="fill" className="footer-donate-icon" />
-          Support Dogs Trust
-        </a>
-
-        {/* Copyright */}
+        {/* Disclaimer + Copyright */}
+        <p className="footer-disclaimer">
+          *Not affiliated with Dogs Trust.
+        </p>
         <p className="footer-copyright">
           &copy; {new Date().getFullYear()} Go Walk The Dog. All rights reserved.
         </p>
-      </div>
-    </footer>
+        </div>
+      </footer>
+    </>
   );
 }

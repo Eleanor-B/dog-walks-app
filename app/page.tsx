@@ -39,6 +39,7 @@ import {
   Train,
   PawPrint,
   House,
+  SignOut,
 } from "@phosphor-icons/react";
 
 // ===== TYPES =====
@@ -99,16 +100,57 @@ function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): num
 }
 
 async function lookupLocation(query: string): Promise<Location | null> {
+  const q = query.trim();
+  if (!q) return null;
+
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+  // Prefer Mapbox Geocoding for better UK place/postcode accuracy
+  if (mapboxToken) {
+    try {
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?country=GB&limit=1&types=place,postcode,address,poi,locality&access_token=${mapboxToken}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        const features = data.features;
+        if (Array.isArray(features) && features.length > 0) {
+          const f = features[0];
+          const coords = f.geometry?.coordinates ?? f.center;
+          if (Array.isArray(coords) && coords.length >= 2) {
+            const lng = Number(coords[0]);
+            const lat = Number(coords[1]);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+          }
+        }
+      }
+    } catch {
+      /* fall through to Nominatim */
+    }
+  }
+
+  // Fallback: Nominatim; use bounding box center when available for better area pins (e.g. Goose Green)
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=gb`,
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=gb`,
       { headers: { Accept: "application/json" } }
     );
     if (!res.ok) return null;
     const data = await res.json();
     if (!Array.isArray(data) || data.length === 0) return null;
-    const lat = Number(data[0].lat);
-    const lng = Number(data[0].lon);
+    const first = data[0];
+    let lat = Number(first.lat);
+    let lng = Number(first.lon);
+    const bbox = first.boundingbox;
+    if (Array.isArray(bbox) && bbox.length >= 4) {
+      const south = Number(bbox[0]);
+      const north = Number(bbox[1]);
+      const west = Number(bbox[2]);
+      const east = Number(bbox[3]);
+      if (Number.isFinite(south) && Number.isFinite(north) && Number.isFinite(west) && Number.isFinite(east)) {
+        lat = (south + north) / 2;
+        lng = (west + east) / 2;
+      }
+    }
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
     return { lat, lng };
   } catch {
@@ -116,42 +158,61 @@ async function lookupLocation(query: string): Promise<Location | null> {
   }
 }
 
-// Fetch parks from Mapbox (green spaces within radius)
+// Fetch parks from Mapbox Search Box API (Geocoding v5 no longer returns POIs)
 async function fetchNearbyParks(center: Location, radiusKm: number = 3): Promise<Park[]> {
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   if (!mapboxToken) return [];
 
   try {
-    // Use Mapbox Geocoding API to find parks
-    const res = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/park.json?proximity=${center.lng},${center.lat}&limit=10&types=poi&access_token=${mapboxToken}`
-    );
+    const proximity = `${center.lng},${center.lat}`;
+    const url = `https://api.mapbox.com/search/searchbox/v1/forward?q=park&proximity=${encodeURIComponent(proximity)}&limit=10&types=poi&language=en&access_token=${mapboxToken}`;
+    const res = await fetch(url);
     if (!res.ok) return [];
     const data = await res.json();
-    
-    if (!data.features) return [];
 
-    const parks: Park[] = data.features
+    const features = data.features ?? [];
+    const parks: Park[] = features
       .filter((f: any) => {
-        // Filter by distance
-        const dist = distanceKm(center.lat, center.lng, f.center[1], f.center[0]);
+        const coords = f.geometry?.coordinates ?? [f.properties?.coordinates?.longitude, f.properties?.coordinates?.latitude];
+        if (coords[0] == null || coords[1] == null) return false;
+        const lng = typeof coords[0] === "number" ? coords[0] : f.properties?.coordinates?.longitude;
+        const lat = typeof coords[1] === "number" ? coords[1] : f.properties?.coordinates?.latitude;
+        const dist = distanceKm(center.lat, center.lng, lat, lng);
         return dist <= radiusKm;
       })
-      .map((f: any) => ({
-        id: `mapbox-${f.id}`,
-        name: f.text || f.place_name?.split(",")[0] || "Unknown Park",
-        lat: f.center[1],
-        lng: f.center[0],
-        isAutoDiscovered: true,
-        nearbyAmenities: { cafes: 0, toilets: 0, parking: 0 },
-      }));
+      .map((f: any) => {
+        const coords = f.geometry?.coordinates ?? [f.properties?.coordinates?.longitude, f.properties?.coordinates?.latitude];
+        const lng = coords[0] ?? f.properties?.coordinates?.longitude ?? 0;
+        const lat = coords[1] ?? f.properties?.coordinates?.latitude ?? 0;
+        const name = f.properties?.name ?? f.properties?.name_preferred ?? "Green space";
+        const id = f.properties?.mapbox_id ?? `mapbox-${lng}-${lat}`;
+        return {
+          id: String(id).startsWith("mapbox-") ? id : `mapbox-${id}`,
+          name,
+          lat,
+          lng,
+          isAutoDiscovered: true,
+          nearbyAmenities: { cafes: 0, toilets: 0, parking: 0 },
+        };
+      });
 
-    // Fetch nearby amenities for each park
-    for (const park of parks) {
-      park.nearbyAmenities = await fetchNearbyAmenities(park);
-    }
+    // Deduplicate: drop parks whose pin would be almost on top of an earlier one (e.g. Peckham Rye Park + Peckham Rye Common)
+    const minPinDistanceKm = 0.06;
+    const dedupedParks = parks.filter((p, i) => {
+      const tooCloseToEarlier = parks.slice(0, i).some(
+        (q) => distanceKm(p.lat, p.lng, q.lat, q.lng) < minPinDistanceKm
+      );
+      return !tooCloseToEarlier;
+    });
 
-    return parks;
+    // Fetch amenities in parallel so we don't block the UI
+    const withAmenities = await Promise.all(
+      dedupedParks.map(async (park) => {
+        park.nearbyAmenities = await fetchNearbyAmenities(park);
+        return park;
+      })
+    );
+    return withAmenities;
   } catch (error) {
     console.error("Error fetching parks:", error);
     return [];
@@ -286,7 +347,6 @@ export default function Home() {
   // Carousel ref
   const carouselRef = useRef<HTMLDivElement>(null);
   const avatarDropdownRef = useRef<HTMLDivElement>(null);
-
   const scrollCarousel = (direction: "left" | "right") => {
     if (carouselRef.current) {
       const scrollAmount = 150;
@@ -310,6 +370,8 @@ export default function Home() {
   const [showAddPlacePinMap, setShowAddPlacePinMap] = useState(false);
   const [addPlacePinMapPin, setAddPlacePinMapPin] = useState<{ lat: number; lng: number } | null>(null);
   const [addPlacePinResult, setAddPlacePinResult] = useState<{ lat: number; lng: number } | null>(null);
+  const [addPlaceInitialName, setAddPlaceInitialName] = useState("");
+  const [addPlaceInitialLocation, setAddPlaceInitialLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // Toast
   const [showToast, setShowToast] = useState(false);
@@ -320,6 +382,7 @@ export default function Home() {
   const [mapZoom, setMapZoom] = useState(14);
   const [fitBoundsRequestId, setFitBoundsRequestId] = useState(0);
   const [filterBarCollapsed, setFilterBarCollapsed] = useState(true);
+  const filterInactivityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showAvatarDropdown, setShowAvatarDropdown] = useState(false);
   const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
   const [showOnlyMyPlaces, setShowOnlyMyPlaces] = useState(false);
@@ -384,18 +447,29 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showAvatarDropdown]);
 
-  // Fetch parks when location changes
+  // Close filter dropdown after 8s inactivity; reset timer on any interaction inside the bar
+  const startOrResetFilterInactivityTimer = useCallback(() => {
+    if (filterInactivityTimeoutRef.current) clearTimeout(filterInactivityTimeoutRef.current);
+    filterInactivityTimeoutRef.current = setTimeout(() => setFilterBarCollapsed(true), 8000);
+  }, []);
   useEffect(() => {
-    async function loadParks() {
-      if (!userLocation) return;
-      
-      setIsLoadingParks(true);
-      const nearbyParks = await fetchNearbyParks(userLocation, 3);
-      setParks(nearbyParks);
-      setIsLoadingParks(false);
+    if (filterBarCollapsed) {
+      if (filterInactivityTimeoutRef.current) {
+        clearTimeout(filterInactivityTimeoutRef.current);
+        filterInactivityTimeoutRef.current = null;
+      }
+      return;
     }
-    loadParks();
-  }, [userLocation]);
+    startOrResetFilterInactivityTimer();
+    return () => {
+      if (filterInactivityTimeoutRef.current) {
+        clearTimeout(filterInactivityTimeoutRef.current);
+        filterInactivityTimeoutRef.current = null;
+      }
+    };
+  }, [filterBarCollapsed, startOrResetFilterInactivityTimer]);
+
+  // Parks are only fetched when user clicks "Suggest green spaces" (no auto-fetch)
 
   // ===== HANDLERS =====
 
@@ -423,6 +497,31 @@ export default function Home() {
     }
 
     setIsLoadingLocation(false);
+  };
+
+  const handleSuggestGreenSpaces = async () => {
+    if (!userLocation) return;
+    setIsLoadingParks(true);
+    try {
+      const nearby = await fetchNearbyParks(userLocation, 3);
+      // Exclude any result that is effectively at the user's location (avoids green pin on top of blue dot)
+      const minDistanceKm = 0.04;
+      const filtered = nearby.filter(
+        (p) => distanceKm(userLocation.lat, userLocation.lng, p.lat, p.lng) > minDistanceKm
+      );
+      setParks(filtered);
+      if (filtered.length > 0) {
+        setFitBoundsRequestId((i) => i + 1);
+      }
+      if (filtered.length === 0 && userAddedPlaces.length === 0) {
+        showToastMessage("We didn't find any listed green spaces here. Try Add place to add one.");
+      }
+    } catch (e) {
+      console.error("Suggest green spaces failed:", e);
+      showToastMessage("Something went wrong. Please try again.");
+    } finally {
+      setIsLoadingParks(false);
+    }
   };
 
   const handleUseMyLocation = () => {
@@ -826,6 +925,18 @@ export default function Home() {
                       <button
                         type="button"
                         className="avatar-dropdown-item"
+                        onClick={async () => {
+                          await supabase.auth.signOut();
+                          setShowAvatarDropdown(false);
+                          window.location.href = "/";
+                        }}
+                      >
+                        <SignOut size={18} weight="regular" />
+                        Log out
+                      </button>
+                      <button
+                        type="button"
+                        className="avatar-dropdown-item"
                         onClick={() => {
                           setShowDeleteAccountConfirm(true);
                           setShowAvatarDropdown(false);
@@ -861,16 +972,23 @@ export default function Home() {
           {/* Hero Section - Figma 435:2604 (mobile) & 435:2816 (desktop) */}
           <div className="hero-section">
             <div className="hero-ellipse" aria-hidden="true" />
+            <div className="hero-sun-ellipse" aria-hidden="true" />
             <div className="hero-image">
-              <img
-                src="/dog-hero.png"
-                alt="Happy dog"
-                className="dog-illustration"
+              <video
+                src="/dog-app-final.webm"
+                className="dog-illustration hero-dog-video"
+                autoPlay
+                loop
+                muted
+                playsInline
+                aria-label="Happy dog"
+                width={202}
+                height={202}
               />
             </div>
             <div className="hero-content">
               <h1 className="hero-title">
-                Find great places to walk your dog
+                <span className="hero-title-accent">Find great places</span> to walk your dog
               </h1>
               <p className="hero-subtitle">
                 Discover parks, green spaces and the facilities you need
@@ -1006,9 +1124,8 @@ export default function Home() {
                   className="btn-primary"
                   onClick={handleLocationSearch}
                   disabled={isLoadingLocation || !locationInput.trim()}
-                  style={{ width: "100%" }}
                 >
-                  {isLoadingLocation ? "Finding..." : "Find parks nearby"}
+                  {isLoadingLocation ? "Finding..." : "Find green spaces nearby"}
                 </button>
               </div>
 
@@ -1109,6 +1226,19 @@ export default function Home() {
         <div className="filter-bar-in-header">
           <div className={`filter-bar filter-bar-pill ${filterBarCollapsed ? "is-collapsed" : "is-open"}`}>
         <div className="filter-bar-pill-row">
+          {userLocation && (
+            <button
+              type="button"
+              className="btn-primary suggest-green-btn-inline"
+              onClick={() => {
+                startOrResetFilterInactivityTimer();
+                handleSuggestGreenSpaces();
+              }}
+              disabled={isLoadingParks}
+            >
+              {isLoadingParks ? "Finding..." : "Suggest green spaces"}
+            </button>
+          )}
           <button
             className="filter-bar-toggle"
             onClick={() => setFilterBarCollapsed(!filterBarCollapsed)}
@@ -1125,6 +1255,7 @@ export default function Home() {
               className="btn-text filter-clear-btn"
               onClick={(e) => {
                 e.stopPropagation();
+                startOrResetFilterInactivityTimer();
                 setFilters({
                   fenced: false,
                   unfenced: false,
@@ -1145,49 +1276,70 @@ export default function Home() {
             <div className="filter-chips">
               <button
                 className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
-                onClick={() => setFilters({ ...filters, fenced: !filters.fenced })}
+                onClick={() => {
+                  startOrResetFilterInactivityTimer();
+                  setFilters({ ...filters, fenced: !filters.fenced });
+                }}
               >
                 <Barricade size={16} weight="bold" />
                 Fenced
               </button>
               <button
                 className={`filter-chip ${filters.unfenced ? "is-on" : ""}`}
-                onClick={() => setFilters({ ...filters, unfenced: !filters.unfenced })}
+                onClick={() => {
+                  startOrResetFilterInactivityTimer();
+                  setFilters({ ...filters, unfenced: !filters.unfenced });
+                }}
               >
                 <ArrowsOut size={16} weight="bold" />
                 Unfenced
               </button>
               <button
                 className={`filter-chip ${filters.partFenced ? "is-on" : ""}`}
-                onClick={() => setFilters({ ...filters, partFenced: !filters.partFenced })}
+                onClick={() => {
+                  startOrResetFilterInactivityTimer();
+                  setFilters({ ...filters, partFenced: !filters.partFenced });
+                }}
               >
                 <CircleHalf size={16} weight="bold" />
                 Part-fenced
               </button>
               <button
                 className={`filter-chip ${filters.bins ? "is-on" : ""}`}
-                onClick={() => setFilters({ ...filters, bins: !filters.bins })}
+                onClick={() => {
+                  startOrResetFilterInactivityTimer();
+                  setFilters({ ...filters, bins: !filters.bins });
+                }}
               >
                 <TrashSimple size={16} weight="bold" />
                 Dog bins
               </button>
               <button
                 className={`filter-chip ${filters.parking ? "is-on" : ""}`}
-                onClick={() => setFilters({ ...filters, parking: !filters.parking })}
+                onClick={() => {
+                  startOrResetFilterInactivityTimer();
+                  setFilters({ ...filters, parking: !filters.parking });
+                }}
               >
                 <Car size={16} weight="bold" />
                 Parking
               </button>
               <button
                 className={`filter-chip ${filters.toilets ? "is-on" : ""}`}
-                onClick={() => setFilters({ ...filters, toilets: !filters.toilets })}
+                onClick={() => {
+                  startOrResetFilterInactivityTimer();
+                  setFilters({ ...filters, toilets: !filters.toilets });
+                }}
               >
                 <Toilet size={16} weight="bold" />
                 Toilets
               </button>
               <button
                 className={`filter-chip ${filters.coffee ? "is-on" : ""}`}
-                onClick={() => setFilters({ ...filters, coffee: !filters.coffee })}
+                onClick={() => {
+                  startOrResetFilterInactivityTimer();
+                  setFilters({ ...filters, coffee: !filters.coffee });
+                }}
               >
                 <Coffee size={16} weight="bold" />
                 Coffee
@@ -1241,6 +1393,18 @@ export default function Home() {
                 <button
                   type="button"
                   className="avatar-dropdown-item"
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    setShowAvatarDropdown(false);
+                    window.location.href = "/";
+                  }}
+                >
+                  <SignOut size={18} weight="regular" />
+                  Log out
+                </button>
+                <button
+                  type="button"
+                  className="avatar-dropdown-item"
                   onClick={() => {
                     setShowDeleteAccountConfirm(true);
                     setShowAvatarDropdown(false);
@@ -1251,18 +1415,20 @@ export default function Home() {
               </div>
             )}
           </div>
-        ) : (
-          <div className="header-actions">
-            <button
-              className="btn-text"
-              onClick={() => (window.location.href = "/login")}
-              style={{ margin: 0, color: "var(--color-primary)" }}
-            >
-              Log in
-            </button>
-          </div>
-        )}
+        ) : null}
       </header>
+
+      {/* Log in at bottom left (same row as FAB) when not logged in */}
+      {!user && (
+        <div className="map-view-bottom-login">
+          <button
+            className="btn-text map-view-login-btn"
+            onClick={() => (window.location.href = "/login")}
+          >
+            Log in
+          </button>
+        </div>
+      )}
 
       {/* Add Place Button */}
       <button
@@ -1300,7 +1466,7 @@ export default function Home() {
       {/* Loading Indicator */}
       {isLoadingParks && (
         <div className="loading-indicator">
-          Finding parks nearby...
+          Finding green spaces...
         </div>
       )}
 
@@ -1321,6 +1487,13 @@ export default function Home() {
           onGetDirections={handleGetDirections}
           onRequestLocation={handleRequestLocation}
           slideOut={showAdjustPlaceMap}
+          onAddThisPlace={selectedPark.isAutoDiscovered ? () => {
+            setAddPlaceInitialName(selectedPark.name);
+            setAddPlaceInitialLocation({ lat: selectedPark.lat, lng: selectedPark.lng });
+            setShowAddDrawer(true);
+            setSelectedPark(null);
+          } : undefined}
+          requireLoginForFavourite={!user}
         />
       )}
 
@@ -1330,6 +1503,8 @@ export default function Home() {
           onClose={() => {
             setShowAddDrawer(false);
             setAddPlacePinResult(null);
+            setAddPlaceInitialName("");
+            setAddPlaceInitialLocation(null);
           }}
           onSave={handleAddPlace}
           userLocation={userLocation}
@@ -1340,6 +1515,8 @@ export default function Home() {
           }}
           pinLocationFromMap={addPlacePinResult}
           slideOut={showAddPlacePinMap}
+          initialName={addPlaceInitialName}
+          initialLocation={addPlaceInitialLocation}
         />
       )}
 

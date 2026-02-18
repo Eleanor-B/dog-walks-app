@@ -96,7 +96,7 @@ export default function PrivacyPolicy() {
           </div>
         </div>
       </main>
-      <AppFooter />
+      <AppFooter showDonateStrip={false} />
     </div>
   );
 }

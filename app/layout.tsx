@@ -15,6 +15,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://gowalkthedog.com"),
   title: "GoWalkTheDog - Find great places to walk your dog",
   description: "Discover dog-friendly parks, green spaces and facilities near you",
 };

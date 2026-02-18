@@ -31,17 +31,57 @@ type Props = {
 };
 
 async function lookupLocation(query: string): Promise<{ lat: number; lng: number; name: string } | null> {
+  const q = query.trim();
+  if (!q) return null;
+
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+  if (mapboxToken) {
+    try {
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?country=GB&limit=1&types=place,postcode,address,poi,locality&access_token=${mapboxToken}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        const features = data.features;
+        if (Array.isArray(features) && features.length > 0) {
+          const f = features[0];
+          const coords = f.geometry?.coordinates ?? f.center;
+          if (Array.isArray(coords) && coords.length >= 2) {
+            const lng = Number(coords[0]);
+            const lat = Number(coords[1]);
+            const name = (f.properties?.name ?? f.text ?? f.place_name ?? query).toString().split(",")[0] || query;
+            if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng, name };
+          }
+        }
+      }
+    } catch {
+      /* fall through to Nominatim */
+    }
+  }
+
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=gb`,
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=gb`,
       { headers: { Accept: "application/json" } }
     );
     if (!res.ok) return null;
     const data = await res.json();
     if (!Array.isArray(data) || data.length === 0) return null;
-    const lat = Number(data[0].lat);
-    const lng = Number(data[0].lon);
-    const name = data[0].display_name?.split(",")[0] || query;
+    const first = data[0];
+    let lat = Number(first.lat);
+    let lng = Number(first.lon);
+    const bbox = first.boundingbox;
+    if (Array.isArray(bbox) && bbox.length >= 4) {
+      const south = Number(bbox[0]);
+      const north = Number(bbox[1]);
+      const west = Number(bbox[2]);
+      const east = Number(bbox[3]);
+      if (Number.isFinite(south) && Number.isFinite(north) && Number.isFinite(west) && Number.isFinite(east)) {
+        lat = (south + north) / 2;
+        lng = (west + east) / 2;
+      }
+    }
+    const name = first.display_name?.split(",")[0] || query;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
     return { lat, lng, name };
   } catch {

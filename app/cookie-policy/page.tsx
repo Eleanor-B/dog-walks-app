@@ -1,11 +1,29 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { CaretLeft } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import AppFooter from "../components/AppFooter";
 
+const CONSENT_KEY = "gwtd-cookie-consent";
+
 export default function CookiePolicy() {
   const router = useRouter();
+  const [optionalOn, setOptionalOn] = useState(false);
+
+  useEffect(() => {
+    try {
+      setOptionalOn(localStorage.getItem(CONSENT_KEY) === "accepted");
+    } catch {}
+  }, []);
+
+  const handleToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const enabled = e.target.checked;
+    try {
+      localStorage.setItem(CONSENT_KEY, enabled ? "accepted" : "declined");
+    } catch {}
+    setOptionalOn(enabled);
+  };
 
   return (
     <div className="content-page">
@@ -54,6 +72,24 @@ export default function CookiePolicy() {
               We use analytics cookies to understand how people use Go Walk The Dog — for example, which pages are most visited and whether users encounter any errors. This helps us improve the app. You can opt out of these cookies using the cookie banner when you first visit.
             </p>
 
+            <div className="cookie-pref-toggle-wrap">
+              <label className="cookie-pref-toggle" htmlFor="cookie-pref-toggle-input">
+                <span className="cookie-pref-label">Optional cookies</span>
+                <input
+                  id="cookie-pref-toggle-input"
+                  type="checkbox"
+                  className="my-favourites-toggle-input"
+                  checked={optionalOn}
+                  onChange={handleToggle}
+                  aria-label="Toggle optional cookies on or off"
+                />
+                <span className="my-favourites-toggle-slider" />
+              </label>
+              <p className="cookie-pref-status content-muted">
+                {optionalOn ? "On — analytics and optional cookies are allowed." : "Essential only — only strictly necessary cookies are used."}
+              </p>
+            </div>
+
             <div className="content-card">
               <div className="content-card-row">
                 <strong>Google Analytics</strong>
@@ -78,7 +114,7 @@ export default function CookiePolicy() {
           </div>
         </div>
       </main>
-      <AppFooter />
+      <AppFooter showDonateStrip={false} />
     </div>
   );
 }

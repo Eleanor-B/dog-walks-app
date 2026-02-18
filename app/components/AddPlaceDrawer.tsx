@@ -40,6 +40,9 @@ type Props = {
   pinLocationFromMap?: Location | null;
   /** When true, drawer and overlay animate down off screen (e.g. while dropping pin on map) */
   slideOut?: boolean;
+  /** Pre-fill when adding from a suggested green space */
+  initialName?: string;
+  initialLocation?: Location | null;
 };
 
 // Calculate distance between two points
@@ -94,10 +97,10 @@ async function searchLocations(
   }
 }
 
-export default function AddPlaceDrawer({ onClose, onSave, userLocation, onOpenPinDropMap, pinLocationFromMap, slideOut = false }: Props) {
+export default function AddPlaceDrawer({ onClose, onSave, userLocation, onOpenPinDropMap, pinLocationFromMap, slideOut = false, initialName = "", initialLocation = null }: Props) {
   const [locationInput, setLocationInput] = useState("");
-  const [placeName, setPlaceName] = useState("");
-  const [location, setLocation] = useState<Location | null>(null);
+  const [placeName, setPlaceName] = useState(initialName);
+  const [location, setLocation] = useState<Location | null>(initialLocation ?? null);
   const [locationName, setLocationName] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -107,6 +110,12 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation, onOpenPi
   const [searchResults, setSearchResults] = useState<LocationResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [showAllResults, setShowAllResults] = useState(false);
+
+  // Pre-fill when opening from a suggested green space
+  useEffect(() => {
+    if (initialName) setPlaceName(initialName);
+    if (initialLocation) setLocation(initialLocation);
+  }, [initialName, initialLocation?.lat, initialLocation?.lng]);
 
   // Sync location when user picks from drop-pin map
   useEffect(() => {

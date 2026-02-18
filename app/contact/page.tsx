@@ -5,14 +5,11 @@ import { useRouter } from "next/navigation";
 import AppFooter from "../components/AppFooter";
 
 const CONTACT_EMAIL = "hello@gowalkthedog.com";
-const MAILTO_URL = `mailto:${CONTACT_EMAIL}?subject=Go%20Walk%20The%20Dog%20-%20Contact`;
+const CONTACT_SUBJECT = "Go Walk The Dog - Contact";
+const MAILTO_URL = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(CONTACT_SUBJECT)}`;
 
 export default function Contact() {
   const router = useRouter();
-
-  const openMailClient = () => {
-    window.location.href = MAILTO_URL;
-  };
 
   return (
     <div className="content-page">
@@ -36,10 +33,6 @@ export default function Contact() {
           <a
             href={MAILTO_URL}
             className="email-card-link"
-            onClick={(e) => {
-              e.preventDefault();
-              openMailClient();
-            }}
             rel="noopener noreferrer"
           >
             <div className="email-card-icon-wrap">
@@ -59,7 +52,7 @@ export default function Contact() {
           </p>
         </div>
       </main>
-      <AppFooter />
+      <AppFooter showDonateStrip={false} />
     </div>
   );
 }
