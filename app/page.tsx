@@ -13,6 +13,7 @@ import AppFooter from "./components/AppFooter";
 import AccountSettings from "./components/AccountSettings";
 import EditPlaceDrawer from "./components/EditPlaceDrawer";
 import TransportModeModal from "./components/TransportModeModal";
+import ChromaKeyVideo from "./components/ChromaKeyVideo";
 
 import {
   MapPin,
@@ -974,16 +975,12 @@ export default function Home() {
             <div className="hero-ellipse" aria-hidden="true" />
             <div className="hero-sun-ellipse" aria-hidden="true" />
             <div className="hero-image">
-              <video
+              <ChromaKeyVideo
                 src="/dog-app-final.webm"
                 className="dog-illustration hero-dog-video"
-                autoPlay
-                loop
-                muted
-                playsInline
-                aria-label="Happy dog"
                 width={202}
                 height={202}
+                aria-label="Happy dog"
               />
             </div>
             <div className="hero-content">

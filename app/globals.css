@@ -428,8 +428,7 @@ p { margin: 0; line-height: 1.5; }
   z-index: 0;
 }
 
-/* Container: fluid size with clamp so dog scales smoothly across breakpoints
-   mix-blend-mode: screen removes cyan, keeps dog white ( multiply made fill translucent) */
+/* Container: fluid size with clamp so dog scales smoothly across breakpoints */
 .hero-image {
   position: relative;
   z-index: 0;
@@ -446,7 +445,6 @@ p { margin: 0; line-height: 1.5; }
   border-radius: 0;
   box-shadow: none;
   outline: none;
-  mix-blend-mode: screen;
 }
 
 /* Radial shadow behind dog - fluid to match dog size */
@@ -479,7 +477,7 @@ p { margin: 0; line-height: 1.5; }
   object-fit: contain;
 }
 
-/* Hero video: fills container; parent .hero-image has mix-blend-mode for mobile Safari */
+/* Hero video: ChromaKeyVideo component handles cyan removal via canvas */
 .hero-dog-video {
   display: block;
   width: 100%;
