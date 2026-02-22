@@ -63,11 +63,18 @@ export default function ChromaKeyVideo({
       rafId = requestAnimationFrame(drawFrame);
     };
 
+    const tryPlay = () => {
+      video.play().catch(() => {});
+    };
+
     video.addEventListener("loadedmetadata", onLoadedMetadata);
+    video.addEventListener("canplay", tryPlay);
     if (video.readyState >= 1) onLoadedMetadata();
+    tryPlay();
     rafId = requestAnimationFrame(drawFrame);
 
     return () => {
+      video.removeEventListener("canplay", tryPlay);
       video.removeEventListener("loadedmetadata", onLoadedMetadata);
       cancelAnimationFrame(rafId);
     };
@@ -82,7 +89,16 @@ export default function ChromaKeyVideo({
         loop
         muted
         playsInline
-        style={{ display: "none" }}
+        preload="auto"
+        style={{
+          position: "absolute",
+          width: "max(1px, 100%)",
+          height: "max(1px, 100%)",
+          left: -9999,
+          top: 0,
+          opacity: 0.0001,
+          pointerEvents: "none",
+        }}
         aria-hidden="true"
       />
       <canvas

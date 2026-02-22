@@ -241,26 +241,28 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation, onOpenPi
               />
             </div>
 
-            <button
-              className="btn-secondary"
-              onClick={handleLocationSearch}
-              disabled={isSearching || !locationInput.trim()}
-              style={{ marginTop: 8, width: "100%" }}
-            >
-              {isSearching ? "Searching..." : "Find location"}
-            </button>
-
-            {onOpenPinDropMap && (
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button
                 type="button"
-                className="btn-secondary add-place-drop-pin-btn"
-                onClick={handleDropPin}
-                style={{ marginTop: 8, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                className="btn-secondary"
+                onClick={handleLocationSearch}
+                disabled={isSearching || !locationInput.trim()}
+                style={{ flex: 1 }}
               >
-                <MapPin size={18} weight="fill" className="add-place-drop-pin-icon" />
-                Drop pin on map
+                {isSearching ? "Searching..." : "Find location"}
               </button>
-            )}
+              {onOpenPinDropMap && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleDropPin}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                >
+                  <MapPin size={18} weight="fill" />
+                  Drop a pin on map
+                </button>
+              )}
+            </div>
 
             <span className="form-hint" style={{ marginTop: 6, display: "block" }}>
               Search by postcode or place name, or drop a pin on the map for the exact spot.
@@ -301,11 +303,7 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation, onOpenPi
                 )}
 
                 <div className="results-fallback">
-                  <span>Can't find it?</span>
-                  <button className="btn-text" onClick={handleDropPin}>
-                    Drop a pin on map
-                  </button>
-                  <span>or try a postcode</span>
+                  <span>Can't find it? Or try a postcode.</span>
                 </div>
               </div>
             )}

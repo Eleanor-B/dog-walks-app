@@ -35,10 +35,10 @@ type Props = {
   onRequestLocation: () => void;
   /** When true, sheet and backdrop animate down out of view (e.g. during adjust pin) */
   slideOut?: boolean;
-  /** When provided, show "Add this place" to open add form with this park pre-filled */
-  onAddThisPlace?: () => void;
   /** When true, user must sign in to save to favourites (show prompt) */
   requireLoginForFavourite?: boolean;
+  /** Called when user taps "Add facilities" for a park with no facility info (user must be logged in) */
+  onAddFacilities?: () => void;
 };
 
 function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
@@ -66,16 +66,21 @@ export default function ParkBottomSheet({
   onGetDirections,
   onRequestLocation,
   slideOut = false,
-  onAddThisPlace,
   requireLoginForFavourite = false,
+  onAddFacilities,
 }: Props) {
   const distance = userLocation
     ? distanceKm(userLocation.lat, userLocation.lng, park.lat, park.lng)
     : null;
 
-  const hasUserData = !park.isAutoDiscovered || park.fenced || park.unfenced ||
-                      park.partFenced || park.bins || park.toilets ||
-                      park.coffee || park.parking;
+  const hasNoFacilityInfo =
+    !park.fenced &&
+    !park.unfenced &&
+    !park.partFenced &&
+    !park.bins &&
+    !park.toilets &&
+    !park.coffee &&
+    !park.parking;
 
   // Collect facilities to display
   const facilities: { icon: React.ReactNode; label: string }[] = [];
@@ -149,7 +154,11 @@ export default function ParkBottomSheet({
 
         {/* Facilities */}
         <div className="sheet-section">
-          {hasUserData ? (
+          {hasNoFacilityInfo ? (
+            <div className="no-facilities-nudge">
+              <p>Know this place? Help other dog walkers by adding its facilities.</p>
+            </div>
+          ) : facilities.length > 0 ? (
             <div className="facilities-list">
               {facilities.map((f, i) => (
                 <span key={i} className="facility-tag">
@@ -158,20 +167,6 @@ export default function ParkBottomSheet({
                 </span>
               ))}
             </div>
-          ) : park.isAutoDiscovered ? (
-            <div className="sheet-suggestion-block">
-              <p className="sheet-suggestion-title">What we guess from the map</p>
-              <ul className="sheet-suggestion-guesses">
-                {(park.nearbyAmenities?.cafes ?? 0) > 0 && (
-                  <li>Coffee / cafes nearby</li>
-                )}
-                {(park.nearbyAmenities?.parking ?? 0) > 0 && (
-                  <li>Parking nearby</li>
-                )}
-                <li>Fenced? We don&apos;t know yet – have you been? Add what you know below.</li>
-              </ul>
-              <p className="sheet-suggestion-cta">Save to your favourites for later, or add facilities so others can see.</p>
-            </div>
           ) : (
             <div className="no-data-message">
               <Info size={18} color="#209326" />
@@ -179,45 +174,6 @@ export default function ParkBottomSheet({
             </div>
           )}
         </div>
-
-        {/* Save to favourites / Add this place – for suggested green spaces */}
-        {park.isAutoDiscovered && (
-          <div className="sheet-section sheet-actions-row">
-            {onAddThisPlace && (
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={onAddThisPlace}
-                style={{ flex: 1 }}
-              >
-                Add facilities &amp; save place
-              </button>
-            )}
-            {requireLoginForFavourite ? (
-              <a
-                href="/login"
-                className="btn-primary"
-                style={{ flex: 1, textAlign: "center", textDecoration: "none" }}
-              >
-                Sign in to save to favourites
-              </a>
-            ) : (
-              <button
-                type="button"
-                className="sheet-fav-btn"
-                onClick={onToggleFavourite}
-                title={isFavourite ? "Remove from favourites" : "Save to favourites for later"}
-              >
-                <Heart
-                  size={22}
-                  weight={isFavourite ? "fill" : "regular"}
-                  color={isFavourite ? "#DD6616" : "#209326"}
-                />
-                <span>{isFavourite ? "Saved to favourites" : "Save to favourites"}</span>
-              </button>
-            )}
-          </div>
-        )}
 
         {/* Added by info */}
         {park.addedBy && (
@@ -229,11 +185,42 @@ export default function ParkBottomSheet({
 
         {/* Actions */}
         <div className="sheet-footer">
-          {userLocation ? (
+          {hasNoFacilityInfo && (requireLoginForFavourite || onAddFacilities) ? (
+            <div className="modal-actions-row">
+              {requireLoginForFavourite ? (
+                <a href="/login" className="btn-secondary" style={{ textDecoration: "none" }}>
+                  Log in
+                </a>
+              ) : onAddFacilities ? (
+                <button type="button" className="btn-secondary" onClick={onAddFacilities}>
+                  Add facilities
+                </button>
+              ) : null}
+              {userLocation ? (
+                <button
+                  className="btn-primary"
+                  onClick={onGetDirections}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                >
+                  <NavigationArrow size={18} weight="bold" />
+                  Get directions
+                </button>
+              ) : (
+                <button
+                  className="btn-secondary"
+                  onClick={onRequestLocation}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                >
+                  <Crosshair size={18} weight="bold" />
+                  Share location to get directions
+                </button>
+              )}
+            </div>
+          ) : userLocation ? (
             <button
               className="btn-primary"
               onClick={onGetDirections}
-              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "fit-content" }}
             >
               <NavigationArrow size={18} weight="bold" />
               Get directions
@@ -242,7 +229,7 @@ export default function ParkBottomSheet({
             <button
               className="btn-secondary"
               onClick={onRequestLocation}
-              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "fit-content" }}
             >
               <Crosshair size={18} weight="bold" />
               Share location to get directions

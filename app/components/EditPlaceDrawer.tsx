@@ -377,7 +377,7 @@ export default function EditPlaceDrawer({
         </div>
 
         {/* Footer */}
-        <div className="drawer-footer" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16 }}>
+        <div className="drawer-footer modal-actions-row">
           <button
             onClick={onDelete}
             className="delete-btn"
@@ -388,7 +388,6 @@ export default function EditPlaceDrawer({
           <button
             className="btn-primary"
             onClick={handleSave}
-            style={{ width: "auto", minWidth: 200 }}
           >
             Save changes
           </button>

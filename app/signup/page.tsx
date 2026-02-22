@@ -2,13 +2,17 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Eye, EyeSlash } from "@phosphor-icons/react";
 
 export default function SignUpPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     email: "",
@@ -34,7 +38,7 @@ export default function SignUpPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push("/signup/check-email");
+      router.push("/signup/check-email?redirect=" + encodeURIComponent(redirectTo));
     }
   };
 
@@ -71,15 +75,29 @@ export default function SignUpPage() {
 
           <label style={{ display: "block", marginBottom: "var(--spacing-lg)" }}>
             <span className="auth-form-label">Password</span>
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="auth-input"
-              style={{ marginBottom: 0 }}
-            />
+            <div className="auth-password-wrap">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                minLength={8}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="auth-input"
+                style={{ marginBottom: 0 }}
+              />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <Eye size={20} weight="regular" />
+                ) : (
+                  <EyeSlash size={20} weight="regular" />
+                )}
+              </button>
+            </div>
             <span className="auth-hint">At least 8 characters</span>
           </label>
 
@@ -97,9 +115,15 @@ export default function SignUpPage() {
           </button>
         </form>
 
-        <p className="auth-footer-text">
+        <p className="auth-footer-text" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           Already have an account?{" "}
-          <Link href="/login">Log in</Link>
+          <Link
+            href={redirectTo !== "/" ? "/login?redirect=" + encodeURIComponent(redirectTo) : "/login"}
+            className="btn-secondary"
+            style={{ textDecoration: "none" }}
+          >
+            Log in
+          </Link>
         </p>
       </div>
     </div>

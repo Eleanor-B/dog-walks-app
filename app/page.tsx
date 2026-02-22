@@ -13,7 +13,6 @@ import AppFooter from "./components/AppFooter";
 import AccountSettings from "./components/AccountSettings";
 import EditPlaceDrawer from "./components/EditPlaceDrawer";
 import TransportModeModal from "./components/TransportModeModal";
-import ChromaKeyVideo from "./components/ChromaKeyVideo";
 
 import {
   MapPin,
@@ -159,45 +158,142 @@ async function lookupLocation(query: string): Promise<Location | null> {
   }
 }
 
-// Fetch parks from Mapbox Search Box API (Geocoding v5 no longer returns POIs)
-async function fetchNearbyParks(center: Location, radiusKm: number = 3): Promise<Park[]> {
-  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  if (!mapboxToken) return [];
-
+async function getLocationFromIP(): Promise<Location | null> {
   try {
-    const proximity = `${center.lng},${center.lat}`;
-    const url = `https://api.mapbox.com/search/searchbox/v1/forward?q=park&proximity=${encodeURIComponent(proximity)}&limit=10&types=poi&language=en&access_token=${mapboxToken}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
+    const res = await fetch("http://ip-api.com/json/?fields=lat,lon,status");
+    if (!res.ok) return null;
     const data = await res.json();
+    if (data.status !== "success") return null;
+    return { lat: Number(data.lat), lng: Number(data.lon) };
+  } catch {
+    return null;
+  }
+}
 
-    const features = data.features ?? [];
-    const parks: Park[] = features
-      .filter((f: any) => {
-        const coords = f.geometry?.coordinates ?? [f.properties?.coordinates?.longitude, f.properties?.coordinates?.latitude];
-        if (coords[0] == null || coords[1] == null) return false;
-        const lng = typeof coords[0] === "number" ? coords[0] : f.properties?.coordinates?.longitude;
-        const lat = typeof coords[1] === "number" ? coords[1] : f.properties?.coordinates?.latitude;
-        const dist = distanceKm(center.lat, center.lng, lat, lng);
-        return dist <= radiusKm;
+// Module-level cache: one result per unique (lat, lng, radius) to avoid 429 from Overpass during dev/Fast Refresh
+const overpassCache = new Map<string, Park[]>();
+
+function overpassCacheKey(lat: number, lng: number, radiusKm: number): string {
+  return `${Number(lat.toFixed(4))},${Number(lng.toFixed(4))},${radiusKm}`;
+}
+
+// Fetch parks from OSM Overpass – polygon centroids for walker accuracy
+async function fetchParksFromOverpass(center: Location, radiusKm: number): Promise<Park[]> {
+  const radiusM = Math.round(radiusKm * 1000);
+  const { lat, lng } = center;
+  const cacheKey = overpassCacheKey(lat, lng, radiusKm);
+  const cached = overpassCache.get(cacheKey);
+  if (cached !== undefined) {
+    console.log("[fetchParksFromOverpass] Cache hit for", cacheKey);
+    return cached;
+  }
+  const query = `[out:json][timeout:20];
+(
+  way["leisure"="park"](around:${radiusM},${lat},${lng});
+  relation["leisure"="park"](around:${radiusM},${lat},${lng});
+  way["leisure"="common"](around:${radiusM},${lat},${lng});
+  relation["leisure"="common"](around:${radiusM},${lat},${lng});
+  way["leisure"="recreation_ground"](around:${radiusM},${lat},${lng});
+  way["landuse"="recreation_ground"](around:${radiusM},${lat},${lng});
+  way["landuse"="grass"]["name"](around:${radiusM},${lat},${lng});
+  way["natural"="grassland"]["name"](around:${radiusM},${lat},${lng});
+);
+out center tags;`;
+  // DEBUG: Log exact Overpass query (no PostGIS/RPC in Supabase – this is the external location API)
+  console.log("[fetchParksFromOverpass] Exact query:", { radiusM, lat, lng, querySnippet: `around:${radiusM},${lat},${lng}` });
+  try {
+    const res = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "GoWalkTheDog/1.0 (gowalkthedog.com)" },
+      body: `data=${encodeURIComponent(query)}`,
+    });
+    if (!res.ok) {
+      console.log("[fetchParksFromOverpass] Response not OK:", res.status, "- caller will show Supabase places if available");
+      return [];
+    }
+    const data = await res.json();
+    const elements = data.elements ?? [];
+    const validElements = elements.filter((el: any) => {
+      const lat = el.lat ?? el.center?.lat;
+      const lng = el.lon ?? el.center?.lon;
+      return (
+        typeof lat === "number" &&
+        typeof lng === "number" &&
+        !isNaN(lat) &&
+        !isNaN(lng) &&
+        lat !== 0 &&
+        lng !== 0 &&
+        lat >= 49 &&
+        lat <= 61 &&
+        lng >= -8 &&
+        lng <= 2
+      );
+    });
+    const invalidCount = elements.length - validElements.length;
+    if (invalidCount > 0) {
+      console.warn(`[fetchParksFromOverpass] Filtered out ${invalidCount} elements with invalid coordinates`);
+    }
+    // DEBUG: Overpass raw response and result count
+    console.log("[fetchParksFromOverpass] Full response elements count:", elements.length);
+    const parks: Park[] = validElements
+      .filter((el: any) => {
+        if (!el.center || !el.tags?.name) return false;
+        // Relations (multi-polygon parks) have no nodes array; ways need ≥4 nodes for a valid polygon
+        if (el.type === "relation") return true;
+        return (el.nodes?.length ?? 0) >= 4;
       })
-      .map((f: any) => {
-        const coords = f.geometry?.coordinates ?? [f.properties?.coordinates?.longitude, f.properties?.coordinates?.latitude];
-        const lng = coords[0] ?? f.properties?.coordinates?.longitude ?? 0;
-        const lat = coords[1] ?? f.properties?.coordinates?.latitude ?? 0;
-        const name = f.properties?.name ?? f.properties?.name_preferred ?? "Green space";
-        const id = f.properties?.mapbox_id ?? `mapbox-${lng}-${lat}`;
+      .map((el: any) => {
+        const c = el.center;
+        const plat = Number(c?.lat);
+        const plng = Number(c?.lon ?? c?.lng);
+        if (!Number.isFinite(plat) || !Number.isFinite(plng)) return null;
+        const name = String(el.tags?.name ?? "Green space").trim();
         return {
-          id: String(id).startsWith("mapbox-") ? id : `mapbox-${id}`,
+          id: `osm-${el.id}`,
           name,
-          lat,
-          lng,
+          lat: plat,
+          lng: plng,
           isAutoDiscovered: true,
           nearbyAmenities: { cafes: 0, toilets: 0, parking: 0 },
         };
+      })
+      .filter((p): p is Park => p != null)
+      .filter((p: Park) => {
+        const n = p.name.toLowerCase();
+        return !n.includes("east dulwich") &&
+          !n.includes("roundabout") &&
+          !n.includes("churchyard") &&
+          !n.includes("cricket") &&
+          !n.includes("rugby") &&
+          !n.includes("football club") &&
+          !n.includes("tennis") &&
+          !n.includes("croquet") &&
+          !n.includes("school") &&
+          !n.includes("bmx") &&
+          !n.includes("playing field") &&
+          !n.includes("sports ground") &&
+          !n.includes("allotment");
       });
+    console.log("[fetchParksFromOverpass] Parks after filtering:", parks.length);
+    overpassCache.set(cacheKey, parks);
+    return parks;
+  } catch {
+    return [];
+  }
+}
 
-    // Deduplicate: drop parks whose pin would be almost on top of an earlier one (e.g. Peckham Rye Park + Peckham Rye Common)
+// Debounce state: 1s delay before firing Overpass so rapid re-renders (e.g. Fast Refresh) don't trigger 429
+const OVERPASS_DEBOUNCE_MS = 1000;
+let overpassDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let overpassDebounceResolvers: { resolve: (value: Park[]) => void; reject: (reason: unknown) => void }[] = [];
+let overpassDebounceArgs: { center: Location; radiusKm: number; skipAmenities: boolean } | null = null;
+
+async function fetchNearbyParksActual(center: Location, radiusKm: number, skipAmenities: boolean): Promise<Park[]> {
+  const minDistanceKm = 0.04;
+  try {
+    let parks = await fetchParksFromOverpass(center, radiusKm);
+    parks = parks.filter((p) => distanceKm(center.lat, center.lng, p.lat, p.lng) > minDistanceKm);
+
     const minPinDistanceKm = 0.06;
     const dedupedParks = parks.filter((p, i) => {
       const tooCloseToEarlier = parks.slice(0, i).some(
@@ -206,7 +302,13 @@ async function fetchNearbyParks(center: Location, radiusKm: number = 3): Promise
       return !tooCloseToEarlier;
     });
 
-    // Fetch amenities in parallel so we don't block the UI
+    if (skipAmenities) {
+      return dedupedParks.map((p) => ({
+        ...p,
+        nearbyAmenities: p.nearbyAmenities ?? { cafes: 0, toilets: 0, parking: 0 },
+      }));
+    }
+
     const withAmenities = await Promise.all(
       dedupedParks.map(async (park) => {
         park.nearbyAmenities = await fetchNearbyAmenities(park);
@@ -218,6 +320,38 @@ async function fetchNearbyParks(center: Location, radiusKm: number = 3): Promise
     console.error("Error fetching parks:", error);
     return [];
   }
+}
+
+// Fetch parks: OSM Overpass only – polygon centroids, accurate for walkers
+// When skipAmenities is true, returns immediately with zeros for amenities (faster first paint)
+// Debounced by 1s so rapid calls (e.g. Fast Refresh) don't hit Overpass repeatedly (429).
+async function fetchNearbyParks(center: Location, radiusKm: number = 3, skipAmenities = false): Promise<Park[]> {
+  // DEBUG: Log search params
+  console.log("[fetchNearbyParks] Search params (debounced 1s):", {
+    centerLat: center.lat,
+    centerLng: center.lng,
+    radiusKm,
+  });
+
+  return new Promise<Park[]>((resolve, reject) => {
+    if (overpassDebounceTimer) clearTimeout(overpassDebounceTimer);
+    overpassDebounceArgs = { center, radiusKm, skipAmenities };
+    overpassDebounceResolvers.push({ resolve, reject });
+
+    overpassDebounceTimer = setTimeout(async () => {
+      overpassDebounceTimer = null;
+      const args = overpassDebounceArgs!;
+      overpassDebounceArgs = null;
+      const resolvers = overpassDebounceResolvers;
+      overpassDebounceResolvers = [];
+      try {
+        const result = await fetchNearbyParksActual(args.center, args.radiusKm, args.skipAmenities);
+        resolvers.forEach((r) => r.resolve(result));
+      } catch (e) {
+        resolvers.forEach((r) => r.reject(e));
+      }
+    }, OVERPASS_DEBOUNCE_MS);
+  });
 }
 
 // Fetch nearby amenities (cafes, toilets, parking) within 200m
@@ -332,6 +466,7 @@ export default function Home() {
   const [parks, setParks] = useState<Park[]>([]);
   const [userAddedPlaces, setUserAddedPlaces] = useState<Park[]>([]);
   const [isLoadingParks, setIsLoadingParks] = useState(false);
+  const [showNoResultsToast, setShowNoResultsToast] = useState(false);
   const [selectedPark, setSelectedPark] = useState<Park | null>(null);
 
   // Filters
@@ -348,6 +483,10 @@ export default function Home() {
   // Carousel ref
   const carouselRef = useRef<HTMLDivElement>(null);
   const avatarDropdownRef = useRef<HTMLDivElement>(null);
+  const loadingLocationStartedRef = useRef<number>(0);
+  const LOCATION_SPINNER_MIN_MS = 800;
+  const parksLoadingStartedRef = useRef<number>(0);
+  const PARKS_SPINNER_MIN_MS = 3000;
   const scrollCarousel = (direction: "left" | "right") => {
     if (carouselRef.current) {
       const scrollAmount = 150;
@@ -364,6 +503,7 @@ export default function Home() {
   const [editingPark, setEditingPark] = useState<Park | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [fabPulsing, setFabPulsing] = useState(false);
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [showAdjustPlaceMap, setShowAdjustPlaceMap] = useState(false);
@@ -380,13 +520,14 @@ export default function Home() {
 
   // Map state
   const [mapCenter, setMapCenter] = useState<Location | null>(null);
-  const [mapZoom, setMapZoom] = useState(14);
+  const [mapZoom, setMapZoom] = useState(11);
   const [fitBoundsRequestId, setFitBoundsRequestId] = useState(0);
   const [filterBarCollapsed, setFilterBarCollapsed] = useState(true);
   const filterInactivityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showAvatarDropdown, setShowAvatarDropdown] = useState(false);
   const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
   const [showOnlyMyPlaces, setShowOnlyMyPlaces] = useState(false);
+  const [showFavouritesBigPulse, setShowFavouritesBigPulse] = useState(false);
 
   // Directions state
   const [showTransportModal, setShowTransportModal] = useState(false);
@@ -394,34 +535,21 @@ export default function Home() {
   const [currentRoute, setCurrentRoute] = useState<RouteInfo | null>(null);
   const [isLoadingDirections, setIsLoadingDirections] = useState(false);
   const [directionsPark, setDirectionsPark] = useState<Park | null>(null);
+  const [showDirectionsLoginPrompt, setShowDirectionsLoginPrompt] = useState(false);
+  const [pendingDirectionsMode, setPendingDirectionsMode] = useState<TransportMode | null>(null);
 
   // ===== EFFECTS =====
 
-  // Load user-added places from Supabase
+  // On first login: clear map locations; places load only when user presses "Suggest green spaces"
+  const prevUserRef = useRef<{ id: string } | null | undefined>(undefined);
   useEffect(() => {
-    async function loadPlaces() {
-      const dbPlaces = await getPlaces();
-      if (dbPlaces.length > 0) {
-        const mappedPlaces: Park[] = dbPlaces.map((p) => ({
-          id: p.id,
-          name: p.name,
-          lat: p.lat,
-          lng: p.lng,
-          isAutoDiscovered: false,
-          fenced: p.fenced,
-          unfenced: p.unfenced,
-          partFenced: p.part_fenced,
-          bins: p.bins,
-          toilets: p.toilets,
-          coffee: p.coffee,
-          parking: p.parking,
-          user_id: p.user_id,
-        }));
-        setUserAddedPlaces(mappedPlaces);
-      }
+    const didJustLogIn = prevUserRef.current == null && user != null;
+    prevUserRef.current = user ?? null;
+    if (didJustLogIn) {
+      setParks([]);
+      setUserAddedPlaces([]);
     }
-    loadPlaces();
-  }, []);
+  }, [user]);
 
   // Load favourites when user logs in
   useEffect(() => {
@@ -435,6 +563,62 @@ export default function Home() {
     }
     loadFavourites();
   }, [user]);
+
+  // Auto-resume directions after login/signup (from sessionStorage)
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const stored = sessionStorage.getItem("pendingDirections");
+      if (!stored) return;
+      sessionStorage.removeItem("pendingDirections");
+      const { park, mode } = JSON.parse(stored) as { park: Park; mode: TransportMode };
+      if (!park || !mode) return;
+
+      setViewState("map");
+      setDirectionsPark(park);
+      setMapCenter({ lat: park.lat, lng: park.lng });
+      setMapZoom(15);
+      setSelectedPark(null);
+      setParks((prev) => (prev.some((p) => p.id === park.id) ? prev : [...prev, park]));
+
+      async function resumeDirections() {
+        let loc = userLocation;
+        if (!loc) {
+          loc = await getLocationFromIP();
+          if (loc) setUserLocation(loc);
+        }
+        if (!loc) {
+          setSelectedPark(park);
+          return;
+        }
+        setIsLoadingDirections(true);
+        const route = await fetchDirections(loc, { lat: park.lat, lng: park.lng }, mode);
+        if (route) {
+          setCurrentRoute(route);
+          setDirectionsMode(true);
+        } else {
+          setSelectedPark(park);
+          showToastMessage("Couldn't get directions. Please try again.");
+        }
+        setIsLoadingDirections(false);
+      }
+      resumeDirections();
+    } catch (_) {}
+  }, [user]);
+
+  // On first load, use IP geolocation to show nearby parks before user searches
+  useEffect(() => {
+    if (viewState !== "map" || userLocation) return;
+    async function loadDefaultParks() {
+      const ipLocation = await getLocationFromIP();
+      if (!ipLocation) return;
+      setMapCenter(ipLocation);
+      setMapZoom(13);
+      const nearbyParks = await fetchParksFromOverpass(ipLocation, 3);
+      setParks(nearbyParks);
+    }
+    loadDefaultParks();
+  }, [viewState]);
 
   // Close avatar dropdown when clicking outside
   useEffect(() => {
@@ -483,45 +667,142 @@ export default function Home() {
   const handleLocationSearch = async () => {
     if (!locationInput.trim()) return;
 
+    loadingLocationStartedRef.current = Date.now();
     setIsLoadingLocation(true);
     setLocationError(null);
+    setViewState("map");
+    setMapCenter((c) => c || { lat: 51.5074, lng: -0.1278 });
 
     const location = await lookupLocation(locationInput);
+
+    const elapsed = Date.now() - loadingLocationStartedRef.current;
+    const delay = Math.max(0, LOCATION_SPINNER_MIN_MS - elapsed);
+    const hideSpinner = () => {
+      setTimeout(() => setIsLoadingLocation(false), delay);
+    };
 
     if (location) {
       setUserLocation(location);
       setMapCenter(location);
-      setViewState("map");
+      setMapZoom(14);
       setFitBoundsRequestId((i) => i + 1);
     } else {
       setLocationError("Sorry, we couldn't find that location. Please try again or drop a pin on the map.");
     }
-
-    setIsLoadingLocation(false);
+    hideSpinner();
   };
 
   const handleSuggestGreenSpaces = async () => {
     if (!userLocation) return;
+    parksLoadingStartedRef.current = Date.now();
     setIsLoadingParks(true);
     try {
-      const nearby = await fetchNearbyParks(userLocation, 3);
-      // Exclude any result that is effectively at the user's location (avoids green pin on top of blue dot)
+      // DEBUG: User location and search params (Supabase query does not use location; logged for reference)
+      const radiusKm = 3;
+      console.log("[handleSuggestGreenSpaces] User lat/lng (for reference; Supabase query does not filter by location):", {
+        lat: userLocation.lat,
+        lng: userLocation.lng,
+        latType: typeof userLocation.lat,
+        lngType: typeof userLocation.lng,
+      });
+      console.log("[handleSuggestGreenSpaces] Search radius / bounding box:", {
+        Supabase: "none – fetches all places, no radius or bbox",
+        Overpass: `${radiusKm}km`,
+      });
+      if (radiusKm < 5) {
+        console.log("[handleSuggestGreenSpaces] NOTE: Overpass radius is under 5km – could increase to 5km for testing if no results.");
+      }
+
+      // Fetch parks without amenities first for fast display, then enrich in background
+      const [nearby, dbPlaces] = await Promise.all([
+        fetchNearbyParks(userLocation, radiusKm, true), // skipAmenities = true for faster first paint
+        getPlaces(),
+      ]);
+
+      // DEBUG: Results immediately after Supabase + Overpass resolve
+      console.log("[handleSuggestGreenSpaces] Supabase: full response (data) – count:", dbPlaces?.length ?? 0);
+      if (dbPlaces && dbPlaces.length > 0) {
+        console.log("[handleSuggestGreenSpaces] Supabase: first 3 places (id, name, lat, lng):", dbPlaces.slice(0, 3).map((p) => ({ id: p.id, name: p.name, lat: p.lat, lng: p.lng })));
+      }
+      console.log("[handleSuggestGreenSpaces] Overpass nearby – count:", nearby?.length ?? 0);
       const minDistanceKm = 0.04;
       const filtered = nearby.filter(
         (p) => distanceKm(userLocation.lat, userLocation.lng, p.lat, p.lng) > minDistanceKm
       );
+      // If Overpass returned non-OK (e.g. 429), nearby is [] but we still show Supabase places (mappedPlaces) so the map is not empty
+      const validDbPlaces = dbPlaces.filter((p) => {
+        const lat = p.lat;
+        const lng = p.lng;
+        return (
+          typeof lat === "number" &&
+          typeof lng === "number" &&
+          !Number.isNaN(lat) &&
+          !Number.isNaN(lng) &&
+          lat !== 0 &&
+          lng !== 0 &&
+          lat >= 49 &&
+          lat <= 61 &&
+          lng >= -8 &&
+          lng <= 2
+        );
+      });
+      const mappedPlaces: Park[] = validDbPlaces.map((p) => ({
+        id: p.id,
+        name: p.name,
+        lat: p.lat,
+        lng: p.lng,
+        isAutoDiscovered: false,
+        fenced: p.fenced,
+        unfenced: p.unfenced,
+        partFenced: p.part_fenced,
+        bins: p.bins,
+        toilets: p.toilets,
+        coffee: p.coffee,
+        parking: p.parking,
+        user_id: p.user_id,
+      }));
       setParks(filtered);
-      if (filtered.length > 0) {
+      setUserAddedPlaces(mappedPlaces);
+      const elapsed = Date.now() - parksLoadingStartedRef.current;
+      const delay = Math.max(0, PARKS_SPINNER_MIN_MS - elapsed);
+      const hadNoResults = filtered.length === 0 && mappedPlaces.length === 0;
+      setTimeout(() => {
+        setIsLoadingParks(false);
+        if (hadNoResults) setShowNoResultsToast(true);
+      }, delay);
+
+      if (filtered.length > 0 || mappedPlaces.length > 0) {
+        setShowNoResultsToast(false);
         setFitBoundsRequestId((i) => i + 1);
+        // So suggested results are visible: turn off "my places only" and "favourites only"
+        setShowOnlyMyPlaces(false);
+        setShowOnlyFavourites(false);
       }
-      if (filtered.length === 0 && userAddedPlaces.length === 0) {
-        showToastMessage("We didn't find any listed green spaces here. Try Add place to add one.");
+      // No extra toast here: the persistent no-results-toast on the map already shows when filteredParks.length === 0
+
+      // Enrich Overpass parks with amenities in background (cafes, parking nearby)
+      if (filtered.length > 0) {
+        Promise.all(
+          filtered.map(async (p) => {
+            const amenities = await fetchNearbyAmenities(p);
+            return { ...p, nearbyAmenities: amenities };
+          })
+        )
+          .then((withAmenities) => {
+            setParks((prev) => {
+              const byId = new Map(prev.map((p) => [p.id, p]));
+              withAmenities.forEach((p) => byId.set(p.id, p));
+              return [...byId.values()];
+            });
+          })
+          .catch((err) => console.error("Background amenities fetch failed:", err));
       }
     } catch (e) {
       console.error("Suggest green spaces failed:", e);
       showToastMessage("Something went wrong. Please try again.");
-    } finally {
-      setIsLoadingParks(false);
+      const elapsed = Date.now() - parksLoadingStartedRef.current;
+      const delay = Math.max(0, PARKS_SPINNER_MIN_MS - elapsed);
+      setTimeout(() => setIsLoadingParks(false), delay);
     }
   };
 
@@ -531,8 +812,17 @@ export default function Home() {
       return;
     }
 
+    loadingLocationStartedRef.current = Date.now();
     setIsLoadingLocation(true);
     setLocationError(null);
+    setViewState("map");
+    setMapCenter((c) => c || { lat: 51.5074, lng: -0.1278 });
+
+    const hideSpinnerAfterMinTime = () => {
+      const elapsed = Date.now() - loadingLocationStartedRef.current;
+      const delay = Math.max(0, LOCATION_SPINNER_MIN_MS - elapsed);
+      setTimeout(() => setIsLoadingLocation(false), delay);
+    };
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -542,12 +832,12 @@ export default function Home() {
         };
         setUserLocation(loc);
         setMapCenter(loc);
-        setViewState("map");
+        setMapZoom(14);
         setFitBoundsRequestId((i) => i + 1);
-        setIsLoadingLocation(false);
+        hideSpinnerAfterMinTime();
       },
       (err) => {
-        setIsLoadingLocation(false);
+        hideSpinnerAfterMinTime();
         if (err.code === 1) {
           setLocationError("Location access was denied. Please enter a location or drop a pin.");
         } else {
@@ -561,6 +851,7 @@ export default function Home() {
   const handlePinDrop = (location: Location) => {
     setUserLocation(location);
     setMapCenter(location);
+    setMapZoom(14);
     setShowPinDropMap(false);
     setViewState("map");
     setFitBoundsRequestId((i) => i + 1);
@@ -569,6 +860,11 @@ export default function Home() {
   const handleParkClick = (park: Park) => {
     setSelectedPark(park);
   };
+
+  const handleMapMove = useCallback((center: { lat: number; lng: number }, zoom: number) => {
+    setMapCenter(center);
+    setMapZoom(zoom);
+  }, []);
 
   const handleCloseBottomSheet = () => {
     setSelectedPark(null);
@@ -740,6 +1036,12 @@ export default function Home() {
   const handleSelectTransportMode = async (mode: TransportMode) => {
     if (!userLocation || !directionsPark) return;
 
+    if (!user) {
+      setShowDirectionsLoginPrompt(true);
+      setPendingDirectionsMode(mode);
+      return;
+    }
+
     setShowTransportModal(false);
     setIsLoadingDirections(true);
 
@@ -748,12 +1050,40 @@ export default function Home() {
     if (route) {
       setCurrentRoute(route);
       setDirectionsMode(true);
-      setSelectedPark(null); // Close bottom sheet
+      setSelectedPark(null);
     } else {
       showToastMessage("Couldn't get directions. Please try again.");
     }
 
     setIsLoadingDirections(false);
+  };
+
+  const handleDirectionsLogin = () => {
+    if (!directionsPark || !pendingDirectionsMode) return;
+    try {
+      sessionStorage.setItem(
+        "pendingDirections",
+        JSON.stringify({ park: directionsPark, mode: pendingDirectionsMode })
+      );
+    } catch (_) {}
+    window.location.href = "/login?redirect=" + encodeURIComponent("/");
+  };
+
+  const handleDirectionsSignup = () => {
+    if (!directionsPark || !pendingDirectionsMode) return;
+    try {
+      sessionStorage.setItem(
+        "pendingDirections",
+        JSON.stringify({ park: directionsPark, mode: pendingDirectionsMode })
+      );
+    } catch (_) {}
+    window.location.href = "/signup?redirect=" + encodeURIComponent("/");
+  };
+
+  const handleCloseTransportModal = () => {
+    setShowTransportModal(false);
+    setShowDirectionsLoginPrompt(false);
+    setPendingDirectionsMode(null);
   };
 
   const handleCloseDirections = () => {
@@ -810,11 +1140,12 @@ export default function Home() {
     return `${hours} hr ${remainingMins} min`;
   };
 
-  // Combine auto-discovered and user-added places (or only current user's places when "My places" toggle is on)
-  const allParks =
-    showOnlyMyPlaces && user
-      ? userAddedPlaces.filter((p) => p.user_id === user.id)
-      : [...parks, ...userAddedPlaces];
+  // Combine auto-discovered and user-added places. Only show user-added places after a search (userLocation set).
+  const allParks = userLocation
+    ? (showOnlyMyPlaces && user
+        ? userAddedPlaces.filter((p) => p.user_id === user.id)
+        : [...parks, ...userAddedPlaces])
+    : [];
 
   // Filter parks based on selected filters
   let filteredParks = allParks.filter((park) => {
@@ -848,21 +1179,17 @@ export default function Home() {
     filteredParks = filteredParks.filter((p) => favouriteIds.includes(p.id));
   }
 
-  // Nearest park to user (for fitting map viewport)
-  const nearestPark = useMemo(() => {
-    if (!userLocation || filteredParks.length === 0) return null;
-    const sorted = [...filteredParks].sort(
-      (a, b) =>
-        distanceKm(userLocation.lat, userLocation.lng, a.lat, a.lng) -
-        distanceKm(userLocation.lat, userLocation.lng, b.lat, b.lng)
-    );
-    return sorted[0];
-  }, [userLocation, filteredParks]);
-
+  // Bounds for fitBounds: only when we have pins (so fitBounds runs after fetch, not before)
   const boundsToFit = useMemo((): [Location, Location] | undefined => {
-    if (!userLocation || !nearestPark) return undefined;
-    return [userLocation, { lat: nearestPark.lat, lng: nearestPark.lng }];
-  }, [userLocation?.lat, userLocation?.lng, nearestPark?.lat, nearestPark?.lng]);
+    if (!userLocation || filteredParks.length === 0) return undefined;
+    const points = [userLocation, ...filteredParks.map((p) => ({ lat: p.lat, lng: p.lng }))];
+    const lats = points.map((p) => p.lat);
+    const lngs = points.map((p) => p.lng);
+    return [
+      { lat: Math.min(...lats), lng: Math.min(...lngs) },
+      { lat: Math.max(...lats), lng: Math.max(...lngs) },
+    ];
+  }, [userLocation?.lat, userLocation?.lng, filteredParks]);
 
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
@@ -937,12 +1264,13 @@ export default function Home() {
                       </button>
                       <button
                         type="button"
-                        className="avatar-dropdown-item"
+                        className="avatar-dropdown-item avatar-dropdown-item-delete"
                         onClick={() => {
                           setShowDeleteAccountConfirm(true);
                           setShowAvatarDropdown(false);
                         }}
                       >
+                        <TrashSimple size={18} weight="regular" />
                         Delete my account
                       </button>
                     </div>
@@ -957,7 +1285,7 @@ export default function Home() {
                     Sign up
                   </button>
                   <button
-                    className="btn-header-text"
+                    className="btn-secondary"
                     onClick={() => (window.location.href = "/login")}
                   >
                     Log in
@@ -975,12 +1303,16 @@ export default function Home() {
             <div className="hero-ellipse" aria-hidden="true" />
             <div className="hero-sun-ellipse" aria-hidden="true" />
             <div className="hero-image">
-              <ChromaKeyVideo
+              <video
                 src="/dog-app-final.webm"
                 className="dog-illustration hero-dog-video"
+                autoPlay
+                loop
+                muted
+                playsInline
+                aria-label="Happy dog"
                 width={202}
                 height={202}
-                aria-label="Happy dog"
               />
             </div>
             <div className="hero-content">
@@ -1003,12 +1335,21 @@ export default function Home() {
                 </h3>
                 {user && (
                   <label className="my-favourites-toggle">
-                    <Heart size={18} weight="fill" className="my-favourites-toggle-icon" />
+                    <span
+                      className={`my-favourites-toggle-icon ${showFavouritesBigPulse ? "my-favourites-toggle-icon-big-pulse" : ""}`}
+                      onAnimationEnd={() => setShowFavouritesBigPulse(false)}
+                    >
+                      <Heart size={18} weight="fill" />
+                    </span>
                     <span className="my-favourites-toggle-label">My favourites</span>
                     <input
                       type="checkbox"
                       checked={showOnlyMyPlaces}
-                      onChange={(e) => setShowOnlyMyPlaces(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setShowOnlyMyPlaces(checked);
+                        if (checked) setShowFavouritesBigPulse(true);
+                      }}
                       className="my-favourites-toggle-input"
                       aria-label="Show only my added places"
                     />
@@ -1205,7 +1546,7 @@ export default function Home() {
         {/* Cookie Consent */}
         <CookieBanner />
         {/* Toast */}
-        {showToast && <div className="toast">{toastMessage}</div>}
+        {showToast && !isLoadingLocation && !isLoadingParks && <div className="toast">{toastMessage}</div>}
       </div>
     );
   }
@@ -1213,138 +1554,183 @@ export default function Home() {
   // Map view
   return (
     <div className="app-container map-view">
-      {/* Floating Header */}
+      {/* Floating Header: Back (left of search bar), Search by facility, Paw menu (right) */}
       <header className="map-header">
-        <button onClick={handleBackToLanding} className="back-btn">
+        <button onClick={handleBackToLanding} className="back-btn map-header-back" aria-label="Back to home">
           <CaretLeft size={20} weight="bold" />
           <span>Back</span>
         </button>
-
         <div className="filter-bar-in-header">
-          <div className={`filter-bar filter-bar-pill ${filterBarCollapsed ? "is-collapsed" : "is-open"}`}>
-        <div className="filter-bar-pill-row">
-          {userLocation && (
-            <button
-              type="button"
-              className="btn-primary suggest-green-btn-inline"
-              onClick={() => {
-                startOrResetFilterInactivityTimer();
-                handleSuggestGreenSpaces();
-              }}
-              disabled={isLoadingParks}
-            >
-              {isLoadingParks ? "Finding..." : "Suggest green spaces"}
-            </button>
-          )}
-          <button
-            className="filter-bar-toggle"
-            onClick={() => setFilterBarCollapsed(!filterBarCollapsed)}
-            aria-label={filterBarCollapsed ? "Expand filters" : "Collapse filters"}
-            aria-expanded={!filterBarCollapsed}
-          >
-            <span className="filter-bar-toggle-text">
-              Search by facility {activeFilterCount > 0 && `(${activeFilterCount})`}
-            </span>
-            <CaretDown size={18} weight="bold" className="filter-bar-chevron" />
-          </button>
-          {activeFilterCount > 0 && (
-            <button
-              className="btn-text filter-clear-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                startOrResetFilterInactivityTimer();
-                setFilters({
-                  fenced: false,
-                  unfenced: false,
-                  partFenced: false,
-                  bins: false,
-                  toilets: false,
-                  coffee: false,
-                  parking: false,
-                });
-              }}
-            >
-              Clear
-            </button>
-          )}
-        </div>
-        <div className="filter-bar-dropdown">
-          <div className="filter-bar-chips-inner">
-            <div className="filter-chips">
+          <div className="flex flex-col gap-3 p-4 bg-green-50 rounded-xl">
+            {/* Row 1: Select facilities (n) ▾ left | Clear right */}
+            <div className="flex justify-between items-center">
               <button
-                className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
-                onClick={() => {
-                  startOrResetFilterInactivityTimer();
-                  setFilters({ ...filters, fenced: !filters.fenced });
-                }}
+                type="button"
+                className="filter-bar-toggle"
+                onClick={() => setFilterBarCollapsed(!filterBarCollapsed)}
+                aria-label={filterBarCollapsed ? "Expand filters" : "Collapse filters"}
+                aria-expanded={!filterBarCollapsed}
               >
-                <Barricade size={16} weight="bold" />
-                Fenced
+                <span className="filter-bar-toggle-text whitespace-nowrap">
+                  Select facilities {activeFilterCount > 0 && `(${activeFilterCount})`}
+                </span>
+                <CaretDown size={18} weight="bold" className="filter-bar-chevron" />
               </button>
-              <button
-                className={`filter-chip ${filters.unfenced ? "is-on" : ""}`}
-                onClick={() => {
-                  startOrResetFilterInactivityTimer();
-                  setFilters({ ...filters, unfenced: !filters.unfenced });
-                }}
-              >
-                <ArrowsOut size={16} weight="bold" />
-                Unfenced
-              </button>
-              <button
-                className={`filter-chip ${filters.partFenced ? "is-on" : ""}`}
-                onClick={() => {
-                  startOrResetFilterInactivityTimer();
-                  setFilters({ ...filters, partFenced: !filters.partFenced });
-                }}
-              >
-                <CircleHalf size={16} weight="bold" />
-                Part-fenced
-              </button>
-              <button
-                className={`filter-chip ${filters.bins ? "is-on" : ""}`}
-                onClick={() => {
-                  startOrResetFilterInactivityTimer();
-                  setFilters({ ...filters, bins: !filters.bins });
-                }}
-              >
-                <TrashSimple size={16} weight="bold" />
-                Dog bins
-              </button>
-              <button
-                className={`filter-chip ${filters.parking ? "is-on" : ""}`}
-                onClick={() => {
-                  startOrResetFilterInactivityTimer();
-                  setFilters({ ...filters, parking: !filters.parking });
-                }}
-              >
-                <Car size={16} weight="bold" />
-                Parking
-              </button>
-              <button
-                className={`filter-chip ${filters.toilets ? "is-on" : ""}`}
-                onClick={() => {
-                  startOrResetFilterInactivityTimer();
-                  setFilters({ ...filters, toilets: !filters.toilets });
-                }}
-              >
-                <Toilet size={16} weight="bold" />
-                Toilets
-              </button>
-              <button
-                className={`filter-chip ${filters.coffee ? "is-on" : ""}`}
-                onClick={() => {
-                  startOrResetFilterInactivityTimer();
-                  setFilters({ ...filters, coffee: !filters.coffee });
-                }}
-              >
-                <Coffee size={16} weight="bold" />
-                Coffee
-              </button>
+              {activeFilterCount > 0 && (
+                <button
+                  type="button"
+                  className="btn-text filter-clear-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startOrResetFilterInactivityTimer();
+                    setFilters({
+                      fenced: false,
+                      unfenced: false,
+                      partFenced: false,
+                      bins: false,
+                      toilets: false,
+                      coffee: false,
+                      parking: false,
+                    });
+                  }}
+                >
+                  Clear
+                </button>
+              )}
             </div>
+
+            {/* Row 2: Find walks nearby left | Favourites toggle right */}
+            {(userLocation || user) && (
+              <div className="flex justify-between items-center">
+                <div>
+                  {userLocation && (
+                    <button
+                      type="button"
+                      className="btn-primary suggest-green-btn-inline"
+                      onClick={() => {
+                        startOrResetFilterInactivityTimer();
+                        handleSuggestGreenSpaces();
+                      }}
+                      disabled={isLoadingParks}
+                    >
+                      {isLoadingParks ? "Finding..." : "Find walks nearby"}
+                    </button>
+                  )}
+                </div>
+                <div>
+                  {user && (
+                  <label
+                    className="my-favourites-toggle filter-bar-favourites-toggle"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span
+                      className={`my-favourites-toggle-icon ${showFavouritesBigPulse ? "my-favourites-toggle-icon-big-pulse" : ""}`}
+                      onAnimationEnd={() => setShowFavouritesBigPulse(false)}
+                    >
+                      <Heart size={18} weight="fill" />
+                    </span>
+                    <span className="my-favourites-toggle-label hidden sm:inline">Favourites</span>
+                    <input
+                      type="checkbox"
+                      checked={showOnlyFavourites}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setShowOnlyFavourites(checked);
+                        if (checked) setShowFavouritesBigPulse(true);
+                      }}
+                      className="my-favourites-toggle-input"
+                      aria-label={showOnlyFavourites ? "Show all places" : "Show only favourites"}
+                    />
+                    <span className="my-favourites-toggle-slider" />
+                  </label>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Row 3+: facility filter pills — wrapping left-to-right */}
+            {!filterBarCollapsed && (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
+                  onClick={() => {
+                    startOrResetFilterInactivityTimer();
+                    setFilters({ ...filters, fenced: !filters.fenced });
+                  }}
+                >
+                  <Barricade size={16} weight="bold" />
+                  Fenced
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip ${filters.unfenced ? "is-on" : ""}`}
+                  onClick={() => {
+                    startOrResetFilterInactivityTimer();
+                    setFilters({ ...filters, unfenced: !filters.unfenced });
+                  }}
+                >
+                  <ArrowsOut size={16} weight="bold" />
+                  Unfenced
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip ${filters.partFenced ? "is-on" : ""}`}
+                  onClick={() => {
+                    startOrResetFilterInactivityTimer();
+                    setFilters({ ...filters, partFenced: !filters.partFenced });
+                  }}
+                >
+                  <CircleHalf size={16} weight="bold" />
+                  Part-fenced
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip ${filters.bins ? "is-on" : ""}`}
+                  onClick={() => {
+                    startOrResetFilterInactivityTimer();
+                    setFilters({ ...filters, bins: !filters.bins });
+                  }}
+                >
+                  <TrashSimple size={16} weight="bold" />
+                  Dog bins
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip ${filters.parking ? "is-on" : ""}`}
+                  onClick={() => {
+                    startOrResetFilterInactivityTimer();
+                    setFilters({ ...filters, parking: !filters.parking });
+                  }}
+                >
+                  <Car size={16} weight="bold" />
+                  Parking
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip ${filters.toilets ? "is-on" : ""}`}
+                  onClick={() => {
+                    startOrResetFilterInactivityTimer();
+                    setFilters({ ...filters, toilets: !filters.toilets });
+                  }}
+                >
+                  <Toilet size={16} weight="bold" />
+                  Toilets
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip ${filters.coffee ? "is-on" : ""}`}
+                  onClick={() => {
+                    startOrResetFilterInactivityTimer();
+                    setFilters({ ...filters, coffee: !filters.coffee });
+                  }}
+                >
+                  <Coffee size={16} weight="bold" />
+                  Coffee
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-        </div>
         </div>
 
         {user ? (
@@ -1401,12 +1787,13 @@ export default function Home() {
                 </button>
                 <button
                   type="button"
-                  className="avatar-dropdown-item"
+                  className="avatar-dropdown-item avatar-dropdown-item-delete"
                   onClick={() => {
                     setShowDeleteAccountConfirm(true);
                     setShowAvatarDropdown(false);
                   }}
                 >
+                  <TrashSimple size={18} weight="regular" />
                   Delete my account
                 </button>
               </div>
@@ -1415,57 +1802,92 @@ export default function Home() {
         ) : null}
       </header>
 
-      {/* Log in at bottom left (same row as FAB) when not logged in */}
-      {!user && (
-        <div className="map-view-bottom-login">
+      {/* Bottom bar: Log in (when not signed in) left, FAB right – hidden when directions active */}
+      {!directionsMode && (
+        <div className="map-view-bottom-bar">
+          <div className="map-view-bottom-left">
+            {!user && (
+              <button
+                className="btn-secondary"
+                onClick={() => (window.location.href = "/login")}
+              >
+                Log in
+              </button>
+            )}
+          </div>
           <button
-            className="btn-text map-view-login-btn"
-            onClick={() => (window.location.href = "/login")}
+            className={`add-place-fab ${fabPulsing ? "is-pulsing" : ""}`}
+            onClick={() => {
+              setFabPulsing(true);
+              setTimeout(() => {
+                if (!user) {
+                  setShowLoginPrompt(true);
+                } else {
+                  setShowAddDrawer(true);
+                }
+                setFabPulsing(false);
+              }, 400);
+            }}
+            title="Add a place"
+            aria-label="Add a place"
           >
-            Log in
+            <MapPin size={18} weight="bold" />
+            <span className="add-place-fab-label">Add a place</span>
           </button>
         </div>
       )}
 
-      {/* Add Place Button */}
-      <button
-        className="add-place-fab"
-        onClick={() => {
-          if (!user) {
-            setShowLoginPrompt(true);
-          } else {
-            setShowAddDrawer(true);
-          }
-        }}
-        title="Add a place"
-      >
-        <Plus size={24} weight="bold" />
-      </button>
-
       {/* Main Map */}
-      <MainMap
-        center={mapCenter || { lat: 51.5074, lng: -0.1278 }}
-        zoom={mapZoom}
-        parks={filteredParks}
-        userLocation={userLocation}
-        selectedPark={selectedPark}
-        onParkClick={handleParkClick}
-        onMapMove={(center, zoom) => {
-          setMapCenter(center);
-          setMapZoom(zoom);
-        }}
-        filters={filters}
-        route={currentRoute}
-        boundsToFit={boundsToFit}
-        fitBoundsRequestId={fitBoundsRequestId}
-      />
-
-      {/* Loading Indicator */}
-      {isLoadingParks && (
-        <div className="loading-indicator">
-          Finding green spaces...
-        </div>
-      )}
+      <div className="map-view-map-wrap">
+        {isLoadingLocation && (
+          <div className="location-loading-overlay" aria-hidden="false" aria-busy="true" role="status">
+            <div className="location-loading-card">
+              <div
+                className="w-8 h-8 rounded-full border-4 border-green-700 border-t-transparent animate-spin"
+                aria-hidden
+              />
+              <p className="location-loading-label">Finding your location…</p>
+            </div>
+          </div>
+        )}
+        <MainMap
+          center={mapCenter || { lat: 51.5074, lng: -0.1278 }}
+          zoom={mapZoom}
+          parks={filteredParks}
+          userLocation={userLocation}
+          selectedPark={selectedPark}
+          onParkClick={handleParkClick}
+          onMapMove={handleMapMove}
+          filters={filters}
+          route={currentRoute}
+          boundsToFit={boundsToFit}
+          fitBoundsRequestId={fitBoundsRequestId}
+          onMapClick={() => setFitBoundsRequestId((i) => i + 1)}
+          onResultsOutsideViewport={() => setFitBoundsRequestId((i) => i + 1)}
+        />
+        {userLocation && filteredParks.length === 0 && !isLoadingParks && showNoResultsToast && (
+          <div
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[99999] max-w-xs w-full px-5 py-4 bg-white rounded-xl shadow-md border border-gray-100 text-center"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-green-900 text-sm font-medium">
+              Sorry, we couldn&apos;t find dog walks nearby. Try zooming out or adjusting your filters.
+            </p>
+          </div>
+        )}
+        {isLoadingParks && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center">
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-md px-6 py-5 flex flex-col items-center gap-3">
+              <div
+                className="w-8 h-8 rounded-full border-4 border-green-700 border-t-transparent animate-spin"
+                aria-hidden
+              />
+              <p className="text-sm text-green-900">Finding walks near you...</p>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Park Bottom Sheet – slides down when adjusting pin, slides back up after Save */}
       {selectedPark && !directionsMode && (
@@ -1484,12 +1906,22 @@ export default function Home() {
           onGetDirections={handleGetDirections}
           onRequestLocation={handleRequestLocation}
           slideOut={showAdjustPlaceMap}
-          onAddThisPlace={selectedPark.isAutoDiscovered ? () => {
-            setAddPlaceInitialName(selectedPark.name);
-            setAddPlaceInitialLocation({ lat: selectedPark.lat, lng: selectedPark.lng });
-            setShowAddDrawer(true);
-            setSelectedPark(null);
-          } : undefined}
+          onAddFacilities={() => {
+            if (!user) {
+              setShowLoginPrompt(true);
+              return;
+            }
+            if (selectedPark.isAutoDiscovered) {
+              setAddPlaceInitialName(selectedPark.name);
+              setAddPlaceInitialLocation({ lat: selectedPark.lat, lng: selectedPark.lng });
+              setShowAddDrawer(true);
+              setSelectedPark(null);
+            } else {
+              setEditingPark(selectedPark);
+              setEditDrawerMode("full");
+              setShowEditDrawer(true);
+            }
+          }}
           requireLoginForFavourite={!user}
         />
       )}
@@ -1709,14 +2141,13 @@ export default function Home() {
               >
                 Sign up free
               </button>
+              <button
+                className="btn-secondary"
+                onClick={() => (window.location.href = "/login")}
+              >
+                Already have an account? Log in
+              </button>
             </div>
-            <button
-              className="btn-text"
-              onClick={() => (window.location.href = "/login")}
-              style={{ marginTop: 12 }}
-            >
-              Already have an account? Log in
-            </button>
           </div>
         </>
       )}
@@ -1752,7 +2183,11 @@ export default function Home() {
       {showTransportModal && (
         <TransportModeModal
           onSelect={handleSelectTransportMode}
-          onClose={() => setShowTransportModal(false)}
+          onClose={handleCloseTransportModal}
+          showLoginPrompt={showDirectionsLoginPrompt}
+          parkName={directionsPark?.name}
+          onLogin={handleDirectionsLogin}
+          onSignup={handleDirectionsSignup}
         />
       )}
 
@@ -1776,11 +2211,17 @@ export default function Home() {
             className="btn-text directions-change-mode"
             onClick={() => setShowTransportModal(true)}
           >
-            Change mode
+            Change travel mode
           </button>
           <button
             className="directions-close"
-            onClick={handleCloseDirections}
+            onClick={() => {
+              setDirectionsMode(false);
+              setCurrentRoute(null);
+              if (directionsPark) {
+                setSelectedPark(directionsPark);
+              }
+            }}
           >
             <X size={24} weight="bold" />
           </button>
@@ -1798,7 +2239,7 @@ export default function Home() {
       {/* Cookie Consent */}
       <CookieBanner />
       {/* Toast */}
-      {showToast && <div className="toast">{toastMessage}</div>}
+      {showToast && !isLoadingLocation && !isLoadingParks && <div className="toast">{toastMessage}</div>}
     </div>
   );
 }

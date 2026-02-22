@@ -1,8 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export default function CheckEmailPage() {
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/";
+
   return (
     <div className="auth-page">
       <div className="auth-card" style={{ textAlign: "center" }}>
@@ -24,7 +28,7 @@ export default function CheckEmailPage() {
         </div>
 
         <Link
-          href="/"
+          href={redirectTo}
           className="btn-primary"
           style={{ display: "inline-block", padding: "10px 20px", textDecoration: "none" }}
         >

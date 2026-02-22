@@ -44,6 +44,10 @@ type Props = {
   route?: RouteInfo | null;
   boundsToFit?: [Location, Location] | undefined;
   fitBoundsRequestId?: number;
+  /** Called when user clicks the map background (not a marker); parent can trigger fitBounds */
+  onMapClick?: () => void;
+  /** Called when map moveend and no parks are visible; parent can trigger fitBounds */
+  onResultsOutsideViewport?: () => void;
 };
 
 export default function MainMap({
@@ -63,6 +67,8 @@ export default function MainMap({
   route,
   boundsToFit,
   fitBoundsRequestId = 0,
+  onMapClick,
+  onResultsOutsideViewport,
 }: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -70,6 +76,20 @@ export default function MainMap({
   const activePopupRef = useRef<mapboxgl.Popup | null>(null);
   const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const pinDropMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const parksRef = useRef<Park[]>(parks);
+  const onResultsOutsideViewportRef = useRef(onResultsOutsideViewport);
+  const onMapClickRef = useRef(onMapClick);
+  parksRef.current = parks;
+  onResultsOutsideViewportRef.current = onResultsOutsideViewport;
+  onMapClickRef.current = onMapClick;
+
+  const hasValidCoords = (loc: { lat: number; lng: number } | null | undefined): boolean => {
+    if (loc == null) return false;
+    const { lat, lng } = loc;
+    if (lat == null || lng == null || Number.isNaN(lat) || Number.isNaN(lng)) return false;
+    if (lat === 0 && lng === 0) return false;
+    return Number.isFinite(lat) && Number.isFinite(lng);
+  };
 
   const distanceKm = (aLat: number, aLng: number, bLat: number, bLng: number): number => {
     const R = 6371;
@@ -133,15 +153,15 @@ export default function MainMap({
 
     mapRef.current = map;
 
-    // Close popup when clicking map background
+    // Close popup when clicking map background; notify parent so they can trigger fitBounds (not in pin-drop mode)
     map.on("click", (e) => {
-      // Only close if clicking on the map itself, not on a marker
       const target = e.originalEvent.target as HTMLElement;
       if (target.classList.contains("mapboxgl-canvas")) {
         if (activePopupRef.current) {
           activePopupRef.current.remove();
           activePopupRef.current = null;
         }
+        if (!isPinDropMode) onMapClickRef.current?.();
       }
     });
 
@@ -150,6 +170,13 @@ export default function MainMap({
       const mapZoom = map.getZoom();
       if (onMapMove) {
         onMapMove({ lat: mapCenter.lat, lng: mapCenter.lng }, mapZoom);
+      }
+      const currentParks = parksRef.current;
+      const onOut = onResultsOutsideViewportRef.current;
+      if (onOut && currentParks.length > 0) {
+        const bounds = map.getBounds();
+        const anyVisible = currentParks.some((p) => bounds.contains([p.lng, p.lat]));
+        if (!anyVisible) onOut();
       }
     });
 
@@ -196,8 +223,7 @@ export default function MainMap({
     }
   }, [route, mapLoaded]);
 
-  // Fit viewport to user location + nearest park when requested (e.g. after search / Use my location).
-  // Only fit once per fitBoundsRequestId to avoid loop: fitBounds → moveend → onMapMove → re-render → fit again.
+  // Fit viewport only after map loaded, user location confirmed, and pins available (not during loading).
   const lastFitRequestIdRef = useRef(0);
   useEffect(() => {
     if (
@@ -205,8 +231,7 @@ export default function MainMap({
       !mapLoaded ||
       route ||
       fitBoundsRequestId <= lastFitRequestIdRef.current ||
-      !boundsToFit ||
-      boundsToFit.length < 2
+      !boundsToFit
     )
       return;
     lastFitRequestIdRef.current = fitBoundsRequestId;
@@ -214,7 +239,7 @@ export default function MainMap({
       .extend([boundsToFit[0].lng, boundsToFit[0].lat])
       .extend([boundsToFit[1].lng, boundsToFit[1].lat]);
     mapRef.current.fitBounds(bounds, {
-      padding: { top: 80, bottom: 80, left: 50, right: 50 },
+      padding: { top: 80, bottom: 120, left: 60, right: 60 },
       maxZoom: 14,
       duration: 1000,
     });
@@ -226,20 +251,21 @@ export default function MainMap({
     mapRef.current.flyTo({ center: [center.lng, center.lat], zoom, duration: 1000 });
   }, [center.lat, center.lng, zoom, route, isPinDropMode]);
 
-  // Pin drop marker (colour: green default, orange for adjust-place mode)
-  // Update position in place when possible to avoid flash (remove/re-add could briefly show at 0,0)
-  // Wait for map load so pin is visible in fullscreen view (container has dimensions)
+  // Pin drop marker – only mount when we have valid coordinates (avoids rogue marker at 0,0)
   useEffect(() => {
     if (!mapRef.current || !isPinDropMode) return;
     if (!mapLoaded && !pinDropMarkerRef.current) return;
-    if (!pinDropLocation) {
+    if (!pinDropLocation || !hasValidCoords(pinDropLocation)) {
       if (pinDropMarkerRef.current) {
         pinDropMarkerRef.current.remove();
         pinDropMarkerRef.current = null;
       }
       return;
     }
-    const lngLat = [pinDropLocation.lng, pinDropLocation.lat] as [number, number];
+    const lng = pinDropLocation.lng;
+    const lat = pinDropLocation.lat;
+    if (lng == null || lat == null || Number.isNaN(lng) || Number.isNaN(lat) || (lat === 0 && lng === 0)) return;
+    const lngLat = [lng, lat] as [number, number];
     if (pinDropMarkerRef.current) {
       pinDropMarkerRef.current.setLngLat(lngLat);
       return;
@@ -253,23 +279,28 @@ export default function MainMap({
       .addTo(mapRef.current);
   }, [pinDropLocation, isPinDropMode, pinDropColor, mapLoaded]);
 
-  // User location marker
+  // User location marker – only mount when map is loaded and we have valid coordinates (avoids rogue marker at 0,0)
   useEffect(() => {
-    if (!mapRef.current) return;
-    if (userMarkerRef.current) userMarkerRef.current.remove();
-    if (userLocation) {
-      const el = document.createElement("div");
-      el.className = "user-location-marker";
-      el.innerHTML = `<div class="user-dot"></div><div class="user-dot-pulse"></div>`;
-      userMarkerRef.current = new mapboxgl.Marker(el)
-        .setLngLat([userLocation.lng, userLocation.lat])
-        .addTo(mapRef.current);
+    if (!mapRef.current || !mapLoaded) return;
+    if (userMarkerRef.current) {
+      userMarkerRef.current.remove();
+      userMarkerRef.current = null;
     }
-  }, [userLocation]);
+    if (!userLocation || !hasValidCoords(userLocation)) return;
+    const lng = userLocation.lng;
+    const lat = userLocation.lat;
+    if (lng == null || lat == null || Number.isNaN(lng) || Number.isNaN(lat) || (lat === 0 && lng === 0)) return;
+    const el = document.createElement("div");
+    el.className = "user-location-marker";
+    el.innerHTML = `<div class="user-dot"></div><div class="user-dot-pulse"></div>`;
+    userMarkerRef.current = new mapboxgl.Marker(el)
+      .setLngLat([lng, lat])
+      .addTo(mapRef.current);
+  }, [userLocation, mapLoaded]);
 
-  // Park markers - only recreate when parks change, NOT when selectedPark changes
+  // Park markers – only after map loaded and with valid coordinates (avoids rogue pins)
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !mapLoaded) return;
 
     // Remove old markers
     markersRef.current.forEach((m) => m.remove());
@@ -281,30 +312,30 @@ export default function MainMap({
       activePopupRef.current = null;
     }
 
-    parks.forEach((park) => {
-      const hasUserData = !park.isAutoDiscovered || park.fenced || park.unfenced ||
-        park.partFenced || park.bins || park.toilets || park.coffee || park.parking;
-
+    parks.forEach((park, i) => {
+      const lng = park.lng;
+      const lat = park.lat;
+      if (lng == null || lat == null || Number.isNaN(lng) || Number.isNaN(lat) || (lat === 0 && lng === 0)) return;
+      if (!hasValidCoords({ lat, lng })) return;
       const distance = userLocation
         ? distanceKm(userLocation.lat, userLocation.lng, park.lat, park.lng)
         : null;
 
       const el = document.createElement("div");
-      el.className = `park-marker ${hasUserData ? "has-data" : ""}`;
-      const pinColor = hasUserData ? "#006947" : "#4CAF50";
-
-      el.innerHTML = `<svg width="28" height="36" viewBox="0 0 28 36" fill="none"><path d="M14 0C6.268 0 0 6.268 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.268 21.732 0 14 0z" fill="${pinColor}"/><circle cx="14" cy="14" r="5" fill="white"/>${hasUserData ? `<circle cx="14" cy="14" r="2" fill="${pinColor}"/>` : ""}</svg>`;
+      el.className = "park-marker";
+      
+      el.innerHTML = `<svg width="28" height="36" viewBox="0 0 28 36" fill="none"><path d="M14 0C6.268 0 0 6.268 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.268 21.732 0 14 0z" fill="#006947"/><circle cx="14" cy="14" r="5" fill="white"/></svg>`;
 
       const popup = new mapboxgl.Popup({
         closeButton: false,
         closeOnClick: false,
-        anchor: "bottom",
+         anchor: "bottom",
         offset: [0, -36],
         className: "park-popup",
       }).setHTML(`<div class="map-popup-content"><div class="popup-name">${park.name}</div>${distance !== null ? `<div class="popup-distance">${distance.toFixed(1)} km away</div>` : ""}</div>`);
 
       const marker = new mapboxgl.Marker(el)
-        .setLngLat([park.lng, park.lat])
+        .setLngLat([lng, lat])
         .addTo(mapRef.current!);
 
       el.addEventListener("click", (e) => {
@@ -323,7 +354,7 @@ export default function MainMap({
         // Show popup after short delay
         setTimeout(() => {
           if (mapRef.current) {
-            popup.setLngLat([park.lng, park.lat]).addTo(mapRef.current);
+            popup.setLngLat([lng, lat]).addTo(mapRef.current);
             activePopupRef.current = popup;
           }
         }, 50);
@@ -331,7 +362,7 @@ export default function MainMap({
 
       markersRef.current.push(marker);
     });
-  }, [parks, userLocation]);
+  }, [parks, userLocation, mapLoaded]);
 
   const handleConfirmPinDrop = () => {
     if (pinDropLocation && onPinDrop) onPinDrop(pinDropLocation);

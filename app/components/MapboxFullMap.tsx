@@ -42,6 +42,12 @@ export default function MapboxFullMap({
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
+  const hasValidCoords = (lat: number, lng: number): boolean => {
+    if (lat == null || lng == null) return false;
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return false;
+    if (lat === 0 && lng === 0) return false;
+    return Number.isFinite(lat) && Number.isFinite(lng);
+  };
 
   // Recentre map on user location
   const handleRecentre = () => {
@@ -89,9 +95,9 @@ export default function MapboxFullMap({
     mapRef.current = map;
 
     map.on("load", () => {
-      console.log("MAP LOADED - userLocation:", userLocation);
-      // Add user location marker (blue pulsing circle)
-      if (userLocation) {
+      // Add user location marker only after map load and with valid coordinates
+      if (userLocation && hasValidCoords(userLocation.lat, userLocation.lng)) {
+        const { lat, lng } = userLocation;
         const userEl = document.createElement("div");
         userEl.innerHTML = `
           <div style="
@@ -107,14 +113,15 @@ export default function MapboxFullMap({
         userEl.style.cssText = "cursor: pointer;";
 
         const userMarker = new mapboxgl.Marker({ element: userEl })
-          .setLngLat([userLocation.lng, userLocation.lat])
+          .setLngLat([lng, lat])
           .addTo(map);
         
         userMarkerRef.current = userMarker;
       }
 
-      // Add space marker (orange pin)
-      if (userLocation) {
+      // Add space marker only with valid coordinates (never at 0,0 or with NaN)
+      if (space && hasValidCoords(space.lat, space.lng)) {
+        const { lat, lng } = space;
         const pinEl = document.createElement("div");
         pinEl.innerHTML = `
           <svg width="40" height="50" viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -124,7 +131,6 @@ export default function MapboxFullMap({
         `;
         pinEl.style.cssText = "cursor: pointer; transform: translate(-50%, -100%);";
 
-        // Create popup for space
         const popup = new mapboxgl.Popup({
           offset: [0, -50],
           closeButton: false,
@@ -140,22 +146,19 @@ export default function MapboxFullMap({
             color: #006947;
             white-space: nowrap;
           ">
-            ${space?.name || "Selected place"}
+            ${space.name || "Selected place"}
           </div>
         `);
 
         const marker = new mapboxgl.Marker({ element: pinEl })
-          .setLngLat([space!.lng, space!.lat])
+          .setLngLat([lng, lat])
           .setPopup(popup)
           .addTo(map);
 
-        // Show popup by default
         popup.addTo(map);
-
         markersRef.current.push(marker);
       }
 
-      console.log("DIRECTIONS CHECK - isNavigating:", isNavigating, "transportMode:", transportMode);
       // Draw route if navigating and we have both locations
       if (isNavigating && userLocation && space && transportMode) {
         const profile = transportMode === "driving" ? "driving" : 

@@ -17,10 +17,27 @@ export type Place = {
 
 // Fetch all places
 export async function getPlaces(): Promise<Place[]> {
-  const { data, error } = await supabase
-    .from("places")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const query = supabase.from("places").select("*").order("created_at", { ascending: false });
+  const { data, error } = await query;
+
+  // DEBUG: Supabase location fetch (no PostGIS or RPC – plain select)
+  console.log("[getPlaces] Raw query:", "from('places').select('*').order('created_at', { ascending: false })");
+  console.log("[getPlaces] No PostGIS or distance RPC used; query returns all rows (no lat/lng filter).");
+  console.log("[getPlaces] Full response:", { data, error });
+  console.log("[getPlaces] Number of results:", data?.length ?? 0);
+  if (data && data.length > 0) {
+    const sample = data.slice(0, 5).map((p: Place) => ({
+      id: p.id,
+      name: p.name,
+      lat: p.lat,
+      lng: p.lng,
+      latType: typeof p.lat,
+      lngType: typeof p.lng,
+      latRaw: JSON.stringify(p.lat),
+      lngRaw: JSON.stringify(p.lng),
+    }));
+    console.log("[getPlaces] Sample coordinates (first 5) – check lat/lng are numbers, not swapped:", sample);
+  }
 
   if (error) {
     console.error("Error fetching places:", error);

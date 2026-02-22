@@ -2,13 +2,17 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Eye, EyeSlash } from "@phosphor-icons/react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -28,7 +32,7 @@ export default function LoginPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push("/");
+      router.push(redirectTo);
       router.refresh();
     }
   };
@@ -54,14 +58,28 @@ export default function LoginPage() {
 
           <label style={{ display: "block", marginBottom: "var(--spacing-lg)" }}>
             <span className="auth-form-label">Password</span>
-            <input
-              type="password"
-              required
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="auth-input"
-              style={{ marginBottom: 0 }}
-            />
+            <div className="auth-password-wrap">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="auth-input"
+                style={{ marginBottom: 0 }}
+              />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <Eye size={20} weight="regular" />
+                ) : (
+                  <EyeSlash size={20} weight="regular" />
+                )}
+              </button>
+            </div>
           </label>
 
           {error && (
@@ -80,7 +98,9 @@ export default function LoginPage() {
 
         <p className="auth-footer-text">
           Don&apos;t have an account?{" "}
-          <Link href="/signup">Sign up</Link>
+          <Link href={redirectTo !== "/" ? "/signup?redirect=" + encodeURIComponent(redirectTo) : "/signup"}>
+            Sign up
+          </Link>
         </p>
 
         <p className="auth-footer-text" style={{ marginTop: 12 }}>
