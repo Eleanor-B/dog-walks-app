@@ -257,7 +257,7 @@ out center tags;`;
           nearbyAmenities: { cafes: 0, toilets: 0, parking: 0 },
         };
       })
-      .filter((p): p is Park => p != null)
+      .filter((p: Park | null): p is Park => p != null)
       .filter((p: Park) => {
         const n = p.name.toLowerCase();
         return !n.includes("east dulwich") &&
