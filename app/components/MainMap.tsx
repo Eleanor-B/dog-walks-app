@@ -175,6 +175,7 @@ export default function MainMap({
       const onOut = onResultsOutsideViewportRef.current;
       if (onOut && currentParks.length > 0) {
         const bounds = map.getBounds();
+        if (!bounds) return;
         const anyVisible = currentParks.some((p) => bounds.contains([p.lng, p.lat]));
         if (!anyVisible) onOut();
       }
