@@ -40,6 +40,7 @@ import {
   PawPrint,
   House,
   SignOut,
+  List,
 } from "@phosphor-icons/react";
 
 // ===== TYPES =====
@@ -483,6 +484,7 @@ export default function Home() {
   // Carousel ref
   const carouselRef = useRef<HTMLDivElement>(null);
   const avatarDropdownRef = useRef<HTMLDivElement>(null);
+  const burgerMenuRef = useRef<HTMLDivElement>(null);
   const loadingLocationStartedRef = useRef<number>(0);
   const LOCATION_SPINNER_MIN_MS = 800;
   const parksLoadingStartedRef = useRef<number>(0);
@@ -525,6 +527,7 @@ export default function Home() {
   const [filterBarCollapsed, setFilterBarCollapsed] = useState(true);
   const filterInactivityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showAvatarDropdown, setShowAvatarDropdown] = useState(false);
+  const [showBurgerMenu, setShowBurgerMenu] = useState(false);
   const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
   const [showOnlyMyPlaces, setShowOnlyMyPlaces] = useState(false);
   const [showFavouritesBigPulse, setShowFavouritesBigPulse] = useState(false);
@@ -631,6 +634,18 @@ export default function Home() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showAvatarDropdown]);
+
+  // Close burger menu when clicking outside
+  useEffect(() => {
+    if (!showBurgerMenu) return;
+    function handleClick(e: MouseEvent) {
+      if (burgerMenuRef.current && !burgerMenuRef.current.contains(e.target as Node)) {
+        setShowBurgerMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showBurgerMenu]);
 
   // Close filter dropdown after 8s inactivity; reset timer on any interaction inside the bar
   const startOrResetFilterInactivityTimer = useCallback(() => {
@@ -1278,8 +1293,34 @@ export default function Home() {
                 </div>
               ) : (
                 <>
+                  <div className="header-burger-wrap" ref={burgerMenuRef}>
+                    <button
+                      type="button"
+                      className="avatar-btn header-burger-btn"
+                      onClick={() => setShowBurgerMenu((v) => !v)}
+                      aria-label="Menu"
+                      aria-expanded={showBurgerMenu}
+                      aria-haspopup="true"
+                    >
+                      <List size={22} weight="bold" />
+                    </button>
+                    {showBurgerMenu && (
+                      <div className="avatar-dropdown header-burger-dropdown">
+                        <button
+                          type="button"
+                          className="avatar-dropdown-item"
+                          onClick={() => {
+                            setShowBurgerMenu(false);
+                            window.location.href = "/signup";
+                          }}
+                        >
+                          Sign up
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <button
-                    className="btn-header-primary"
+                    className="btn-header-primary header-signup-btn"
                     onClick={() => (window.location.href = "/signup")}
                   >
                     Sign up
