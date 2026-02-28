@@ -1304,7 +1304,7 @@ export default function Home() {
             <div className="hero-sun-ellipse" aria-hidden="true" />
             <div className="hero-image">
             <img
-  src="/dog_animation.gif"
+  src="/dog_animation.apng"
   className="dog-illustration hero-dog-video"
   alt="Happy dog"
   width={202}
