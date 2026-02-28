@@ -1303,17 +1303,13 @@ export default function Home() {
             <div className="hero-ellipse" aria-hidden="true" />
             <div className="hero-sun-ellipse" aria-hidden="true" />
             <div className="hero-image">
-              <video
-                src="/dog-app-final.webm"
-                className="dog-illustration hero-dog-video"
-                autoPlay
-                loop
-                muted
-                playsInline
-                aria-label="Happy dog"
-                width={202}
-                height={202}
-              />
+            <img
+  src="/dog_animation.gif"
+  className="dog-illustration hero-dog-video"
+  alt="Happy dog"
+  width={202}
+  height={202}
+/>
             </div>
             <div className="hero-content">
               <h1 className="hero-title">
