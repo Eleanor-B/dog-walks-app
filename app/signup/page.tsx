@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeSlash } from "@phosphor-icons/react";
 
-export default function SignUpPage() {
+function SignUpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/";
@@ -127,5 +127,21 @@ export default function SignUpPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <div className="auth-page">
+        <div className="auth-card">
+          <h1 className="auth-title">Sign Up</h1>
+          <p className="auth-subtitle">Create your GoWalkTheDog account</p>
+          <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Loading...</p>
+        </div>
+      </div>
+    }>
+      <SignUpContent />
+    </Suspense>
   );
 }
