@@ -1,9 +1,10 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-export default function CheckEmailPage() {
+function CheckEmailContent() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/";
 
@@ -36,5 +37,20 @@ export default function CheckEmailPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function CheckEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="auth-page">
+        <div className="auth-card" style={{ textAlign: "center" }}>
+          <h1 className="auth-title" style={{ fontSize: 28 }}>Check Your Email</h1>
+          <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Loading...</p>
+        </div>
+      </div>
+    }>
+      <CheckEmailContent />
+    </Suspense>
   );
 }

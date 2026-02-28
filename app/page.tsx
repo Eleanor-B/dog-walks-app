@@ -2056,9 +2056,10 @@ export default function Home() {
               <button
                 type="button"
                 className="adjust-pin-pill btn-primary adjust-pin-save-btn"
-                onClick={async () => {
-                  const ok = await handleEditPlace(editingPark);
-                  if (ok) setShowAdjustPlaceMap(false);
+                onClick={() => {
+                  setShowAdjustPlaceMap(false);
+                  setEditDrawerMode("full");
+                  setShowEditDrawer(true);
                 }}
               >
                 Save location
