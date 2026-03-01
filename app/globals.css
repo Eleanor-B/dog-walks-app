@@ -246,6 +246,8 @@ p { margin: 0; line-height: 1.5; }
 .map-header .map-header-back {
   grid-column: 1;
   grid-row: 1;
+  width: fit-content;
+  justify-self: start;
 }
 
 /* Search by facility container: single centred row, no vertical misalignment */
@@ -1260,9 +1262,13 @@ h3.filter-label {
 }
 
 .add-place-link:hover {
-  background: rgba(0, 105, 71, 0.08);
+  background: rgba(0, 105, 71, 0.22);
   border-color: var(--color-primary-dark);
   color: var(--color-primary-dark);
+}
+
+.add-place-link:active {
+  background: rgba(0, 105, 71, 0.35);
 }
 
 .add-place-link svg {
@@ -1347,6 +1353,7 @@ button {
   cursor: pointer;
   border: none;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 button:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -1389,7 +1396,11 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-secondary:hover:not(:disabled) {
   border-color: var(--color-primary);
-  background: var(--color-hover-bg);
+  background: #e8e8e8;
+}
+
+.btn-secondary:active:not(:disabled) {
+  background: #ddd;
 }
 
 .btn-secondary svg {
@@ -1772,10 +1783,14 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 
 .add-place-fab:hover {
-  background: rgba(0, 105, 71, 0.08);
+  background: rgba(0, 105, 71, 0.22);
   border-color: var(--color-primary-dark);
   color: var(--color-primary-dark);
   transform: scale(1.02);
+}
+
+.add-place-fab:active {
+  background: rgba(0, 105, 71, 0.35);
 }
 
 .add-place-fab svg {
@@ -1789,6 +1804,19 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .add-place-fab.is-pulsing {
   animation: add-place-fab-pulse 400ms ease-in-out 1;
+}
+
+/* Map view only: white fill so FAB is visible over the map */
+.add-place-fab-float .add-place-fab {
+  background: #FFFFFF !important;
+}
+
+.add-place-fab-float .add-place-fab:hover {
+  background: rgba(0, 105, 71, 0.22) !important;
+}
+
+.add-place-fab-float .add-place-fab:active {
+  background: rgba(0, 105, 71, 0.35) !important;
 }
 
 /* Map view wrapper: map + overlay */
