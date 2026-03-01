@@ -14,6 +14,7 @@ import {
   MapPin,
   MagnifyingGlass,
   Warning,
+  Path,
 } from "@phosphor-icons/react";
 import type { Park } from "../page";
 
@@ -120,6 +121,7 @@ export default function EditPlaceDrawer({
     toilets: park.toilets || false,
     coffee: park.coffee || false,
     parking: park.parking || false,
+    onLeadOnly: park.onLeadOnly || false,
   });
 
   const handleLocationSearch = async () => {
@@ -176,6 +178,7 @@ export default function EditPlaceDrawer({
       toilets: park.toilets,
       coffee: park.coffee,
       parking: park.parking,
+      onLeadOnly: park.onLeadOnly || false,
     });
   };
 
@@ -371,6 +374,13 @@ export default function EditPlaceDrawer({
               >
                 <Car size={16} weight="bold" />
                 Parking
+              </button>
+              <button
+                className={`filter-chip ${facilities.onLeadOnly ? "is-on" : ""}`}
+                onClick={() => toggleFacility("onLeadOnly")}
+              >
+                <Path size={16} weight="bold" />
+                On lead only
               </button>
             </div>
           </div>

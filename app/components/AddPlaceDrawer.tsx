@@ -15,6 +15,7 @@ import {
   ArrowsOut,
   MapPinLine,
   CaretRight,
+  Path,
 } from "@phosphor-icons/react";
 
 type Location = {
@@ -133,6 +134,7 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation, onOpenPi
     toilets: false,
     coffee: false,
     parking: false,
+    onLeadOnly: false,
   });
 
   const handleLocationSearch = async () => {
@@ -398,6 +400,13 @@ export default function AddPlaceDrawer({ onClose, onSave, userLocation, onOpenPi
               >
                 <Car size={16} weight="bold" />
                 Parking
+              </button>
+              <button
+                className={`filter-chip ${facilities.onLeadOnly ? "is-on" : ""}`}
+                onClick={() => toggleFacility("onLeadOnly")}
+              >
+                <Path size={16} weight="bold" />
+                On lead only
               </button>
             </div>
           </div>

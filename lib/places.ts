@@ -12,6 +12,7 @@ export type Place = {
   toilets: boolean;
   coffee: boolean;
   parking: boolean;
+  on_lead_only?: boolean;
   user_id?: string;
 };
 

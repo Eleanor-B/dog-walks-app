@@ -42,6 +42,8 @@ import {
   House,
   SignOut,
   List,
+  SlidersHorizontal,
+  Path,
 } from "@phosphor-icons/react";
 
 // ===== TYPES =====
@@ -59,6 +61,7 @@ export type Park = {
   toilets?: boolean;
   coffee?: boolean;
   parking?: boolean;
+  onLeadOnly?: boolean;
   user_id?: string;
   addedBy?: string; // Nickname
   addedAt?: string;
@@ -471,6 +474,7 @@ export default function Home() {
     toilets: false,
     coffee: false,
     parking: false,
+    onLeadOnly: false,
   });
 
   // Carousel ref
@@ -497,6 +501,7 @@ export default function Home() {
   const [editingPark, setEditingPark] = useState<Park | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [showFiltersDrawer, setShowFiltersDrawer] = useState(false);
   const [fabPulsing, setFabPulsing] = useState(false);
   const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -815,6 +820,7 @@ export default function Home() {
         toilets: p.toilets,
         coffee: p.coffee,
         parking: p.parking,
+        onLeadOnly: p.on_lead_only ?? false,
         user_id: p.user_id,
       }));
       setParks(validParks);
@@ -966,6 +972,7 @@ export default function Home() {
       toilets: placeData.toilets,
       coffee: placeData.coffee,
       parking: placeData.parking,
+      on_lead_only: placeData.onLeadOnly ?? false,
       user_id: user.id,
     });
 
@@ -983,6 +990,7 @@ export default function Home() {
         toilets: placeData.toilets,
         coffee: placeData.coffee,
         parking: placeData.parking,
+        onLeadOnly: placeData.onLeadOnly ?? false,
         user_id: user.id,
       };
       setUserAddedPlaces([...userAddedPlaces, newPark]);
@@ -1014,6 +1022,7 @@ export default function Home() {
       toilets: placeData.toilets,
       coffee: placeData.coffee,
       parking: placeData.parking,
+      on_lead_only: placeData.onLeadOnly ?? false,
     });
 
     if (success) {
@@ -1203,9 +1212,9 @@ export default function Home() {
   let filteredParks = allParks.filter((park) => {
     // Auto-discovered parks without user data pass through unless specific dog filters are on
     if (park.isAutoDiscovered && !park.fenced && !park.unfenced && !park.partFenced && 
-        !park.bins && !park.toilets && !park.coffee && !park.parking) {
+        !park.bins && !park.toilets && !park.coffee && !park.parking && !park.onLeadOnly) {
       // Only filter out if user is specifically filtering for dog-specific features
-      if (filters.fenced || filters.unfenced || filters.partFenced || filters.bins) {
+      if (filters.fenced || filters.unfenced || filters.partFenced || filters.bins || filters.onLeadOnly) {
         return false;
       }
       // For amenity filters, use auto-detected data
@@ -1223,6 +1232,7 @@ export default function Home() {
     if (filters.toilets && !park.toilets) return false;
     if (filters.coffee && !park.coffee) return false;
     if (filters.parking && !park.parking) return false;
+    if (filters.onLeadOnly && !park.onLeadOnly) return false;
     return true;
   });
 
@@ -1413,48 +1423,123 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Search Card - contains filters and location inputs */}
+          {/* Search Card - postcode, or, two buttons, primary, Add a place link */}
           <div className="search-card">
-            {/* Filter Section */}
-            <div className="filter-section-card">
-              <div className="filter-section-header-row">
-                <h3 className="filter-label">
-                  Select facilities {activeFilterCount > 0 && `(${activeFilterCount})`}
-                </h3>
-                {user && (
-                  <label className="my-favourites-toggle">
-                    <span
-                      className={`my-favourites-toggle-icon ${showFavouritesBigPulse ? "my-favourites-toggle-icon-big-pulse" : ""}`}
-                      onAnimationEnd={() => setShowFavouritesBigPulse(false)}
-                    >
-                      <Heart size={18} weight="fill" />
-                    </span>
-                    <span className="my-favourites-toggle-label">My favourites</span>
-                    <input
-                      type="checkbox"
-                      checked={showOnlyMyPlaces}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setShowOnlyMyPlaces(checked);
-                        if (checked) setShowFavouritesBigPulse(true);
-                      }}
-                      className="my-favourites-toggle-input"
-                      aria-label="Show only my added places"
-                    />
-                    <span className="my-favourites-toggle-slider" />
-                  </label>
-                )}
+            <div className="location-inputs">
+              {/* Postcode input - full width */}
+              <div className="search-input-with-icon landing-search-input-full">
+                <div className="search-input-icon-container" aria-hidden>
+                  <CursorText size={20} weight="bold" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Enter postcode or area name"
+                  value={locationInput}
+                  onChange={(e) => setLocationInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleLocationSearch()}
+                  className="search-input"
+                />
               </div>
-              <div className="carousel-container">
-                <button 
-                  className="carousel-caret"
-                  onClick={() => scrollCarousel("left")}
-                  aria-label="Scroll left"
+
+              {/* or divider */}
+              <div className="location-or-standalone" aria-hidden="true">
+                <span className="location-or-line" />
+                <span className="location-or">or</span>
+                <span className="location-or-line" />
+              </div>
+
+              {/* Two buttons: Use my location | Filters (N) - 50% each */}
+              <div className="landing-two-buttons-row">
+                <button
+                  className="btn-secondary location-use-current landing-half-btn"
+                  onClick={handleUseMyLocation}
+                  disabled={isLoadingLocation}
                 >
-                  <CaretLeft size={20} weight="bold" />
+                  <Crosshair size={18} weight="bold" />
+                  {isLoadingLocation ? "Finding..." : "Use my location"}
                 </button>
-                <div className="carousel-scroll-area">
-                  <div className="filter-chips-landing" ref={carouselRef}>
+                <button
+                  type="button"
+                  className="btn-secondary landing-filters-btn landing-half-btn"
+                  onClick={() => setShowFiltersDrawer(true)}
+                  aria-label={activeFilterCount > 0 ? `Filters (${activeFilterCount} active)` : "Filters"}
+                >
+                  <SlidersHorizontal size={18} weight="bold" />
+                  {activeFilterCount > 0 ? `Filters (${activeFilterCount})` : "Filters"}
+                </button>
+              </div>
+
+              {/* Find green spaces nearby - full width primary; Add a place - small link (desktop: same row) */}
+              <div className="landing-primary-row">
+                <button
+                  className="find-green-fab landing-find-btn"
+                  onClick={handleLocationSearch}
+                  disabled={isLoadingLocation || !locationInput.trim()}
+                  title="Find green spaces nearby"
+                  aria-label="Find green spaces nearby"
+                >
+                  <MagnifyingGlass size={18} weight="bold" />
+                  <span className="fab-label">
+                    {isLoadingLocation ? "Finding..." : "Find green spaces nearby"}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="add-place-link"
+                  onClick={() => {
+                    setFabPulsing(true);
+                    setTimeout(() => {
+                      if (!user) {
+                        setShowLoginPrompt(true);
+                      } else {
+                        setViewState("map");
+                        setShowAddDrawer(true);
+                      }
+                      setFabPulsing(false);
+                    }, 400);
+                  }}
+                  title="Add a place"
+                  aria-label="Add a place"
+                >
+                  <Plus size={16} weight="bold" />
+                  Add a place
+                </button>
+              </div>
+
+              {locationError && (
+                <div className="location-error">
+                  <Warning size={18} color="#c53030" />
+                  <span>{locationError}</span>
+                  <button
+                    className="btn-text"
+                    onClick={() => setShowPinDropMap(true)}
+                    style={{ marginLeft: 8 }}
+                  >
+                    Drop a pin instead
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Filters drawer - slides up from bottom */}
+          {showFiltersDrawer && (
+            <>
+              <div className="drawer-overlay" onClick={() => setShowFiltersDrawer(false)} aria-hidden="true" />
+              <div className="drawer filters-drawer" role="dialog" aria-labelledby="filters-drawer-title" aria-modal="true">
+                <div className="filters-drawer-header">
+                  <h2 id="filters-drawer-title" className="filter-label">Select facilities</h2>
+                  <button
+                    type="button"
+                    className="filters-drawer-close"
+                    onClick={() => setShowFiltersDrawer(false)}
+                    aria-label="Close"
+                  >
+                    <X size={24} weight="bold" />
+                  </button>
+                </div>
+                <div className="filters-drawer-content">
+                  <div className="filters-drawer-chips">
                     <button
                       className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
                       onClick={() => setFilters({ ...filters, fenced: !filters.fenced })}
@@ -1504,99 +1589,48 @@ export default function Home() {
                       <Coffee size={16} weight="bold" />
                       Coffee
                     </button>
+                    <button
+                      className={`filter-chip ${filters.onLeadOnly ? "is-on" : ""}`}
+                      onClick={() => setFilters({ ...filters, onLeadOnly: !filters.onLeadOnly })}
+                    >
+                      <Path size={16} weight="bold" />
+                      On lead only
+                    </button>
                   </div>
-                </div>
-                <button 
-                  className="carousel-caret"
-                  onClick={() => scrollCarousel("right")}
-                  aria-label="Scroll right"
-                >
-                  <CaretRight size={20} weight="bold" />
-                </button>
-              </div>
-            </div>
-
-            {/* Location Search */}
-            <div className="location-inputs">
-              <div className="location-search-row">
-                <div className="search-input-with-icon">
-                  <div className="search-input-icon-container" aria-hidden>
-                    <CursorText size={20} weight="bold" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Enter postcode or area name"
-                    value={locationInput}
-                    onChange={(e) => setLocationInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleLocationSearch()}
-                    className="search-input"
-                  />
-                </div>
-                <div className="location-or-row">
-                  <span className="location-or" aria-hidden="true">or</span>
+                  {user && (
+                    <label className="my-favourites-toggle filters-drawer-favourites">
+                      <span
+                        className={`my-favourites-toggle-icon ${showFavouritesBigPulse ? "my-favourites-toggle-icon-big-pulse" : ""}`}
+                        onAnimationEnd={() => setShowFavouritesBigPulse(false)}
+                      >
+                        <Heart size={18} weight="fill" />
+                      </span>
+                      <span className="my-favourites-toggle-label">My favourites</span>
+                      <input
+                        type="checkbox"
+                        checked={showOnlyMyPlaces}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setShowOnlyMyPlaces(checked);
+                          if (checked) setShowFavouritesBigPulse(true);
+                        }}
+                        className="my-favourites-toggle-input"
+                        aria-label="Show only my added places"
+                      />
+                      <span className="my-favourites-toggle-slider" />
+                    </label>
+                  )}
                   <button
-                    className="btn-secondary location-use-current"
-                    onClick={handleUseMyLocation}
-                    disabled={isLoadingLocation}
+                    type="button"
+                    className="btn-primary filters-drawer-done"
+                    onClick={() => setShowFiltersDrawer(false)}
                   >
-                    <Crosshair size={18} weight="bold" />
-                    {isLoadingLocation ? "Finding..." : "Use my location"}
+                    Done
                   </button>
                 </div>
               </div>
-
-              <div className="landing-fab-row">
-                <button
-                  className="find-green-fab"
-                  onClick={handleLocationSearch}
-                  disabled={isLoadingLocation || !locationInput.trim()}
-                  title="Find green spaces nearby"
-                  aria-label="Find green spaces nearby"
-                >
-                  <MagnifyingGlass size={18} weight="bold" />
-                  <span className="fab-label">
-                    {isLoadingLocation ? "Finding..." : "Find green spaces nearby"}
-                  </span>
-                </button>
-                {!showAddDrawer && (
-                  <button
-                    className={`add-place-fab ${fabPulsing ? "is-pulsing" : ""}`}
-                    onClick={() => {
-                      setFabPulsing(true);
-                      setTimeout(() => {
-                        if (!user) {
-                          setShowLoginPrompt(true);
-                        } else {
-                          setViewState("map");
-                          setShowAddDrawer(true);
-                        }
-                        setFabPulsing(false);
-                      }, 400);
-                    }}
-                    title="Add a place"
-                    aria-label="Add a place"
-                  >
-                    <MapPinPlus size={18} weight="bold" />
-                    <span className="add-place-fab-label">Add a place</span>
-                  </button>
-                )}
-              </div>
-
-              {locationError && (
-                <div className="location-error">
-                  <Warning size={18} color="#c53030" />
-                  <span>{locationError}</span>
-                  <button
-                    className="btn-text"
-                    onClick={() => setShowPinDropMap(true)}
-                    style={{ marginLeft: 8 }}
-                  >
-                    Drop a pin instead
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+            </>
+          )}
           </div>
         </main>
 
@@ -1707,6 +1741,7 @@ export default function Home() {
                       toilets: false,
                       coffee: false,
                       parking: false,
+                      onLeadOnly: false,
                     });
                   }}
                 >
@@ -1843,6 +1878,17 @@ export default function Home() {
                 >
                   <Coffee size={16} weight="bold" />
                   Coffee
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip ${filters.onLeadOnly ? "is-on" : ""}`}
+                  onClick={() => {
+                    startOrResetFilterInactivityTimer();
+                    setFilters({ ...filters, onLeadOnly: !filters.onLeadOnly });
+                  }}
+                >
+                  <Path size={16} weight="bold" />
+                  On lead only
                 </button>
               </div>
             )}
