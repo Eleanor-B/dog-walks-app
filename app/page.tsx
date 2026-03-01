@@ -15,7 +15,8 @@ import EditPlaceDrawer from "./components/EditPlaceDrawer";
 import TransportModeModal from "./components/TransportModeModal";
 
 import {
-  MapPin,
+  MapPinPlus,
+  CursorText,
   NavigationArrow,
   Barricade,
   TrashSimple,
@@ -99,6 +100,31 @@ function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): num
   const c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
   return R * c;
 }
+
+/** Distance in meters from a point to the nearest point on a route polyline. Coordinates are [lng, lat][]. */
+function distanceToRouteMeters(point: Location, coordinates: [number, number][]): number {
+  if (coordinates.length === 0) return Infinity;
+  if (coordinates.length === 1) {
+    const [lng, lat] = coordinates[0];
+    return distanceKm(point.lat, point.lng, lat, lng) * 1000;
+  }
+  let minM = Infinity;
+  for (let i = 0; i < coordinates.length - 1; i++) {
+    const [lngA, latA] = coordinates[i];
+    const [lngB, latB] = coordinates[i + 1];
+    for (let k = 0; k <= 4; k++) {
+      const t = k / 4;
+      const lat = latA + t * (latB - latA);
+      const lng = lngA + t * (lngB - lngA);
+      const m = distanceKm(point.lat, point.lng, lat, lng) * 1000;
+      if (m < minM) minM = m;
+    }
+  }
+  return minM;
+}
+
+const REROUTE_THRESHOLD_M = 80;
+const REROUTE_COOLDOWN_MS = 20000;
 
 async function lookupLocation(query: string): Promise<Location | null> {
   const q = query.trim();
@@ -491,6 +517,8 @@ export default function Home() {
   const [mapZoom, setMapZoom] = useState(11);
   const [filterBarCollapsed, setFilterBarCollapsed] = useState(true);
   const filterInactivityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastRerouteTimeRef = useRef<number>(0);
+  const currentRouteRef = useRef<RouteInfo | null>(null);
   const [showAvatarDropdown, setShowAvatarDropdown] = useState(false);
   const [showBurgerMenu, setShowBurgerMenu] = useState(false);
   const [showOnlyFavourites, setShowOnlyFavourites] = useState(false);
@@ -613,6 +641,47 @@ export default function Home() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showBurgerMenu]);
+
+  // Re-route when user goes off-route during directions
+  useEffect(() => {
+    if (!directionsMode || !directionsPark || !currentRoute || !navigator.geolocation) return;
+
+    currentRouteRef.current = currentRoute;
+    const destination = { lat: directionsPark.lat, lng: directionsPark.lng };
+    const mode = currentRoute.mode;
+
+    const watchId = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const route = currentRouteRef.current;
+        if (!route || route.coordinates.length === 0) return;
+
+        const distM = distanceToRouteMeters(loc, route.coordinates);
+        const now = Date.now();
+        if (distM <= REROUTE_THRESHOLD_M) return;
+        if (now - lastRerouteTimeRef.current < REROUTE_COOLDOWN_MS) return;
+
+        lastRerouteTimeRef.current = now;
+        setIsLoadingDirections(true);
+        showToastMessage("Re-routing…");
+
+        const newRoute = await fetchDirections(loc, destination, mode);
+        if (newRoute) {
+          setCurrentRoute(newRoute);
+          setUserLocation(loc);
+          currentRouteRef.current = newRoute;
+        }
+        setIsLoadingDirections(false);
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      currentRouteRef.current = null;
+    };
+  }, [directionsMode, directionsPark, currentRoute]);
 
   // Close filter dropdown after 8s inactivity; reset timer on any interaction inside the bar
   const startOrResetFilterInactivityTimer = useCallback(() => {
@@ -1451,7 +1520,7 @@ export default function Home() {
               <div className="location-search-row">
                 <div className="search-input-with-icon">
                   <div className="search-input-icon-container" aria-hidden>
-                    <MagnifyingGlass size={20} weight="bold" />
+                    <CursorText size={20} weight="bold" />
                   </div>
                   <input
                     type="text"
@@ -1477,10 +1546,11 @@ export default function Home() {
 
               <div className="location-find-row">
                 <button
-                  className="btn-primary"
+                  className="btn-primary btn-has-icon-left"
                   onClick={handleLocationSearch}
                   disabled={isLoadingLocation || !locationInput.trim()}
                 >
+                  <MagnifyingGlass size={18} weight="bold" />
                   {isLoadingLocation ? "Finding..." : "Find green spaces nearby"}
                 </button>
               </div>
@@ -1560,6 +1630,31 @@ export default function Home() {
               </div>
             </div>
           </>
+        )}
+        {/* Add a place – fixed bottom-right, hidden when drawer is open */}
+        {!showAddDrawer && (
+          <div className="add-place-fab-float">
+            <button
+              className={`add-place-fab ${fabPulsing ? "is-pulsing" : ""}`}
+              onClick={() => {
+                setFabPulsing(true);
+                setTimeout(() => {
+                  if (!user) {
+                    setShowLoginPrompt(true);
+                  } else {
+                    setViewState("map");
+                    setShowAddDrawer(true);
+                  }
+                  setFabPulsing(false);
+              }, 400);
+            }}
+            title="Add a place"
+            aria-label="Add a place"
+          >
+              <MapPinPlus size={18} weight="bold" />
+              <span className="add-place-fab-label">Add a place</span>
+            </button>
+          </div>
         )}
         {/* Cookie Consent */}
         <CookieBanner />
@@ -1820,7 +1915,7 @@ export default function Home() {
         ) : null}
       </header>
 
-      {/* Bottom bar: Log in (when not signed in) left, FAB right – hidden when directions active */}
+      {/* Bottom bar: Log in (when not signed in) left – hidden when directions active */}
       {!directionsMode && (
         <div className="map-view-bottom-bar">
           <div className="map-view-bottom-left">
@@ -1833,6 +1928,11 @@ export default function Home() {
               </button>
             )}
           </div>
+        </div>
+      )}
+      {/* Add a place – fixed bottom-right, hidden when drawer, bottom sheet, or directions */}
+      {!directionsMode && !showAddDrawer && !selectedPark && !showEditDrawer && (
+        <div className="add-place-fab-float">
           <button
             className={`add-place-fab ${fabPulsing ? "is-pulsing" : ""}`}
             onClick={() => {
@@ -1849,7 +1949,7 @@ export default function Home() {
             title="Add a place"
             aria-label="Add a place"
           >
-            <MapPin size={18} weight="bold" />
+            <MapPinPlus size={18} weight="bold" />
             <span className="add-place-fab-label">Add a place</span>
           </button>
         </div>
