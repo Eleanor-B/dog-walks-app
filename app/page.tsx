@@ -289,40 +289,6 @@ let overpassDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let overpassDebounceResolvers: { resolve: (value: Park[]) => void; reject: (reason: unknown) => void }[] = [];
 let overpassDebounceArgs: { center: Location; radiusKm: number; skipAmenities: boolean } | null = null;
 
-async function fetchNearbyParksActual(center: Location, radiusKm: number, skipAmenities: boolean): Promise<Park[]> {
-  const minDistanceKm = 0.04;
-  try {
-    let parks = await fetchParksFromOverpass(center, radiusKm);
-    parks = parks.filter((p) => distanceKm(center.lat, center.lng, p.lat, p.lng) > minDistanceKm);
-
-    const minPinDistanceKm = 0.06;
-    const dedupedParks = parks.filter((p, i) => {
-      const tooCloseToEarlier = parks.slice(0, i).some(
-        (q) => distanceKm(p.lat, p.lng, q.lat, q.lng) < minPinDistanceKm
-      );
-      return !tooCloseToEarlier;
-    });
-
-    if (skipAmenities) {
-      return dedupedParks.map((p) => ({
-        ...p,
-        nearbyAmenities: p.nearbyAmenities ?? { cafes: 0, toilets: 0, parking: 0 },
-      }));
-    }
-
-    const withAmenities = await Promise.all(
-      dedupedParks.map(async (park) => {
-        park.nearbyAmenities = await fetchNearbyAmenities(park);
-        return park;
-      })
-    );
-    return withAmenities;
-  } catch (error) {
-    console.error("Error fetching parks:", error);
-    return [];
-  }
-}
-
 // Fetch parks: OSM Overpass only – polygon centroids, accurate for walkers
 // When skipAmenities is true, returns immediately with zeros for amenities (faster first paint)
 // Debounced by 1s so rapid calls (e.g. Fast Refresh) don't hit Overpass repeatedly (429).
@@ -346,7 +312,7 @@ async function fetchNearbyParks(center: Location, radiusKm: number = 3, skipAmen
       const resolvers = overpassDebounceResolvers;
       overpassDebounceResolvers = [];
       try {
-        const result = await fetchNearbyParksActual(args.center, args.radiusKm, args.skipAmenities);
+        const result = await fetchParksFromOverpass(args.center, args.radiusKm);
         resolvers.forEach((r) => r.resolve(result));
       } catch (e) {
         resolvers.forEach((r) => r.reject(e));
@@ -523,7 +489,6 @@ export default function Home() {
   // Map state
   const [mapCenter, setMapCenter] = useState<Location | null>(null);
   const [mapZoom, setMapZoom] = useState(11);
-  const [fitBoundsRequestId, setFitBoundsRequestId] = useState(0);
   const [filterBarCollapsed, setFilterBarCollapsed] = useState(true);
   const filterInactivityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showAvatarDropdown, setShowAvatarDropdown] = useState(false);
@@ -609,19 +574,21 @@ export default function Home() {
     } catch (_) {}
   }, [user]);
 
-  // On first load, use IP geolocation to show nearby parks before user searches
+  // On first load, use IP geolocation to show nearby parks before user searches.
+  // Skip when user has just clicked "Use my location" so we don't overwrite with IP (e.g. Manchester) before GPS returns.
   useEffect(() => {
-    if (viewState !== "map" || userLocation) return;
+    if (viewState !== "map" || userLocation || isLoadingLocation) return;
     async function loadDefaultParks() {
       const ipLocation = await getLocationFromIP();
       if (!ipLocation) return;
+      console.log("[Map debug] IP geolocation: using IP location", { lat: ipLocation.lat, lng: ipLocation.lng });
       setMapCenter(ipLocation);
       setMapZoom(13);
       const nearbyParks = await fetchParksFromOverpass(ipLocation, 3);
       setParks(nearbyParks);
     }
     loadDefaultParks();
-  }, [viewState]);
+  }, [viewState, userLocation, isLoadingLocation]);
 
   // Close avatar dropdown when clicking outside
   useEffect(() => {
@@ -700,25 +667,26 @@ export default function Home() {
       setUserLocation(location);
       setMapCenter(location);
       setMapZoom(14);
-      setFitBoundsRequestId((i) => i + 1);
+      handleSuggestGreenSpaces(location);
     } else {
       setLocationError("Sorry, we couldn't find that location. Please try again or drop a pin on the map.");
     }
     hideSpinner();
   };
 
-  const handleSuggestGreenSpaces = async () => {
-    if (!userLocation) return;
+  const handleSuggestGreenSpaces = async (centerOverride?: Location) => {
+    const center = centerOverride ?? userLocation;
+    if (!center) return;
     parksLoadingStartedRef.current = Date.now();
     setIsLoadingParks(true);
     try {
       // DEBUG: User location and search params (Supabase query does not use location; logged for reference)
       const radiusKm = 3;
       console.log("[handleSuggestGreenSpaces] User lat/lng (for reference; Supabase query does not filter by location):", {
-        lat: userLocation.lat,
-        lng: userLocation.lng,
-        latType: typeof userLocation.lat,
-        lngType: typeof userLocation.lng,
+        lat: center.lat,
+        lng: center.lng,
+        latType: typeof center.lat,
+        lngType: typeof center.lng,
       });
       console.log("[handleSuggestGreenSpaces] Search radius / bounding box:", {
         Supabase: "none – fetches all places, no radius or bbox",
@@ -730,7 +698,7 @@ export default function Home() {
 
       // Fetch parks without amenities first for fast display, then enrich in background
       const [nearby, dbPlaces] = await Promise.all([
-        fetchNearbyParks(userLocation, radiusKm, true), // skipAmenities = true for faster first paint
+        fetchNearbyParks(center, radiusKm, true), // skipAmenities = true for faster first paint
         getPlaces(),
       ]);
 
@@ -742,7 +710,11 @@ export default function Home() {
       console.log("[handleSuggestGreenSpaces] Overpass nearby – count:", nearby?.length ?? 0);
       const minDistanceKm = 0.04;
       const filtered = nearby.filter(
-        (p) => distanceKm(userLocation.lat, userLocation.lng, p.lat, p.lng) > minDistanceKm
+        (p) => distanceKm(center.lat, center.lng, p.lat, p.lng) > minDistanceKm
+      );
+      const MAX_RADIUS_KM = 5;
+      const validParks = filtered.filter(
+        (park) => distanceKm(center.lat, center.lng, park.lat, park.lng) <= MAX_RADIUS_KM
       );
       // If Overpass returned non-OK (e.g. 429), nearby is [] but we still show Supabase places (mappedPlaces) so the map is not empty
       const validDbPlaces = dbPlaces.filter((p) => {
@@ -776,19 +748,18 @@ export default function Home() {
         parking: p.parking,
         user_id: p.user_id,
       }));
-      setParks(filtered);
+      setParks(validParks);
       setUserAddedPlaces(mappedPlaces);
       const elapsed = Date.now() - parksLoadingStartedRef.current;
       const delay = Math.max(0, PARKS_SPINNER_MIN_MS - elapsed);
-      const hadNoResults = filtered.length === 0 && mappedPlaces.length === 0;
+      const hadNoResults = validParks.length === 0 && mappedPlaces.length === 0;
       setTimeout(() => {
         setIsLoadingParks(false);
         if (hadNoResults) setShowNoResultsToast(true);
       }, delay);
 
-      if (filtered.length > 0 || mappedPlaces.length > 0) {
+      if (validParks.length > 0 || mappedPlaces.length > 0) {
         setShowNoResultsToast(false);
-        setFitBoundsRequestId((i) => i + 1);
         // So suggested results are visible: turn off "my places only" and "favourites only"
         setShowOnlyMyPlaces(false);
         setShowOnlyFavourites(false);
@@ -796,9 +767,9 @@ export default function Home() {
       // No extra toast here: the persistent no-results-toast on the map already shows when filteredParks.length === 0
 
       // Enrich Overpass parks with amenities in background (cafes, parking nearby)
-      if (filtered.length > 0) {
+      if (validParks.length > 0) {
         Promise.all(
-          filtered.map(async (p) => {
+          validParks.map(async (p) => {
             const amenities = await fetchNearbyAmenities(p);
             return { ...p, nearbyAmenities: amenities };
           })
@@ -832,6 +803,7 @@ export default function Home() {
     setLocationError(null);
     setViewState("map");
     setMapCenter((c) => c || { lat: 51.5074, lng: -0.1278 });
+    console.log("[Map debug] Use my location: requesting GPS…");
 
     const hideSpinnerAfterMinTime = () => {
       const elapsed = Date.now() - loadingLocationStartedRef.current;
@@ -845,11 +817,12 @@ export default function Home() {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         };
+        console.log("[Map debug] Use my location: got position", { lat: loc.lat, lng: loc.lng });
         setUserLocation(loc);
         setMapCenter(loc);
         setMapZoom(14);
-        setFitBoundsRequestId((i) => i + 1);
         hideSpinnerAfterMinTime();
+        handleSuggestGreenSpaces(loc);
       },
       (err) => {
         hideSpinnerAfterMinTime();
@@ -869,17 +842,12 @@ export default function Home() {
     setMapZoom(14);
     setShowPinDropMap(false);
     setViewState("map");
-    setFitBoundsRequestId((i) => i + 1);
+    handleSuggestGreenSpaces(location);
   };
 
   const handleParkClick = (park: Park) => {
     setSelectedPark(park);
   };
-
-  const handleMapMove = useCallback((center: { lat: number; lng: number }, zoom: number) => {
-    setMapCenter(center);
-    setMapZoom(zoom);
-  }, []);
 
   const handleCloseBottomSheet = () => {
     setSelectedPark(null);
@@ -1194,17 +1162,30 @@ export default function Home() {
     filteredParks = filteredParks.filter((p) => favouriteIds.includes(p.id));
   }
 
-  // Bounds for fitBounds: only when we have pins (so fitBounds runs after fetch, not before)
+  // Bounds for fitBounds: stable request id and bounds (no loop)
+  const fitBoundsRequestId = useMemo((): number => {
+    if (!userLocation) return 0;
+    const nearbyParks = filteredParks.filter(
+      (p) => distanceKm(userLocation.lat, userLocation.lng, p.lat, p.lng) <= 3
+    );
+    if (nearbyParks.length === 0) return 0;
+    return Date.now(); // changes only when parks actually load
+  }, [userLocation?.lat, userLocation?.lng, filteredParks.length]);
+
   const boundsToFit = useMemo((): [Location, Location] | undefined => {
-    if (!userLocation || filteredParks.length === 0) return undefined;
-    const points = [userLocation, ...filteredParks.map((p) => ({ lat: p.lat, lng: p.lng }))];
+    if (!userLocation) return undefined;
+    const nearbyParks = filteredParks.filter(
+      (p) => distanceKm(userLocation.lat, userLocation.lng, p.lat, p.lng) <= 3
+    );
+    if (nearbyParks.length === 0) return undefined;
+    const points = [userLocation, ...nearbyParks.map((p) => ({ lat: p.lat, lng: p.lng }))];
     const lats = points.map((p) => p.lat);
     const lngs = points.map((p) => p.lng);
     return [
       { lat: Math.min(...lats), lng: Math.min(...lngs) },
       { lat: Math.max(...lats), lng: Math.max(...lngs) },
     ];
-  }, [userLocation?.lat, userLocation?.lng, filteredParks]);
+  }, [userLocation?.lat, userLocation?.lng, filteredParks.length]);
 
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
@@ -1887,6 +1868,10 @@ export default function Home() {
             </div>
           </div>
         )}
+        {(() => {
+          console.log("[Map view] boundsToFit:", boundsToFit, "fitBoundsRequestId:", fitBoundsRequestId);
+          return null;
+        })()}
         <MainMap
           center={mapCenter || { lat: 51.5074, lng: -0.1278 }}
           zoom={mapZoom}
@@ -1894,13 +1879,12 @@ export default function Home() {
           userLocation={userLocation}
           selectedPark={selectedPark}
           onParkClick={handleParkClick}
-          onMapMove={handleMapMove}
           filters={filters}
           route={currentRoute}
           boundsToFit={boundsToFit}
           fitBoundsRequestId={fitBoundsRequestId}
-          onMapClick={() => setFitBoundsRequestId((i) => i + 1)}
-          onResultsOutsideViewport={() => setFitBoundsRequestId((i) => i + 1)}
+          onMapClick={() => {}}
+          onResultsOutsideViewport={() => {}}
         />
         {userLocation && filteredParks.length === 0 && !isLoadingParks && showNoResultsToast && (
           <div
@@ -1913,7 +1897,7 @@ export default function Home() {
             </p>
           </div>
         )}
-        {isLoadingParks && (
+        {isLoadingParks && !isLoadingLocation && (
           <div className="absolute inset-0 z-10 flex items-center justify-center">
             <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-md px-6 py-5 flex flex-col items-center gap-3">
               <div

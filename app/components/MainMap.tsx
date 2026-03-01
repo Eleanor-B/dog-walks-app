@@ -25,7 +25,6 @@ type Props = {
   userLocation: Location | null;
   selectedPark?: Park | null;
   onParkClick?: (park: Park) => void;
-  onMapMove?: (center: Location, zoom: number) => void;
   onPinDrop?: (location: Location) => void;
   isPinDropMode?: boolean;
   initialPinDropLocation?: Location | null;
@@ -57,7 +56,6 @@ export default function MainMap({
   userLocation,
   selectedPark,
   onParkClick,
-  onMapMove,
   onPinDrop,
   isPinDropMode = false,
   initialPinDropLocation = null,
@@ -165,22 +163,6 @@ export default function MainMap({
       }
     });
 
-    map.on("moveend", () => {
-      const mapCenter = map.getCenter();
-      const mapZoom = map.getZoom();
-      if (onMapMove) {
-        onMapMove({ lat: mapCenter.lat, lng: mapCenter.lng }, mapZoom);
-      }
-      const currentParks = parksRef.current;
-      const onOut = onResultsOutsideViewportRef.current;
-      if (onOut && currentParks.length > 0) {
-        const bounds = map.getBounds();
-        if (!bounds) return;
-        const anyVisible = currentParks.some((p) => bounds.contains([p.lng, p.lat]));
-        if (!anyVisible) onOut();
-      }
-    });
-
     if (isPinDropMode) {
       map.on("click", (e) => {
         const loc = { lat: e.lngLat.lat, lng: e.lngLat.lng };
@@ -239,18 +221,20 @@ export default function MainMap({
     const bounds = new mapboxgl.LngLatBounds()
       .extend([boundsToFit[0].lng, boundsToFit[0].lat])
       .extend([boundsToFit[1].lng, boundsToFit[1].lat]);
+    console.log("[Map debug] fitBounds", { requestId: fitBoundsRequestId, sw: boundsToFit[0], ne: boundsToFit[1] });
     mapRef.current.fitBounds(bounds, {
-      padding: { top: 80, bottom: 120, left: 60, right: 60 },
+      padding: { top: 120, bottom: 100, left: 60, right: 60 },
       maxZoom: 14,
-      duration: 1000,
+      minZoom: 13,
+      duration: 800,
     });
   }, [fitBoundsRequestId, boundsToFit, mapLoaded, route]);
 
   // Update center (skip in pin-drop mode so the map doesn’t jump when the user moves the pin)
   useEffect(() => {
-    if (!mapRef.current || !center || route || isPinDropMode) return;
+    if (!mapRef.current || !center || route || isPinDropMode || parks.length > 0) return;
     mapRef.current.flyTo({ center: [center.lng, center.lat], zoom, duration: 1000 });
-  }, [center.lat, center.lng, zoom, route, isPinDropMode]);
+  }, [center.lat, center.lng, zoom, route, isPinDropMode, parks.length]);
 
   // Pin drop marker – only mount when we have valid coordinates (avoids rogue marker at 0,0)
   useEffect(() => {
