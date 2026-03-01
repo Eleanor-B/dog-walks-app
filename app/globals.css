@@ -1077,6 +1077,7 @@ h3.filter-label {
 
 .location-or {
   font-size: 13px;
+  font-weight: 600;
   color: var(--color-text);
   font-family: var(--font-outfit), "Outfit", sans-serif;
   flex-shrink: 0;
@@ -1085,6 +1086,7 @@ h3.filter-label {
 .location-search-row .location-use-current {
   width: fit-content;
   min-width: 0;
+  flex: 0 0 auto;
   white-space: nowrap;
   padding: 8px 12px;
   display: flex;
@@ -1100,17 +1102,53 @@ h3.filter-label {
   color: var(--color-icon);
 }
 
-/* Row 2: Find parks nearby – left-aligned, hug contents */
-.location-find-row {
+/* Row: Find green spaces FAB + Add a place FAB – same row on all devices */
+.landing-fab-row {
   margin-top: 20px;
   display: flex;
-  justify-content: flex-start;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
-.location-find-row .btn-primary {
-  width: fit-content;
-  min-width: 0;
-  box-shadow: 0 2px 10px rgba(0, 105, 71, 0.22);
+.find-green-fab {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: var(--radius-button);
+  background: var(--color-primary);
+  color: #FFFFFF;
+  box-shadow: var(--shadow-lg);
+  flex-shrink: 0;
+  margin: 0;
+  border: none;
+  font-family: var(--font-outfit), "Outfit", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.find-green-fab:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: scale(1.05);
+}
+
+.find-green-fab:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.find-green-fab svg,
+.find-green-fab .fab-label {
+  color: #FFFFFF;
 }
 
 .location-error {
@@ -1520,26 +1558,14 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   right: var(--spacing-lg);
   z-index: 99999;
 }
-/* Landing: FAB sticky to bottom of viewport so it stays visible while scrolling, never overlaps footer */
 .landing-top-with-fab {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: stretch;
 }
-.landing-top-with-fab .add-place-fab-float {
-  position: sticky;
-  bottom: 24px;
-  align-self: flex-end;
-  margin-top: -72px;
-  margin-bottom: 24px;
-  margin-right: var(--spacing-lg);
-}
 @media (min-width: 801px) {
   .add-place-fab-float {
-    right: calc(50vw - 400px);
-  }
-  .landing-top-with-fab .add-place-fab-float {
     right: calc(50vw - 400px);
   }
 }
@@ -1557,6 +1583,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   box-shadow: var(--shadow-lg);
   flex-shrink: 0;
   margin: 0;
+  white-space: nowrap;
 }
 
 .add-place-fab-label {

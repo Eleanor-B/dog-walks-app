@@ -1545,15 +1545,41 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="location-find-row">
+              <div className="landing-fab-row">
                 <button
-                  className="btn-primary btn-has-icon-left"
+                  className="find-green-fab"
                   onClick={handleLocationSearch}
                   disabled={isLoadingLocation || !locationInput.trim()}
+                  title="Find green spaces nearby"
+                  aria-label="Find green spaces nearby"
                 >
                   <MagnifyingGlass size={18} weight="bold" />
-                  {isLoadingLocation ? "Finding..." : "Find green spaces nearby"}
+                  <span className="fab-label">
+                    {isLoadingLocation ? "Finding..." : "Find green spaces nearby"}
+                  </span>
                 </button>
+                {!showAddDrawer && (
+                  <button
+                    className={`add-place-fab ${fabPulsing ? "is-pulsing" : ""}`}
+                    onClick={() => {
+                      setFabPulsing(true);
+                      setTimeout(() => {
+                        if (!user) {
+                          setShowLoginPrompt(true);
+                        } else {
+                          setViewState("map");
+                          setShowAddDrawer(true);
+                        }
+                        setFabPulsing(false);
+                      }, 400);
+                    }}
+                    title="Add a place"
+                    aria-label="Add a place"
+                  >
+                    <MapPinPlus size={18} weight="bold" />
+                    <span className="add-place-fab-label">Add a place</span>
+                  </button>
+                )}
               </div>
 
               {locationError && (
@@ -1571,32 +1597,6 @@ export default function Home() {
               )}
             </div>
           </div>
-
-          {/* Add a place – inside top section so it never overlaps footer / Dogs Trust */}
-          {!showAddDrawer && (
-            <div className="add-place-fab-float">
-              <button
-                className={`add-place-fab ${fabPulsing ? "is-pulsing" : ""}`}
-                onClick={() => {
-                  setFabPulsing(true);
-                  setTimeout(() => {
-                    if (!user) {
-                      setShowLoginPrompt(true);
-                    } else {
-                      setViewState("map");
-                      setShowAddDrawer(true);
-                    }
-                    setFabPulsing(false);
-              }, 400);
-            }}
-            title="Add a place"
-            aria-label="Add a place"
-          >
-              <MapPinPlus size={18} weight="bold" />
-              <span className="add-place-fab-label">Add a place</span>
-            </button>
-          </div>
-        )}
           </div>
         </main>
 
