@@ -1554,7 +1554,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 /* Fixed position for "Add a place" FAB – right-aligned with content container (800px), above all UI */
 .add-place-fab-float {
   position: fixed;
-  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  bottom: max(var(--spacing-lg), env(safe-area-inset-bottom, 0px));
   right: var(--spacing-lg);
   z-index: 99999;
 }
@@ -1563,11 +1563,6 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   display: flex;
   flex-direction: column;
   align-items: stretch;
-}
-@media (min-width: 801px) {
-  .add-place-fab-float {
-    right: calc(50vw - 400px);
-  }
 }
 
 .add-place-fab {
