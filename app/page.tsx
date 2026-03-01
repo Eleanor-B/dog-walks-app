@@ -1389,6 +1389,7 @@ export default function Home() {
 
         {/* Main Content */}
         <main className="landing-main">
+          <div className="landing-top-with-fab">
           {/* Hero Section - Figma 435:2604 (mobile) & 435:2816 (desktop) */}
           <div className="hero-section">
             <div className="hero-ellipse" aria-hidden="true" />
@@ -1570,6 +1571,33 @@ export default function Home() {
               )}
             </div>
           </div>
+
+          {/* Add a place – inside top section so it never overlaps footer / Dogs Trust */}
+          {!showAddDrawer && (
+            <div className="add-place-fab-float">
+              <button
+                className={`add-place-fab ${fabPulsing ? "is-pulsing" : ""}`}
+                onClick={() => {
+                  setFabPulsing(true);
+                  setTimeout(() => {
+                    if (!user) {
+                      setShowLoginPrompt(true);
+                    } else {
+                      setViewState("map");
+                      setShowAddDrawer(true);
+                    }
+                    setFabPulsing(false);
+              }, 400);
+            }}
+            title="Add a place"
+            aria-label="Add a place"
+          >
+              <MapPinPlus size={18} weight="bold" />
+              <span className="add-place-fab-label">Add a place</span>
+            </button>
+          </div>
+        )}
+          </div>
         </main>
 
         {/* Pin Drop Map Modal */}
@@ -1630,31 +1658,6 @@ export default function Home() {
               </div>
             </div>
           </>
-        )}
-        {/* Add a place – fixed bottom-right, hidden when drawer is open */}
-        {!showAddDrawer && (
-          <div className="add-place-fab-float">
-            <button
-              className={`add-place-fab ${fabPulsing ? "is-pulsing" : ""}`}
-              onClick={() => {
-                setFabPulsing(true);
-                setTimeout(() => {
-                  if (!user) {
-                    setShowLoginPrompt(true);
-                  } else {
-                    setViewState("map");
-                    setShowAddDrawer(true);
-                  }
-                  setFabPulsing(false);
-              }, 400);
-            }}
-            title="Add a place"
-            aria-label="Add a place"
-          >
-              <MapPinPlus size={18} weight="bold" />
-              <span className="add-place-fab-label">Add a place</span>
-            </button>
-          </div>
         )}
         {/* Cookie Consent */}
         <CookieBanner />

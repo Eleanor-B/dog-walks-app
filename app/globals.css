@@ -1083,9 +1083,8 @@ h3.filter-label {
 }
 
 .location-search-row .location-use-current {
-  flex: 1 1 0%;
+  width: fit-content;
   min-width: 0;
-  width: 0;
   white-space: nowrap;
   padding: 8px 12px;
   display: flex;
@@ -1101,26 +1100,17 @@ h3.filter-label {
   color: var(--color-icon);
 }
 
-/* Row 2: Find parks nearby - consistent spacing from postcode section */
+/* Row 2: Find parks nearby – left-aligned, hug contents */
 .location-find-row {
   margin-top: 20px;
+  display: flex;
+  justify-content: flex-start;
 }
 
 .location-find-row .btn-primary {
-  width: 100%;
+  width: fit-content;
+  min-width: 0;
   box-shadow: 0 2px 10px rgba(0, 105, 71, 0.22);
-}
-
-@media (min-width: 600px) {
-  .location-find-row {
-    padding: 0 24px;
-    display: flex;
-    justify-content: center;
-  }
-  .location-find-row .btn-primary {
-    width: fit-content;
-    min-width: 0;
-  }
 }
 
 .location-error {
@@ -1530,8 +1520,26 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   right: var(--spacing-lg);
   z-index: 99999;
 }
+/* Landing: FAB sticky to bottom of viewport so it stays visible while scrolling, never overlaps footer */
+.landing-top-with-fab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.landing-top-with-fab .add-place-fab-float {
+  position: sticky;
+  bottom: 24px;
+  align-self: flex-end;
+  margin-top: -72px;
+  margin-bottom: 24px;
+  margin-right: var(--spacing-lg);
+}
 @media (min-width: 801px) {
   .add-place-fab-float {
+    right: calc(50vw - 400px);
+  }
+  .landing-top-with-fab .add-place-fab-float {
     right: calc(50vw - 400px);
   }
 }
