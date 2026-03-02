@@ -54,6 +54,9 @@
   --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
   --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
   --shadow-xl: 0 16px 48px rgba(0,0,0,0.15);
+
+  --main-content-max-width: 800px;
+  --main-content-padding-x: var(--spacing-lg);
 }
 
 * { box-sizing: border-box; }
@@ -378,7 +381,7 @@ p { margin: 0; line-height: 1.5; }
   width: auto;
   min-width: 40px;
   height: 40px;
-  padding: 0 10px 0 12px;
+  padding: 0 max(2px, 10px) 0 max(2px, 12px);
   gap: 6px;
 }
 
@@ -470,12 +473,14 @@ p { margin: 0; line-height: 1.5; }
   background: var(--color-card);
 }
 
-/* Main content and donate strip share same width at all breakpoints: max-width 800px, same horizontal padding */
+/* Main content and donate strip use same vars so widths match exactly */
 .landing-main {
   flex: 0 0 auto;
   padding: var(--spacing-lg);
   padding-bottom: var(--spacing-lg);
-  max-width: 800px;
+  padding-left: var(--main-content-padding-x);
+  padding-right: var(--main-content-padding-x);
+  max-width: var(--main-content-max-width);
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
@@ -617,7 +622,7 @@ p { margin: 0; line-height: 1.5; }
   font-size: 15px;
   color: var(--color-text-dark);
   margin-top: var(--spacing-sm);
-  margin-bottom: 0;
+  margin-bottom: 10px;
   font-weight: 500;
 }
 
@@ -680,17 +685,22 @@ p { margin: 0; line-height: 1.5; }
   }
 
   .hero-subtitle {
-    margin-bottom: 0;
+    margin-bottom: 10px;
   }
 }
 
 /* Landing page: tighter padding on mobile */
 @media (max-width: 599px) {
+  :root {
+    --main-content-padding-x: var(--spacing-md);
+  }
   .landing-page .landing-main {
     padding: var(--spacing-md);
+    padding-left: var(--main-content-padding-x);
+    padding-right: var(--main-content-padding-x);
   }
   .footer-donate-strip {
-    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+    padding: var(--spacing-sm) var(--main-content-padding-x) var(--spacing-md);
   }
   .header {
     padding-top: calc(12px + var(--spacing-sm));
@@ -3366,10 +3376,10 @@ textarea:focus {
    ========================= */
 
 .footer-donate-strip {
-  max-width: 800px;
+  max-width: var(--main-content-max-width);
   width: 100%;
   margin: 0 auto;
-  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-md);
+  padding: var(--spacing-sm) var(--main-content-padding-x) var(--spacing-md);
   color: var(--color-primary);
   display: flex;
   align-items: center;
