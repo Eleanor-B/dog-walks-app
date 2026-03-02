@@ -44,6 +44,7 @@ import {
   List,
   SlidersHorizontal,
   Path,
+  ArrowRight,
 } from "@phosphor-icons/react";
 
 // ===== TYPES =====
@@ -457,6 +458,7 @@ export default function Home() {
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [showPinDropMap, setShowPinDropMap] = useState(false);
+  const [showCtaDisabledMessage, setShowCtaDisabledMessage] = useState(false);
 
   // Parks state
   const [parks, setParks] = useState<Park[]>([]);
@@ -868,6 +870,7 @@ export default function Home() {
   };
 
   const handleUseMyLocation = () => {
+    setShowCtaDisabledMessage(false);
     if (!navigator.geolocation) {
       setLocationError("Your browser doesn't support location services.");
       return;
@@ -1288,13 +1291,14 @@ export default function Home() {
                 <div className="avatar-dropdown-wrap" ref={avatarDropdownRef}>
                   <button
                     type="button"
-                    className="avatar-btn"
+                    className="avatar-btn header-menu-btn"
                     onClick={() => setShowAvatarDropdown((v) => !v)}
-                    aria-label="Favourites menu"
+                    aria-label="Menu"
                     aria-expanded={showAvatarDropdown}
                     aria-haspopup="true"
                   >
-                    <PawPrint size={22} weight="fill" />
+                    <span className="header-menu-label">Menu</span>
+                    <List size={20} weight="bold" />
                   </button>
                   {showAvatarDropdown && (
                     <div className="avatar-dropdown">
@@ -1356,13 +1360,14 @@ export default function Home() {
                   <div className="header-burger-wrap" ref={burgerMenuRef}>
                     <button
                       type="button"
-                      className="avatar-btn header-burger-btn"
+                      className="avatar-btn header-menu-btn header-burger-btn"
                       onClick={() => setShowBurgerMenu((v) => !v)}
                       aria-label="Menu"
                       aria-expanded={showBurgerMenu}
                       aria-haspopup="true"
                     >
-                      <List size={22} weight="bold" />
+                      <span className="header-menu-label">Menu</span>
+                      <List size={20} weight="bold" />
                     </button>
                     {showBurgerMenu && (
                       <div className="avatar-dropdown header-burger-dropdown">
@@ -1418,62 +1423,144 @@ export default function Home() {
                 <span className="hero-title-accent">Find great places</span> to walk your dog
               </h1>
               <p className="hero-subtitle">
-                Discover parks, green spaces and the facilities you need
+              Find, save and share the best places to walk your dog
               </p>
             </div>
           </div>
 
-          {/* Search Card - postcode, or, two buttons, primary, Add a place link */}
+          {/* Search Card - order: Use my location, divider, postcode+arrow, Filter by facility, chips, CTA */}
           <div className="search-card">
             <div className="location-inputs">
-              {/* Postcode input - full width */}
-              <div className="search-input-with-icon landing-search-input-full">
+              {/* 1. Use my current location - full width */}
+              <button
+                type="button"
+                className="landing-use-location-btn"
+                onClick={handleUseMyLocation}
+                disabled={isLoadingLocation}
+              >
+                <Crosshair size={18} weight="bold" />
+                {isLoadingLocation ? "Finding..." : "Use my current location"}
+              </button>
+
+              {/* 2. Divider: Or search by name or postcode */}
+              <div className="landing-divider" aria-hidden="true">
+                <span className="landing-divider-line" />
+                <span className="landing-divider-label">Or search by name or postcode</span>
+                <span className="landing-divider-line" />
+              </div>
+
+              {/* 3. Postcode input with arrow button */}
+              <div className="search-input-with-icon landing-search-with-arrow">
                 <div className="search-input-icon-container" aria-hidden>
                   <CursorText size={20} weight="bold" />
                 </div>
                 <input
                   type="text"
-                  placeholder="Enter postcode or area name"
+                  placeholder="Postcode or area e.g. SE22"
                   value={locationInput}
-                  onChange={(e) => setLocationInput(e.target.value)}
+                  onChange={(e) => {
+                    setLocationInput(e.target.value);
+                    setShowCtaDisabledMessage(false);
+                  }}
                   onKeyDown={(e) => e.key === "Enter" && handleLocationSearch()}
                   className="search-input"
                 />
-              </div>
-
-              {/* or divider */}
-              <div className="location-or-standalone" aria-hidden="true">
-                <span className="location-or-line" />
-                <span className="location-or">or</span>
-                <span className="location-or-line" />
-              </div>
-
-              {/* Two buttons: Use my location | Filters (N) - 50% each */}
-              <div className="landing-two-buttons-row">
-                <button
-                  className="btn-secondary location-use-current landing-half-btn"
-                  onClick={handleUseMyLocation}
-                  disabled={isLoadingLocation}
-                >
-                  <Crosshair size={18} weight="bold" />
-                  {isLoadingLocation ? "Finding..." : "Use my location"}
-                </button>
                 <button
                   type="button"
-                  className="btn-secondary landing-filters-btn landing-half-btn"
-                  onClick={() => setShowFiltersDrawer(true)}
-                  aria-label={activeFilterCount > 0 ? `Filters (${activeFilterCount} active)` : "Filters"}
+                  className="search-input-arrow-btn"
+                  onClick={handleLocationSearch}
+                  aria-label="Search"
                 >
-                  <SlidersHorizontal size={18} weight="bold" />
-                  {activeFilterCount > 0 ? `Filters (${activeFilterCount})` : "Filters"}
+                  <ArrowRight size={16} weight="bold" />
                 </button>
               </div>
 
-              {/* Find green spaces nearby - full width primary; Add a place - small link (desktop: same row) */}
-              <div className="landing-primary-row">
+              {/* 4. Divider: Filter by facility */}
+              <div className="landing-divider" aria-hidden="true">
+                <span className="landing-divider-line" />
+                <span className="landing-divider-label">Filter by facility</span>
+                <span className="landing-divider-line" />
+              </div>
+
+              {/* 5. Filter chips - wrapping row */}
+              <div className="landing-filter-chips">
                 <button
+                  className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
+                  onClick={() => setFilters({ ...filters, fenced: !filters.fenced })}
+                >
+                  <Barricade size={16} weight="bold" />
+                  Fenced
+                </button>
+                <button
+                  className={`filter-chip ${filters.unfenced ? "is-on" : ""}`}
+                  onClick={() => setFilters({ ...filters, unfenced: !filters.unfenced })}
+                >
+                  <ArrowsOut size={16} weight="bold" />
+                  Unfenced
+                </button>
+                <button
+                  className={`filter-chip ${filters.partFenced ? "is-on" : ""}`}
+                  onClick={() => setFilters({ ...filters, partFenced: !filters.partFenced })}
+                >
+                  <CircleHalf size={16} weight="bold" />
+                  Part-fenced
+                </button>
+                <button
+                  className={`filter-chip ${filters.bins ? "is-on" : ""}`}
+                  onClick={() => setFilters({ ...filters, bins: !filters.bins })}
+                >
+                  <TrashSimple size={16} weight="bold" />
+                  Dog bins
+                </button>
+                <button
+                  className={`filter-chip ${filters.parking ? "is-on" : ""}`}
+                  onClick={() => setFilters({ ...filters, parking: !filters.parking })}
+                >
+                  <Car size={16} weight="bold" />
+                  Parking
+                </button>
+                <button
+                  className={`filter-chip ${filters.toilets ? "is-on" : ""}`}
+                  onClick={() => setFilters({ ...filters, toilets: !filters.toilets })}
+                >
+                  <Toilet size={16} weight="bold" />
+                  Toilets
+                </button>
+                <button
+                  className={`filter-chip ${filters.coffee ? "is-on" : ""}`}
+                  onClick={() => setFilters({ ...filters, coffee: !filters.coffee })}
+                >
+                  <Coffee size={16} weight="bold" />
+                  Coffee
+                </button>
+                <button
+                  className={`filter-chip ${filters.onLeadOnly ? "is-on" : ""}`}
+                  onClick={() => setFilters({ ...filters, onLeadOnly: !filters.onLeadOnly })}
+                >
+                  <Path size={16} weight="bold" />
+                  On lead only
+                </button>
+              </div>
+
+              {/* 6. Find green spaces nearby CTA */}
+              {showCtaDisabledMessage && (
+                <p className="cta-disabled-message" role="alert">
+                  Please enter a location or use your current location first
+                </p>
+              )}
+              <div
+                className="landing-cta-wrap"
+                onClick={() => {
+                  if (!locationInput.trim() && !isLoadingLocation) setShowCtaDisabledMessage(true);
+                }}
+              >
+                <button
+                  type="button"
                   className="find-green-fab landing-find-btn"
-                  onClick={handleLocationSearch}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isLoadingLocation && locationInput.trim()) handleLocationSearch();
+                  }}
                   disabled={isLoadingLocation || !locationInput.trim()}
                   title="Find green spaces nearby"
                   aria-label="Find green spaces nearby"
@@ -1482,27 +1569,6 @@ export default function Home() {
                   <span className="fab-label">
                     {isLoadingLocation ? "Finding..." : "Find green spaces nearby"}
                   </span>
-                </button>
-                <button
-                  type="button"
-                  className="add-place-link"
-                  onClick={() => {
-                    setFabPulsing(true);
-                    setTimeout(() => {
-                      if (!user) {
-                        setShowLoginPrompt(true);
-                      } else {
-                        setViewState("map");
-                        setShowAddDrawer(true);
-                      }
-                      setFabPulsing(false);
-                    }, 400);
-                  }}
-                  title="Add a place"
-                  aria-label="Add a place"
-                >
-                  <Plus size={16} weight="bold" />
-                  Add a place
                 </button>
               </div>
 
@@ -1522,116 +1588,6 @@ export default function Home() {
             </div>
           </div>
           </div>
-
-          {/* Filters drawer - slides up from bottom */}
-          {showFiltersDrawer && (
-            <>
-              <div className="drawer-overlay" onClick={() => setShowFiltersDrawer(false)} aria-hidden="true" />
-              <div className="drawer filters-drawer" role="dialog" aria-labelledby="filters-drawer-title" aria-modal="true">
-                <div className="filters-drawer-header">
-                  <h2 id="filters-drawer-title" className="filter-label">Select facilities</h2>
-                  <button
-                    type="button"
-                    className="filters-drawer-close"
-                    onClick={() => setShowFiltersDrawer(false)}
-                    aria-label="Close"
-                  >
-                    <X size={24} weight="bold" />
-                  </button>
-                </div>
-                <div className="filters-drawer-content">
-                  <div className="filters-drawer-chips">
-                    <button
-                      className={`filter-chip ${filters.fenced ? "is-on" : ""}`}
-                      onClick={() => setFilters({ ...filters, fenced: !filters.fenced })}
-                    >
-                      <Barricade size={16} weight="bold" />
-                      Fenced
-                    </button>
-                    <button
-                      className={`filter-chip ${filters.unfenced ? "is-on" : ""}`}
-                      onClick={() => setFilters({ ...filters, unfenced: !filters.unfenced })}
-                    >
-                      <ArrowsOut size={16} weight="bold" />
-                      Unfenced
-                    </button>
-                    <button
-                      className={`filter-chip ${filters.partFenced ? "is-on" : ""}`}
-                      onClick={() => setFilters({ ...filters, partFenced: !filters.partFenced })}
-                    >
-                      <CircleHalf size={16} weight="bold" />
-                      Part-fenced
-                    </button>
-                    <button
-                      className={`filter-chip ${filters.bins ? "is-on" : ""}`}
-                      onClick={() => setFilters({ ...filters, bins: !filters.bins })}
-                    >
-                      <TrashSimple size={16} weight="bold" />
-                      Dog bins
-                    </button>
-                    <button
-                      className={`filter-chip ${filters.parking ? "is-on" : ""}`}
-                      onClick={() => setFilters({ ...filters, parking: !filters.parking })}
-                    >
-                      <Car size={16} weight="bold" />
-                      Parking
-                    </button>
-                    <button
-                      className={`filter-chip ${filters.toilets ? "is-on" : ""}`}
-                      onClick={() => setFilters({ ...filters, toilets: !filters.toilets })}
-                    >
-                      <Toilet size={16} weight="bold" />
-                      Toilets
-                    </button>
-                    <button
-                      className={`filter-chip ${filters.coffee ? "is-on" : ""}`}
-                      onClick={() => setFilters({ ...filters, coffee: !filters.coffee })}
-                    >
-                      <Coffee size={16} weight="bold" />
-                      Coffee
-                    </button>
-                    <button
-                      className={`filter-chip ${filters.onLeadOnly ? "is-on" : ""}`}
-                      onClick={() => setFilters({ ...filters, onLeadOnly: !filters.onLeadOnly })}
-                    >
-                      <Path size={16} weight="bold" />
-                      On lead only
-                    </button>
-                  </div>
-                  {user && (
-                    <label className="my-favourites-toggle filters-drawer-favourites">
-                      <span
-                        className={`my-favourites-toggle-icon ${showFavouritesBigPulse ? "my-favourites-toggle-icon-big-pulse" : ""}`}
-                        onAnimationEnd={() => setShowFavouritesBigPulse(false)}
-                      >
-                        <Heart size={18} weight="fill" />
-                      </span>
-                      <span className="my-favourites-toggle-label">My favourites</span>
-                      <input
-                        type="checkbox"
-                        checked={showOnlyMyPlaces}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setShowOnlyMyPlaces(checked);
-                          if (checked) setShowFavouritesBigPulse(true);
-                        }}
-                        className="my-favourites-toggle-input"
-                        aria-label="Show only my added places"
-                      />
-                      <span className="my-favourites-toggle-slider" />
-                    </label>
-                  )}
-                  <button
-                    type="button"
-                    className="btn-primary filters-drawer-done"
-                    onClick={() => setShowFiltersDrawer(false)}
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
         </main>
 
         {/* Pin Drop Map Modal */}

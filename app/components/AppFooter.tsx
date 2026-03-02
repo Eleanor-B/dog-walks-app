@@ -19,7 +19,7 @@ export default function AppFooter({ showDonateStrip = true }: AppFooterProps) {
               rel="noopener noreferrer"
               className="footer-donate"
             >
-              <Heart size={14} weight="fill" className="footer-donate-icon" />
+              <Heart size={14} weight="fill" className="footer-donate-icon footer-donate-heart" />
               Support Dogs Trust
             </a>
           </div>
