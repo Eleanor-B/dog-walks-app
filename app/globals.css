@@ -604,6 +604,13 @@ p { margin: 0; line-height: 1.5; }
   margin-bottom: 34px;
 }
 
+/* Small viewports: extra bottom space so subtitle isn’t hidden by overlapping search card */
+@media (max-width: 768px) {
+  .landing-page .hero-content {
+    margin-bottom: 44px;
+  }
+}
+
 .hero-title {
   font-family: var(--font-fraunces), "Fraunces", serif;
   font-weight: 600;
