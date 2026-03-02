@@ -469,12 +469,12 @@ p { margin: 0; line-height: 1.5; }
   flex-direction: column;
   align-items: center;
   text-align: left;
-  margin-bottom: var(--spacing-lg);
-  padding: var(--spacing-sm) var(--spacing-lg);
-  border-radius: var(--radius-lg);
+  margin-bottom: 0;
+  padding: 0 var(--spacing-lg) 0;
+  border-radius: 28px 28px 0 0;
   position: relative;
   overflow: hidden;
-  /* Gradient: medium lime top → lighter pale green bottom */
+  /* Gradient: medium lime top → lighter pale green bottom; square bottom so white card overlaps */
   background: linear-gradient(180deg, #9EFF77 0%, #C6FFB0 45%, #D8FFCC 100%);
 }
 
@@ -610,8 +610,8 @@ p { margin: 0; line-height: 1.5; }
     flex-direction: row;
     align-items: center;
     gap: var(--spacing-xl);
-    margin-bottom: var(--spacing-lg);
-    padding: var(--spacing-sm) var(--spacing-lg);
+    margin-bottom: 0;
+    padding: 0 var(--spacing-lg) 0;
     /* Soft glow orb: bottom-left only (top-right removed) */
     background: radial-gradient(ellipse 100% 100% at 0% 100%, rgba(255, 255, 230, 0.4) 0%, transparent 55%),
       linear-gradient(180deg, #9EFF77 0%, #C6FFB0 40%, #D8FFCC 100%);
@@ -685,8 +685,8 @@ p { margin: 0; line-height: 1.5; }
     padding-right: 0;
   }
   .landing-page .hero-section {
-    padding: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-md) 0;
+    margin-bottom: 0;
   }
   /* Dog 8% smaller on mobile so hero feels less big */
   .landing-page .hero-image {
@@ -699,19 +699,23 @@ p { margin: 0; line-height: 1.5; }
     height: clamp(254px, 47vw, 350px);
   }
   .landing-page .search-card {
-    padding: var(--spacing-md);
+    padding: 24px var(--spacing-md) var(--spacing-md);
   }
   .landing-page .footer-inner {
     padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg);
   }
 }
 
-/* Search Card - equal padding on all sides */
+/* Search Card - white, overlaps hero with rounded top; full rounded corners */
 .search-card {
-  background: #C6FFB0;
-  border-radius: var(--radius-lg);
+  background: #ffffff;
+  border-radius: 28px;
   padding: 24px;
-  box-shadow: var(--shadow-md);
+  padding-top: 24px;
+  margin-top: -24px;
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 -4px 24px rgba(0, 80, 0, 0.08);
 }
 
 .filter-section-header-row {
