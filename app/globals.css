@@ -721,7 +721,7 @@ p { margin: 0; line-height: 1.5; }
   .landing-page .hero-image {
     width: clamp(234px, 43.7vw, 297px);
     height: clamp(234px, 43.7vw, 297px);
-    margin-bottom: 48px;
+    margin-bottom: 12px;
   }
   .landing-page .hero-image::before {
     width: clamp(254px, 47vw, 350px);
