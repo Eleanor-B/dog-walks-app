@@ -1521,6 +1521,7 @@ export default function Home() {
               )}
             </div>
           </div>
+          </div>
 
           {/* Filters drawer - slides up from bottom */}
           {showFiltersDrawer && (
@@ -1631,7 +1632,6 @@ export default function Home() {
               </div>
             </>
           )}
-          </div>
         </main>
 
         {/* Pin Drop Map Modal */}
