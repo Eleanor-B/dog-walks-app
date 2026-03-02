@@ -470,6 +470,7 @@ p { margin: 0; line-height: 1.5; }
   background: var(--color-card);
 }
 
+/* Main content and donate strip share same width at all breakpoints: max-width 800px, same horizontal padding */
 .landing-main {
   flex: 0 0 auto;
   padding: var(--spacing-lg);
@@ -477,6 +478,7 @@ p { margin: 0; line-height: 1.5; }
   max-width: 800px;
   margin: 0 auto;
   width: 100%;
+  box-sizing: border-box;
 }
 
 /* Hero Section - mobile: single column centred; desktop 769px+: two columns */
@@ -594,7 +596,7 @@ p { margin: 0; line-height: 1.5; }
   width: 100%;
   max-width: 100%;
   margin-top: var(--spacing-sm);
-  margin-bottom: 16px;
+  margin-bottom: 34px;
 }
 
 .hero-title {
@@ -614,7 +616,7 @@ p { margin: 0; line-height: 1.5; }
   font-family: var(--font-outfit), "Outfit", sans-serif;
   font-size: 15px;
   color: var(--color-text-dark);
-  margin-top: var(--spacing-md);
+  margin-top: var(--spacing-sm);
   margin-bottom: 0;
   font-weight: 500;
 }
@@ -688,8 +690,7 @@ p { margin: 0; line-height: 1.5; }
     padding: var(--spacing-md);
   }
   .footer-donate-strip {
-    padding-left: var(--spacing-md);
-    padding-right: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
   }
   .header {
     padding-top: calc(12px + var(--spacing-sm));
